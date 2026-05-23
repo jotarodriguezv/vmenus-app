@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+		<title>Cargando menú...</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+
+		<style>
+			/* ── VARIABLES BASE ──────────────────────────────────────────
+				Cada restaurante sobreescribe estas desde loader.js usando document.documentElement.style.setProperty()
+			*/
+			:root {
+				--primary:   #cdfefe;
+				--secondary: #a374af;
+				--accent:    #cdfefe;
+				--accent2:   #a374af;
+				--dark:      #0a0a0f;
+				--surface:   #12111a;
+				--card:      #1a1825;
+				--card-hover:#221f30;
+				--border:    #2a2640;
+				--text:      #f0edf8;
+				--text-muted:#8a82a0;
+				--text-dim:  #4a4560;
+				--radius:    12px;
+				--font-titulo: inherit;
+				--font-cuerpo: inherit;
+			}
+
+			* { 
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+				-webkit-tap-highlight-color: transparent; 
+			}
+			
+			html { 
+				scroll-behavior: smooth; 
+			}
+
+			body {
+				background-color: var(--dark);
+				color: var(--text);
+				font-family: var(--font-cuerpo, 'system-ui', sans-serif);
+				font-size: 14px;
+				min-height: 100vh;
+				overflow-x: hidden;
+			}
+
+			/* Overlay oscuro sobre la imagen de fondo */
+			body::before {
+				content: '';
+				position: fixed; inset: 0;
+				background: rgba(10, 10, 15, 0.82);
+				z-index: 0;
+				pointer-events: none;
+			}
+
+			/* Todo el contenido por encima del overlay */
+			.header, .nav-sticky, main, .footer,
+			.social-bar, .scroll-top { 
+				position: relative; 
+				z-index: 1; 
+			}
+
+			/* ══════════════════════════════════════════════════════════
+			   TEMA: TOPNAV  (nav horizontal sticky — ej: Bonzas)
+			   Se activa cuando atributos.nav = 'topnav' (default)
+			══════════════════════════════════════════════════════════ */
+
+			/* Header hero centrado */
+			.header-hero {
+				position: relative;
+				width: 100%;
+				padding: 36px 20px 24px;
+				text-align: center;
+				background: linear-gradient(180deg, rgba(10,10,15,0.6) 0%, transparent 100%);
+			}
+			.hero-logo {
+				width: 90px; height: 90px;
+				object-fit: contain;
+				border-radius: 50%;
+				border: 2px solid var(--primary);
+				margin-bottom: 10px;
+				box-shadow: 0 0 28px rgba(205,254,254,0.18), 0 0 60px rgba(205,254,254,0.12);
+			}
+			.hero-title {
+				font-family: var(--font-titulo, inherit);
+				font-size: 42px;
+				letter-spacing: 5px;
+				color: var(--primary);
+				line-height: 1;
+			}
+			.hero-sub {
+				font-size: 11px;
+				color: var(--accent2);
+				letter-spacing: 3px;
+				text-transform: uppercase;
+				margin-top: 4px;
+			}
+
+			/* Nav horizontal */
+			.nav-sticky {
+				position: sticky; top: 0; z-index: 100;
+				background: rgba(10,10,15,0.92);
+				backdrop-filter: blur(12px);
+				border-bottom: 1px solid var(--border);
+			}
+			.nav-scroll {
+				display: flex;
+				overflow-x: auto;
+				scrollbar-width: none;
+				gap: 4px;
+				padding: 10px 12px;
+			}
+			.nav-scroll::-webkit-scrollbar { display: none; }
+			.nav-btn {
+				flex-shrink: 0;
+				padding: 7px 14px;
+				border-radius: 20px;
+				border: 1px solid var(--border);
+				background: transparent;
+				color: var(--text-muted);
+				font-size: 12px;
+				font-weight: 500;
+				cursor: pointer;
+				white-space: nowrap;
+				transition: all 0.2s;
+			}
+			.nav-btn.active {
+				border-color: var(--primary);
+				color: var(--primary);
+				box-shadow: 0 0 10px rgba(205,254,254,0.18);
+			}
+
+			/* ══════════════════════════════════════════════════════════
+			   TEMA: SIDEBAR  (nav lateral hamburguesa — ej: Malparados)
+			   Se activa cuando atributos.nav = 'sidebar'
+			══════════════════════════════════════════════════════════ */
+
+			/* Header fijo */
+			.header-fixed {
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 60px;
+				background: var(--surface);
+				border-bottom: 2px solid var(--primary);
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 0 16px;
+				z-index: 100;
+			}
+			.menu-toggle {
+				background: none; border: none;
+				color: var(--primary);
+				font-size: 24px; cursor: pointer;
+				display: flex; flex-direction: column;
+				gap: 4px; padding: 8px;
+			}
+			.menu-toggle span {
+				display: block;
+				width: 24px; height: 3px;
+				background: var(--primary);
+				border-radius: 2px;
+			}
+			.logo-header {
+				font-family: var(--font-titulo, inherit);
+				font-size: 22px;
+				color: var(--primary);
+				letter-spacing: 2px;
+				text-transform: uppercase;
+			}
+
+			/* Sidebar */
+			.sidebar {
+				position: fixed;
+				left: -100%; top: 0;
+				width: 75%; max-width: 300px;
+				height: 100vh;
+				background: rgba(10,10,15,0.98);
+				backdrop-filter: blur(10px);
+				border-right: 2px solid var(--primary);
+				z-index: 200;
+				transition: left 0.3s cubic-bezier(0.4,0,0.2,1);
+				overflow-y: auto;
+				padding-top: 60px;
+			}
+			.sidebar.open { left: 0; }
+			.sidebar-header {
+				padding: 20px 16px;
+				border-bottom: 1px solid var(--border);
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+			}
+			.sidebar-title {
+				font-family: var(--font-titulo, inherit);
+				font-size: 18px;
+				color: var(--primary);
+				text-transform: uppercase;
+			}
+			.close-menu {
+				background: none; border: none;
+				color: var(--text);
+				font-size: 24px; cursor: pointer;
+			}
+			.sidebar-nav { display: flex; flex-direction: column; }
+			.sidebar-link {
+				padding: 16px 20px;
+				border-bottom: 1px solid var(--border);
+				color: var(--text);
+				text-decoration: none;
+				font-weight: 600;
+				font-size: 14px;
+				text-transform: uppercase;
+				cursor: pointer;
+				background: transparent;
+				border-left: none; border-right: none; border-top: none;
+				width: 100%; text-align: left;
+				transition: all 0.2s;
+			}
+			.sidebar-link:hover, .sidebar-link.active {
+				background: rgba(205,254,254,0.1);
+				color: var(--primary);
+				border-left: 4px solid var(--primary);
+				padding-left: 16px;
+			}
+			.overlay {
+				position: fixed; inset: 0;
+				background: rgba(0,0,0,0.7);
+				z-index: 150;
+				opacity: 0; pointer-events: none;
+				transition: opacity 0.3s;
+			}
+			.overlay.open { opacity: 1; pointer-events: all; }
+
+			/* ══════════════════════════════════════════════════════════
+			   COMPONENTES COMPARTIDOS (ambos temas)
+			══════════════════════════════════════════════════════════ */
+
+			/* Área principal */
+			main {
+				padding: 20px 12px 100px;
+				max-width: 720px;
+				margin: 0 auto;
+			}
+			main.with-fixed-header { margin-top: 60px; }
+
+			/* Categoría */
+			.category-section { margin-bottom: 36px; }
+			.category-header {
+				display: flex; align-items: center;
+				gap: 12px; margin-bottom: 16px;
+			}
+			.category-title {
+				font-family: var(--font-titulo, inherit);
+				font-size: 24px;
+				color: var(--primary);
+				text-transform: uppercase;
+				white-space: nowrap;
+			}
+			.category-line {
+				flex: 1; height: 1px;
+				background: linear-gradient(90deg, var(--accent2) 0%, transparent 100%);
+				opacity: 0.4;
+			}
+
+			/* Grid */
+			.products-grid {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 10px;
+			}
+			@media (min-width: 600px) {
+				.products-grid { grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+			}
+
+			/* Card */
+			.product-card {
+				background: var(--card);
+				border-radius: var(--radius);
+				overflow: hidden;
+				border: 1px solid var(--border);
+				cursor: pointer;
+				transition: transform 0.18s, border-color 0.18s;
+			}
+			.product-card:active { transform: scale(0.97); }
+			.product-card.has-img:hover { border-color: var(--primary); }
+			.card-img-wrap {
+				position: relative; width: 100%;
+				aspect-ratio: 1/1;
+				background: var(--surface); overflow: hidden;
+			}
+			.card-img {
+				width: 100%; height: 100%;
+				object-fit: cover; transition: transform 0.3s;
+			}
+			.product-card:active .card-img { transform: scale(1.04); }
+			.no-img-placeholder {
+				width: 100%; height: 100%;
+				display: flex; align-items: center; justify-content: center;
+				background: linear-gradient(135deg, var(--surface), var(--card-hover));
+			}
+			.no-img-placeholder svg { opacity: 0.2; }
+			.card-body { padding: 10px 10px 12px; }
+			.card-name {
+				font-family: var(--font-titulo, inherit);
+				font-size: 14px; color: var(--text);
+				margin-bottom: 4px; line-height: 1.2;
+			}
+			.card-price { font-size: 13px; font-weight: 600; color: var(--primary); }
+
+			/* Lista (sin fotos) */
+			.products-list {
+				display: flex; flex-direction: column;
+				gap: 1px;
+				background: var(--border);
+				border-radius: var(--radius); overflow: hidden;
+			}
+			.list-item {
+				display: flex;
+				justify-content: space-between; align-items: center;
+				background: var(--card);
+				padding: 12px 14px; gap: 8px;
+				cursor: pointer; transition: background 0.2s;
+			}
+			.list-item:hover { background: var(--card-hover); }
+			.list-name { font-size: 13px; color: var(--text); flex: 1; }
+			.list-desc-avanzada { display: block; font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+			.list-price { font-size: 13px; color: var(--accent2); font-weight: 500; white-space: nowrap; }
+
+			/* Modal */
+			.modal-overlay {
+				position: fixed; inset: 0;
+				background: rgba(0,0,0,0.85);
+				z-index: 500;
+				display: flex; align-items: flex-end;
+				opacity: 0; pointer-events: none;
+				transition: opacity 0.25s;
+			}
+			.modal-overlay.open { opacity: 1; pointer-events: all; }
+			.modal-sheet {
+				width: 100%; max-height: 88vh;
+				background: var(--surface);
+				border-radius: 20px 20px 0 0;
+				overflow: hidden;
+				display: flex; flex-direction: column;
+				transform: translateY(100%);
+				transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+			}
+			.modal-overlay.open .modal-sheet { transform: translateY(0); }
+			@media (min-width: 600px) {
+				.modal-overlay { align-items: center; }
+				.modal-sheet {
+					max-width: 480px; margin: 0 auto;
+					border-radius: 20px;
+					transform: translateY(20px);
+				}
+			}
+			.modal-img-wrap {
+				position: relative; width: 100%;
+				aspect-ratio: 4/3;
+				background: var(--card); flex-shrink: 0; overflow: hidden;
+			}
+			.modal-img {
+				width: 100%; height: 100%;
+				object-fit: cover; cursor: zoom-in; transition: transform 0.3s;
+			}
+			.modal-img-wrap:active .modal-img { transform: scale(1.03); }
+			.modal-no-img {
+				width: 100%; height: 100%;
+				display: flex; align-items: center; justify-content: center;
+				background: linear-gradient(135deg, var(--card), var(--card-hover));
+			}
+			.modal-close-btn {
+				position: absolute; top: 12px; right: 12px;
+				width: 36px; height: 36px; border-radius: 50%;
+				background: rgba(0,0,0,0.6);
+				border: none; color: white;
+				font-size: 18px; cursor: pointer;
+				display: flex; align-items: center; justify-content: center;
+				z-index: 10; backdrop-filter: blur(4px);
+			}
+			.modal-nav {
+				position: absolute; top: 50%; transform: translateY(-50%);
+				width: 36px; height: 36px;
+				background: rgba(0,0,0,0.55);
+				border: 1px solid rgba(255,255,255,0.15);
+				border-radius: 50%; color: white;
+				font-size: 16px; cursor: pointer;
+				display: flex; align-items: center; justify-content: center;
+				z-index: 10; backdrop-filter: blur(4px);
+			}
+			.modal-nav-prev { left: 10px; }
+			.modal-nav-next { right: 10px; }
+			.modal-body { padding: 18px 20px 28px; overflow-y: auto; flex: 1; }
+			.modal-name {
+				font-family: var(--font-titulo, inherit);
+				font-size: 26px; color: var(--primary);
+				margin-bottom: 4px; line-height: 1.1;
+			}
+			.modal-desc-avanzada {
+				font-size: 11px; color: var(--accent2);
+				letter-spacing: 0.5px; margin-bottom: 6px;
+			}
+			.modal-price { font-size: 20px; font-weight: 600; color: var(--accent2); margin-bottom: 12px; }
+			.modal-desc { font-size: 13px; line-height: 1.65; color: var(--text-muted); }
+			.modal-counter { text-align: center; font-size: 11px; color: var(--text-dim); margin-top: 14px; letter-spacing: 1px; }
+
+			/* Carrusel modal */
+			.modal-carousel { position: relative; width: 100%; height: 100%; overflow: hidden; }
+			.carousel-track { display: flex; height: 100%; transition: transform 0.3s ease; }
+			.carousel-slide { flex-shrink: 0; width: 100%; height: 100%; }
+			.carousel-slide img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+			.carousel-dots {
+				position: absolute; bottom: 8px; left: 0; right: 0;
+				display: flex; justify-content: center; gap: 5px; z-index: 5;
+			}
+			.carousel-dot {
+				width: 6px; height: 6px; border-radius: 50%;
+				background: rgba(255,255,255,0.4); cursor: pointer; transition: background 0.2s;
+			}
+			.carousel-dot.active { background: var(--primary); }
+
+			/* Lightbox */
+			.lightbox {
+				position: fixed; inset: 0;
+				background: rgba(0,0,0,0.95); z-index: 900;
+				display: flex; align-items: center; justify-content: center;
+				opacity: 0; pointer-events: none; transition: opacity 0.2s;
+			}
+			.lightbox.open { opacity: 1; pointer-events: all; }
+			.lightbox img { max-width: 95vw; max-height: 90vh; object-fit: contain; border-radius: 8px; }
+			.lightbox-close {
+				position: absolute; top: 16px; right: 16px;
+				width: 40px; height: 40px; border-radius: 50%;
+				background: rgba(255,255,255,0.1); border: none;
+				color: white; font-size: 20px; cursor: pointer;
+				display: flex; align-items: center; justify-content: center;
+			}
+
+			/* Promo modal */
+			.promo-overlay {
+				position: fixed; inset: 0;
+				background: rgba(0,0,0,0.88); z-index: 800;
+				display: flex; align-items: center; justify-content: center;
+				padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.35s;
+			}
+			.promo-overlay.open { opacity: 1; pointer-events: all; }
+			.promo-box {
+				position: relative; width: 100%; max-width: 380px;
+				transform: scale(0.88); transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+			}
+			.promo-overlay.open .promo-box { transform: scale(1); }
+			.promo-img { width: 100%; border-radius: 16px; display: block; }
+			.promo-close {
+				position: absolute; top: -14px; right: -14px;
+				width: 36px; height: 36px; border-radius: 50%;
+				background: var(--primary); border: none; color: white;
+				font-size: 18px; cursor: pointer;
+				display: flex; align-items: center; justify-content: center;
+			}
+
+			/* Scroll top */
+			.scroll-top {
+				position: fixed; bottom: 20px; right: 16px;
+				width: 42px; height: 42px; border-radius: 50%;
+				background: var(--accent2); border: none; color: white;
+				font-size: 18px; cursor: pointer;
+				display: flex; align-items: center; justify-content: center;
+				opacity: 0; transform: translateY(10px);
+				transition: opacity 0.25s, transform 0.25s; z-index: 200;
+			}
+			.scroll-top.visible { opacity: 1; transform: translateY(0); }
+
+			/* Barra social */
+			.social-bar {
+				position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+				z-index: 200; display: flex; gap: 8px;
+				background: rgba(18,17,26,0.82);
+				backdrop-filter: blur(14px);
+				border: 1px solid var(--border);
+				border-radius: 40px; padding: 10px 18px;
+			}
+			.social-btn {
+				display: flex; flex-direction: column;
+				align-items: center; gap: 4px;
+				padding: 6px 12px; border-radius: 24px;
+				color: var(--text-muted); text-decoration: none;
+				transition: color 0.2s, background 0.2s;
+			}
+			.social-btn svg { width: 22px; height: 22px; }
+			.social-btn span { font-size: 10px; letter-spacing: 0.5px; }
+			.social-btn:hover, .social-btn:active { color: var(--primary); }
+			/* cuando hay barra social, subir scroll-top */
+			body:has(.social-bar) .scroll-top { bottom: 90px; }
+
+			/* Footer */
+			.footer {
+				text-align: center; padding: 20px;
+				font-size: 11px; color: var(--text-dim); letter-spacing: 1px;
+			}
+		</style>
+	</head>
+	<body>
+
+		<!--
+			════════════════════════════════════════════════════════
+			TEMA: TOPNAV (header hero + nav horizontal)
+			loader.js inyecta la clase 'tema-topnav' en <body> y oculta los bloques que no aplican.
+			════════════════════════════════════════════════════════
+		-->
+
+		<!-- Header hero (topnav) -->
+		<div class="header-hero" id="headerHero" style="display:none">
+			<img id="heroLogo" src="" alt="" class="hero-logo" onerror="this.style.display='none'">
+			<div class="hero-title" id="heroTitle"></div>
+			<div class="hero-sub" id="heroSub"></div>
+		</div>
+
+		<!-- Nav horizontal sticky (topnav) -->
+		<nav class="nav-sticky" id="navSticky" style="display:none">
+			<div class="nav-scroll" id="navScroll"></div>
+		</nav>
+
+		<!--
+			════════════════════════════════════════════════════════
+			TEMA: SIDEBAR (header fijo + menú lateral hamburguesa)
+			════════════════════════════════════════════════════════
+		-->
+
+		<!-- Header fijo (sidebar) -->
+		<div class="header-fixed" id="headerFixed" style="display:none">
+			<button class="menu-toggle" id="menuToggle">
+				<span></span><span></span><span></span>
+			</button>
+			<div class="logo-header" id="logoHeader"></div>
+			<div style="width:40px"></div>
+		</div>
+
+		<!-- Sidebar -->
+		<div class="sidebar" id="sidebar" style="display:none">
+			<div class="sidebar-header">
+				<div class="sidebar-title">Menú</div>
+				<button class="close-menu" id="closeMenu">✕</button>
+			</div>
+			<nav class="sidebar-nav" id="sidebarNav"></nav>
+		</div>
+
+		<div class="overlay" id="overlay"></div>
+
+		<!--
+			════════════════════════════════════════════════════════
+			CONTENIDO COMPARTIDO (ambos temas)
+			════════════════════════════════════════════════════════
+		-->
+
+		<main id="mainContent"></main>
+
+		<div class="footer" id="footer">© VMenus · Menú Digital</div>
+
+		<button class="scroll-top" id="scrollTop">↑</button>
+
+		<!-- Modal producto -->
+		<div class="modal-overlay" id="modalOverlay" onclick="window.vmHandleOverlay(event)">
+			<div class="modal-sheet" id="modalSheet">
+				<div class="modal-img-wrap" id="modalImgWrap">
+					<button class="modal-close-btn" onclick="window.vmCloseModal()">✕</button>
+					<button class="modal-nav modal-nav-prev" id="modalPrev" onclick="window.vmNavigate(-1)">‹</button>
+					<button class="modal-nav modal-nav-next" id="modalNext" onclick="window.vmNavigate(1)">›</button>
+				</div>
+				<div class="modal-body">
+					<div class="modal-name" id="modalName"></div>
+					<div class="modal-desc-avanzada" id="modalDescAvanzada" style="display:none"></div>
+					<div class="modal-price" id="modalPrice"></div>
+					<div class="modal-desc" id="modalDesc"></div>
+					<div class="modal-counter" id="modalCounter"></div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Lightbox -->
+		<div class="lightbox" id="lightbox" onclick="window.vmCloseLightbox()">
+			<button class="lightbox-close">✕</button>
+			<img id="lightboxImg" src="" alt="">
+		</div>
+
+		<!-- Promo modal -->
+		<div class="promo-overlay" id="promoOverlay">
+			<div class="promo-box">
+				<img class="promo-img" src="" alt="Promoción" onerror="window.vmClosePromo()">
+				<button class="promo-close" onclick="window.vmClosePromo()">✕</button>
+			</div>
+		</div>
+
+		<script type="module">
+			import {
+				closeModal, closeLightbox, closePromo,
+				navigateModal, handleOverlayClick, noImgHtml
+			} from './core/menu.js';
+			import { sbFetch } from './core/supabase.js';
+
+			// Exponer funciones al HTML (onclick inline)
+			window.vmCloseModal = closeModal;
+			window.vmCloseLightbox = closeLightbox;
+			window.vmClosePromo = closePromo;
+			window.vmNavigate = navigateModal;
+			window.vmHandleOverlay = handleOverlayClick;
+			window.vmNoImg = noImgHtml;
+
+			// ── ACTIVAR TEMA (mostrar/ocultar bloques HTML) ──────────
+			// Se llama desde loader.js antes de buildNav()
+			window.activarTema = function(tema, restaurante) {
+				if (tema === 'sidebar') {
+					document.getElementById('headerFixed').style.display = 'flex';
+					document.getElementById('sidebar').style.display = 'block';
+					document.getElementById('mainContent').classList.add('with-fixed-header');
+					// Rellenar nombre en header fijo
+					document.getElementById('logoHeader').textContent = restaurante.nombre.toUpperCase();
+					document.querySelector('.footer').textContent = `© ${new Date().getFullYear()} ${restaurante.nombre.toUpperCase()} · Todos los derechos reservados`;
+				} else {
+					// topnav (default)
+					document.getElementById('headerHero').style.display = 'block';
+					document.getElementById('navSticky').style.display = 'block';
+					// Rellenar header hero
+					const logo = document.getElementById('heroLogo');
+					if (restaurante.logo_url) { 
+						logo.src = restaurante.logo_url;
+						logo.alt = restaurante.nombre; 
+					}
+					else { 
+						logo.style.display = 'none';
+					}
+					document.getElementById('heroTitle').textContent = restaurante.nombre.toUpperCase();
+					document.getElementById('heroSub').textContent = restaurante.atributos?.subtitulo || 'Carta Digital · ' + new Date().getFullYear();
+					document.querySelector('.footer').textContent = `© ${new Date().getFullYear()} ${restaurante.nombre.toUpperCase()} · Todos los derechos reservados`;
+				}
+			};
+
+			// Arrancar
+			import('./core/loader.js');
+		</script>
+	</body>
+</html>
