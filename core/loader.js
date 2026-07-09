@@ -67,6 +67,11 @@ async function init() {
 		// ── 6. MENÚ ───────────────────────────────────────────────
 		buildMenu();
 
+		// Scroll spy solo para topnav, después de que el DOM esté listo
+		if (tema === 'topnav' && temaModule.initScrollSpy) {
+		  temaModule.initScrollSpy();
+		}
+
 		// ── 7. FEATURES OPCIONALES ────────────────────────────────
 		buildSocialBar();    // solo si atributos.social_bar = true
 		initScrollTop();
