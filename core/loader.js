@@ -50,7 +50,7 @@ async function init() {
 		// ── 4. DATOS DE MENÚ ──────────────────────────────────────
 		const [cats, prods] = await Promise.all([
 			sbFetch('categorias', `restaurante_id=eq.${restaurante.id}&select=*&order=orden.asc`),
-			sbFetch('productos',  `restaurante_id=eq.${restaurante.id}&disponible=eq.true&select=*&order=precio_numerico.asc`)
+			sbFetch('productos', `restaurante_id=eq.${restaurante.id}&disponible=eq.true&select=*&order=precio_numerico.asc`)
 		]);
 		setCategorias(cats);
 		setProductos(prods);
@@ -85,6 +85,14 @@ async function init() {
 		// ── 9. TÍTULO DE LA PÁGINA ────────────────────────────────
 		document.title = `${restaurante.nombre} — Menú Digital`;
 
+		// Favicon dinámico por restaurante
+		if (restaurante.logo_url) {
+		  const link = document.createElement('link');
+		  link.rel  = 'icon';
+		  link.href = restaurante.logo_url;
+		  document.head.appendChild(link);
+		}
+
 	} catch (err) {
 		console.error('Error cargando menú:', err);
 		showLoading(false);
@@ -101,10 +109,17 @@ function applyStyles(r) {
 	const css = document.documentElement.style;
 
 	// Colores
-	css.setProperty('--primary',   r.color_primario   || '#cdfefe');
+	css.setProperty('--primary', r.color_primario   || '#cdfefe');
 	css.setProperty('--secondary', r.color_secundario || '#a374af');
-	css.setProperty('--accent',    r.color_primario   || '#cdfefe');
-	css.setProperty('--accent2',   r.color_secundario || '#a374af');
+	css.setProperty('--accent', r.color_primario   || '#cdfefe');
+	css.setProperty('--accent2', r.color_secundario || '#a374af');
+	// Paleta de superficie (por defecto: valores de Bonzas)
+	// Malparados los sobreescribe desde atributos
+	css.setProperty('--dark', at.color_dark || '#0a0a0f');
+	css.setProperty('--surface', at.color_surface || '#12111a');
+	css.setProperty('--card', at.color_card || '#1a1825');
+	css.setProperty('--card-hover', at.color_card_hover || '#221f30');
+	css.setProperty('--border', at.color_border || '#2a2640');
 
 	// Fuentes (Google Fonts cargadas dinámicamente)
 	if (at.fuente_titulo || at.fuente_cuerpo) {
@@ -124,18 +139,18 @@ function applyStyles(r) {
 	if (r.fondo_url) {
 		const tipo = at.fondo_tipo || 'cover-fixed'; // 'cover-fixed' | 'repeat-scroll'
 		if (tipo === 'repeat-scroll') {
-			document.body.style.backgroundImage    = `url('${r.fondo_url}')`;
-			document.body.style.backgroundSize     = '100% auto';
+			document.body.style.backgroundImage = `url('${r.fondo_url}')`;
+			document.body.style.backgroundSize = '100% auto';
 			document.body.style.backgroundPosition = 'center top';
-			document.body.style.backgroundRepeat   = 'repeat-y';
+			document.body.style.backgroundRepeat = 'repeat-y';
 			document.body.style.backgroundAttachment = 'scroll';
 		} else {
 			// cover-fixed (default)
-			document.body.style.backgroundImage     = `url('${r.fondo_url}')`;
-			document.body.style.backgroundSize      = 'cover';
-			document.body.style.backgroundPosition  = 'center top';
+			document.body.style.backgroundImage = `url('${r.fondo_url}')`;
+			document.body.style.backgroundSize = 'cover';
+			document.body.style.backgroundPosition = 'center top';
 			document.body.style.backgroundAttachment = 'fixed';
-			document.body.style.backgroundRepeat    = 'no-repeat';
+			document.body.style.backgroundRepeat = 'no-repeat';
 		}
 	}
 
