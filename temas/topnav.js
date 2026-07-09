@@ -28,19 +28,19 @@ export function buildNav() {
 	initScrollSpy();
 }
 
-function initScrollSpy() {
-	const observer = new IntersectionObserver(entries => {
-		entries.forEach(entry => {
-			if (entry.isIntersecting) {
-				const catId = entry.target.id.replace('sec-', '');
-				document.querySelectorAll('.nav-btn').forEach(btn => {
-					btn.classList.toggle('active', btn.dataset.cat === catId);
-				});
-				const activeBtn = document.querySelector(`.nav-btn[data-cat="${catId}"]`);
-				activeBtn?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-			}
-		});
-	}, { rootMargin: '-40% 0px -55% 0px' });
+export function initScrollSpy() {  // ← ahora es exportada
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const catId = entry.target.id.replace('sec-', '');
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.cat === catId);
+        });
+        const activeBtn = document.querySelector(`.nav-btn[data-cat="${catId}"]`);
+        activeBtn?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    });
+  }, { rootMargin: '-40% 0px -55% 0px' });
 
-	document.querySelectorAll('.category-section').forEach(sec => observer.observe(sec));
+  document.querySelectorAll('.category-section').forEach(sec => observer.observe(sec));
 }
