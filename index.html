@@ -515,7 +515,7 @@
 
 		<!-- Header hero (topnav) -->
 		<div class="header-hero" id="headerHero" style="display:none">
-			<img id="heroLogo" src="" alt="" class="hero-logo" onerror="this.style.display='none'">
+			<img id="heroLogo" alt="" class="hero-logo" style="display:none">
 			<div class="hero-title" id="heroTitle"></div>
 			<div class="hero-sub" id="heroSub"></div>
 		</div>
@@ -626,9 +626,11 @@
 					document.getElementById('navSticky').style.display = 'block';
 					// Rellenar header hero
 					const logo = document.getElementById('heroLogo');
-					if (restaurante.logo_url) { 
-						logo.src = restaurante.logo_url;
-						logo.alt = restaurante.nombre; 
+					if (restaurante.logo_url) {
+					  logo.onload  = () => { logo.style.display = 'block'; };
+					  logo.onerror = () => { logo.style.display = 'none';  };
+					  logo.src = restaurante.logo_url;
+					  logo.alt = restaurante.nombre;
 					}
 					else { 
 						logo.style.display = 'none';
