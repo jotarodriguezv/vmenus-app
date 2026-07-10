@@ -87,10 +87,11 @@ async function init() {
 
 		// Favicon dinámico por restaurante
 		if (restaurante.logo_url) {
-		  const link = document.createElement('link');
-		  link.rel  = 'icon';
-		  link.href = restaurante.logo_url;
-		  document.head.appendChild(link);
+		  	const link = document.createElement('link');
+		  	link.rel  = 'icon';
+		  	link.type = 'image/png';
+			link.href = restaurante.logo_url;
+ 		 	document.head.appendChild(link);
 		}
 
 	} catch (err) {
