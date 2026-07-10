@@ -627,7 +627,7 @@
 					// Rellenar header hero
 					const logo = document.getElementById('heroLogo');
 					if (restaurante.logo_url) {
-					  logo.onload  = () => { logo.style.display = 'block'; };
+					  logo.onload = () => { logo.style.display = 'block'; logo.style.margin = '0 auto 10px'; };
 					  logo.onerror = () => { logo.style.display = 'none';  };
 					  logo.src = restaurante.logo_url;
 					  logo.alt = restaurante.nombre;
