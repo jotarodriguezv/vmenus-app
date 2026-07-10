@@ -69,7 +69,7 @@ async function init() {
 
 		// Scroll spy solo para topnav, después de que el DOM esté listo
 		if (tema === 'topnav' && temaModule.initScrollSpy) {
-		  temaModule.initScrollSpy();
+  			requestAnimationFrame(() => temaModule.initScrollSpy());
 		}
 
 		// ── 7. FEATURES OPCIONALES ────────────────────────────────
