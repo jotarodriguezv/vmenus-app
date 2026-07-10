@@ -58,14 +58,16 @@ async function init() {
 		showLoading(false);
 
 		// ── 5. TEMA DE NAV ────────────────────────────────────────
-		const tema = restaurante.atributos?.nav || 'topnav'; // 'topnav' | 'sidebar'
+		const tema = restaurante.atributos?.nav || 'topnav'; // 'topnav' | 'sidebar' | 'carrito'
 		// Mostrar/ocultar bloques HTML según el tema
 		window.activarTema?.(tema, restaurante);
 		const temaModule = await import(`../temas/${tema}.js`);
 		temaModule.buildNav();
 
 		// ── 6. MENÚ ───────────────────────────────────────────────
-		buildMenu();
+		// El tema carrito tiene su propio render (agregar/personalizar en vez de modal de info)
+		if (tema === 'carrito') temaModule.buildMenu();
+		else buildMenu();
 
 		// Scroll spy solo para topnav, después de que el DOM esté listo
 		if (tema === 'topnav' && temaModule.initScrollSpy) {
