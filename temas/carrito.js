@@ -6,6 +6,18 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { buildNav as buildSidebarNav } from './sidebar.js';
 
+// ── CATÁLOGO DE MÉTODOS DE PAGO ─────────────────────────────────
+// El restaurante activa/desactiva cada uno y llena sus datos desde
+// la pestaña "Pedidos" del panel (atributos.metodos_pago).
+const METODOS_PAGO_CATALOGO = {
+	efectivo:    { label: 'Efectivo' },
+	tarjeta:     { label: 'Tarjeta (datáfono al entregar)' },
+	nequi:       { label: 'Nequi', detalle: m => `Nequi: ${m.telefono} — a nombre de ${m.titular}` },
+	daviplata:   { label: 'Daviplata', detalle: m => `Daviplata: ${m.telefono} — a nombre de ${m.titular}` },
+	bancolombia: { label: 'Transferencia bancaria', detalle: m => `Cuenta ${m.tipo_cuenta} No. ${m.numero_cuenta} — a nombre de ${m.titular}` },
+	breb:        { label: 'Llave Bre-B', detalle: m => `Llave Bre-B: ${m.llave}` }
+};
+
 let cart = [];
 let customProduct = null;
 let customEditingKey = null;
@@ -34,6 +46,7 @@ export function buildNav() {
 	window.vmCloseCheckout = closeCheckout;
 	window.vmSendWhatsAppOrder = sendWhatsAppOrder;
 	window.vmCloseCustomModal = closeCustomModal;
+	window.vmUpdatePaymentDetails = updatePaymentDetails;
 }
 
 // ── MENÚ (grid propio: click = agregar/personalizar, no info) ──
@@ -333,9 +346,46 @@ function toggleCart() {
 
 // ── CHECKOUT ─────────────────────────────────────────────────
 function openCheckout() {
+	renderPaymentOptions();
 	updateCheckoutSummary();
 	document.getElementById('checkoutOverlay').classList.add('open');
 	document.getElementById('cartSidebar').classList.remove('open');
+}
+
+function renderPaymentOptions() {
+	const select = document.getElementById('paymentMethod');
+	const mp = restaurante?.atributos?.metodos_pago || {};
+	select.innerHTML = '';
+	Object.entries(METODOS_PAGO_CATALOGO).forEach(([key, def]) => {
+		const activo = key === 'efectivo' ? (mp.efectivo?.activo !== false) : !!mp[key]?.activo;
+		if (!activo) return;
+		const opt = document.createElement('option');
+		opt.value = key;
+		opt.textContent = def.label;
+		select.appendChild(opt);
+	});
+	if (!select.options.length) {
+		// Respaldo: si el restaurante no configuró ningún método, al menos "Efectivo"
+		const opt = document.createElement('option');
+		opt.value = 'efectivo'; opt.textContent = 'Efectivo';
+		select.appendChild(opt);
+	}
+	updatePaymentDetails();
+}
+
+function updatePaymentDetails() {
+	const select = document.getElementById('paymentMethod');
+	const box = document.getElementById('paymentDetails');
+	const mp = restaurante?.atributos?.metodos_pago || {};
+	const key = select.value;
+	const def = METODOS_PAGO_CATALOGO[key];
+	if (def?.detalle && mp[key]) {
+		box.innerHTML = `<div class="checkout-summary-item" style="color:var(--text)"><span>${def.detalle(mp[key])}</span></div>`;
+		box.style.display = 'block';
+	} else {
+		box.style.display = 'none';
+		box.innerHTML = '';
+	}
 }
 
 function closeCheckout() {
@@ -362,13 +412,16 @@ function sendWhatsAppOrder(event) {
 	}
 	const name    = document.getElementById('clientName').value;
 	const address = document.getElementById('clientAddress').value;
-	const payment = document.getElementById('paymentMethod').value;
+	const paymentKey = document.getElementById('paymentMethod').value;
+	const paymentDef = METODOS_PAGO_CATALOGO[paymentKey];
+	const mp = restaurante?.atributos?.metodos_pago || {};
 
-	let msg = `🛒 *Pedido - ${restaurante.nombre}*\n\n`;
-	msg += `👤 *Cliente:* ${name}\n`;
-	msg += `📍 *Dirección:* ${address}\n`;
-	msg += `💳 *Pago:* ${payment}\n\n`;
-	msg += `🛒 *Pedido:*\n`;
+	let msg = `*Pedido - ${restaurante.nombre}*\n\n`;
+	msg += `*Cliente:* ${name}\n`;
+	msg += `*Dirección:* ${address}\n`;
+	msg += `*Pago:* ${paymentDef?.label || paymentKey}\n`;
+	if (paymentDef?.detalle && mp[paymentKey]) msg += `${paymentDef.detalle(mp[paymentKey])}\n`;
+	msg += `\n*Pedido:*\n`;
 	cart.forEach(item => {
 		msg += `• *${item.name}* x${item.cantidad} = $${(item.price * item.cantidad).toLocaleString('es-CO')}\n`;
 		if (item.descripcion) msg += `  _${item.descripcion}_\n`;
