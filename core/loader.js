@@ -116,9 +116,6 @@ function applyStyles(r) {
 	css.setProperty('--secondary', r.color_secundario || '#a374af');
 	css.setProperty('--accent', r.color_primario   || '#cdfefe');
 	css.setProperty('--accent2', r.color_secundario || '#a374af');
-	// RGB del primario, para poder usarlo en rgba() en el fondo sin depender
-	// de color-mix() (compatibilidad de navegador más amplia)
-	css.setProperty('--primary-rgb', hexToRgb(r.color_primario || '#cdfefe'));
 	// Paleta de superficie (por defecto: valores de Bonzas)
 	// Malparados los sobreescribe desde atributos
 	css.setProperty('--dark', at.color_dark || '#0a0a0f');
@@ -143,6 +140,7 @@ function applyStyles(r) {
 
 	// Fondo
 	if (r.fondo_url) {
+		// Imagen de fondo: tiene prioridad sobre color/degradado.
 		const tipo = at.fondo_tipo || 'cover-fixed'; // 'cover-fixed' | 'repeat-scroll'
 		if (tipo === 'repeat-scroll') {
 			document.body.style.backgroundImage = `url('${r.fondo_url}')`;
@@ -157,6 +155,18 @@ function applyStyles(r) {
 			document.body.style.backgroundPosition = 'center top';
 			document.body.style.backgroundAttachment = 'fixed';
 			document.body.style.backgroundRepeat = 'no-repeat';
+		}
+	} else {
+		// Sin imagen: color de fondo elegido en Apariencia, con la intensidad elegida.
+		// 'solido' (default) | 'sutil' | 'marcado'
+		const fondoColor = at.fondo_color || '#0a0a0f';
+		const intensidad = at.fondo_intensidad || 'solido';
+		if (intensidad === 'solido') {
+			document.body.style.background = fondoColor;
+		} else {
+			const rgb = hexToRgb(fondoColor);
+			const alpha = intensidad === 'marcado' ? 0.35 : 0.15;
+			document.body.style.background = `radial-gradient(ellipse 90% 60% at 50% 0%, rgba(${rgb}, ${alpha}) 0%, ${fondoColor} 70%)`;
 		}
 	}
 
