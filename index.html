@@ -810,11 +810,8 @@
 					</div>
 					<div class="checkout-form-group">
 						<label>💳 Método de Pago</label>
-						<select id="paymentMethod" required>
-							<option value="Efectivo">💵 Efectivo</option>
-							<option value="Transferencia">🏦 Transferencia</option>
-							<option value="Tarjeta">💳 Tarjeta</option>
-						</select>
+						<select id="paymentMethod" required onchange="window.vmUpdatePaymentDetails()"></select>
+						<div id="paymentDetails" class="checkout-summary" style="display:none;margin-top:10px;"></div>
 					</div>
 					<div class="checkout-summary" id="checkoutSummary"></div>
 					<button type="submit" class="btn-send-order">📱 Enviar Pedido por WhatsApp</button>
