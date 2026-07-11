@@ -116,6 +116,9 @@ function applyStyles(r) {
 	css.setProperty('--secondary', r.color_secundario || '#a374af');
 	css.setProperty('--accent', r.color_primario   || '#cdfefe');
 	css.setProperty('--accent2', r.color_secundario || '#a374af');
+	// RGB del primario, para poder usarlo en rgba() en el fondo sin depender
+	// de color-mix() (compatibilidad de navegador más amplia)
+	css.setProperty('--primary-rgb', hexToRgb(r.color_primario || '#cdfefe'));
 	// Paleta de superficie (por defecto: valores de Bonzas)
 	// Malparados los sobreescribe desde atributos
 	css.setProperty('--dark', at.color_dark || '#0a0a0f');
@@ -172,6 +175,15 @@ function showRootPage() {
 		<div style="font-size:32px;font-weight:700;margin-bottom:12px;color:var(--primary)">VMenus</div>
 		<div style="font-size:14px;color:var(--text-muted)">Menús digitales para restaurantes.</div>
     </div>`;
+}
+
+// ── HEX → "r, g, b" (para usar en rgba() del fondo) ────────────
+function hexToRgb(hex) {
+	hex = hex.replace('#', '');
+	if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+	const num = parseInt(hex, 16);
+	if (isNaN(num)) return '205, 254, 254'; // fallback: primario default
+	return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
 // ── RESTAURANTE INACTIVO ──────────────────────────────────────
