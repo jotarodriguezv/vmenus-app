@@ -3,7 +3,7 @@
 // compras que arma el pedido y lo envía por WhatsApp.
 // Se activa cuando atributos.nav = 'carrito'.
 
-import { restaurante, categorias, productos, noImgHtml } from '../core/menu.js';
+import { restaurante, categorias, productos } from '../core/menu.js';
 import { buildNav as buildSidebarNav } from './sidebar.js';
 
 let cart = [];
@@ -62,14 +62,38 @@ export function buildMenu() {
 			const attr = p.atributos || {};
 			const tieneOpciones = !!(attr.toppings_platino?.length || attr.toppings_premium?.length || attr.salsas?.length);
 
+			// Sin imagen asignada: fila compacta, sin caja de foto (como una categoría "sin fotos")
+			if (!p.imagen_url) {
+				const row = document.createElement('div');
+				row.className = 'product-noimg';
+				row.innerHTML = `
+				<div>
+					<div class="card-name">${p.nombre}</div>
+					${tieneOpciones ? '<div class="card-hint">Toca para personalizar</div>' : ''}
+				</div>
+				<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+					<div class="card-price">${p.precio}</div>
+					<span class="noimg-add-indicator">+</span>
+				</div>`;
+				row.onclick = () => {
+					if (tieneOpciones) {
+						openCustomModal(p.id);
+					} else {
+						addSimpleToCart(p);
+						const ind = row.querySelector('.noimg-add-indicator');
+						ind.textContent = '✓';
+						setTimeout(() => { ind.textContent = '+'; }, 800);
+					}
+				};
+				grid.appendChild(row);
+				return;
+			}
+
 			const card = document.createElement('div');
-			card.className = 'product-card' + (p.imagen_url ? ' has-img' : '');
-			const imgHtml = p.imagen_url
-				? `<img class="card-img" src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" onerror="this.parentNode.innerHTML=window.vmNoImg()">`
-				: noImgHtml();
+			card.className = 'product-card has-img';
 			card.innerHTML = `
 			<div class="card-img-wrap">
-				${imgHtml}
+				<img class="card-img" src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" onerror="this.parentNode.innerHTML=window.vmNoImg()">
 				<button class="card-add-btn" title="${tieneOpciones ? 'Personalizar' : 'Agregar'}">+</button>
 			</div>
 			<div class="card-body">
