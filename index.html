@@ -41,8 +41,12 @@
 
 			body {
 				/* Degradado sutil por defecto — se ve reemplazado en cuanto
-				   loader.js fija una imagen de fondo (fondo_url) inline. */
-				background: radial-gradient(ellipse 80% 50% at 50% 0%, var(--surface) 0%, var(--dark) 65%);
+				   loader.js fija una imagen de fondo (fondo_url) inline.
+				   Usa el color primario real del restaurante (--primary-rgb,
+				   calculado en loader.js) para que sí se note por marca. */
+				background:
+					radial-gradient(ellipse 70% 45% at 50% 0%, rgba(var(--primary-rgb, 205,254,254), 0.14) 0%, transparent 60%),
+					radial-gradient(ellipse 90% 60% at 50% 0%, var(--card) 0%, var(--dark) 75%);
 				color: var(--text);
 				font-family: var(--font-cuerpo, 'system-ui', sans-serif);
 				font-size: 14px;
