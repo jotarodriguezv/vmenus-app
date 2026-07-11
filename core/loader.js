@@ -120,9 +120,12 @@ function applyStyles(r) {
 	// Malparados los sobreescribe desde atributos
 	css.setProperty('--dark', at.color_dark || '#0a0a0f');
 	css.setProperty('--surface', at.color_surface || '#12111a');
-	css.setProperty('--card', at.color_card || '#1a1825');
-	css.setProperty('--card-hover', at.color_card_hover || '#221f30');
-	css.setProperty('--border', at.color_border || '#2a2640');
+	const cardColor = at.color_card || '#1a1825';
+	css.setProperty('--card', cardColor);
+	// Si se configuró un color de caja propio pero no su hover/borde, se
+	// calculan a partir de ese mismo color en vez de quedar desligados.
+	css.setProperty('--card-hover', at.color_card_hover || (at.color_card ? lightenHex(cardColor, 0.15) : '#221f30'));
+	css.setProperty('--border', at.color_border || (at.color_card ? lightenHex(cardColor, 0.30) : '#2a2640'));
 
 	// Fuentes (Google Fonts cargadas dinámicamente)
 	if (at.fuente_titulo || at.fuente_cuerpo) {
@@ -194,6 +197,13 @@ function hexToRgb(hex) {
 	const num = parseInt(hex, 16);
 	if (isNaN(num)) return '205, 254, 254'; // fallback: primario default
 	return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+}
+
+// ── ACLARAR UN COLOR HEX (mezclar hacia blanco un %) ───────────
+function lightenHex(hex, amount) {
+	const [r, g, b] = hexToRgb(hex).split(',').map(n => parseInt(n.trim(), 10));
+	const mix = c => Math.round(c + (255 - c) * amount).toString(16).padStart(2, '0');
+	return `#${mix(r)}${mix(g)}${mix(b)}`;
 }
 
 // ── RESTAURANTE INACTIVO ──────────────────────────────────────
