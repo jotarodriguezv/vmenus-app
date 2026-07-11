@@ -79,15 +79,26 @@ export function buildMenu() {
 			const grid = document.createElement('div');
 			grid.className = 'products-grid';
 			prods.forEach((p, idx) => {
+				// Sin imagen asignada: fila compacta, sin caja de foto (como una categoría "sin fotos")
+				if (!p.imagen_url) {
+					const row = document.createElement('div');
+					row.className = 'product-noimg';
+					row.onclick = () => openModal(cat.id, idx);
+					row.innerHTML = `
+					<div class="card-name">${p.nombre}</div>
+					<div class="card-price">${p.precio}</div>
+					`;
+					grid.appendChild(row);
+					return;
+				}
 				const card = document.createElement('div');
-				card.className = 'product-card' + (p.imagen_url ? ' has-img' : '');
+				card.className = 'product-card has-img';
 				card.onclick = () => openModal(cat.id, idx);
-				const imgHtml = p.imagen_url
-				? `<img class="card-img" src="${p.imagen_url}" alt="${p.nombre}" loading="lazy"
-					onerror="this.parentNode.innerHTML=window.vmNoImg()">`
-				: noImgHtml();
 				card.innerHTML = `
-				<div class="card-img-wrap">${imgHtml}</div>
+				<div class="card-img-wrap">
+					<img class="card-img" src="${p.imagen_url}" alt="${p.nombre}" loading="lazy"
+						onerror="this.parentNode.innerHTML=window.vmNoImg()">
+				</div>
 				<div class="card-body">
 				<div class="card-name">${p.nombre}</div>
 				<div class="card-price">${p.precio}</div>
