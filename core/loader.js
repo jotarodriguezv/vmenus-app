@@ -14,6 +14,7 @@ import {
 	buildSocialBar, initScrollTop, initGlobalEvents,
 	openPromo, closePromo, closeLightbox, closeModal
 } from './menu.js';
+import { trackVisita } from './analytics.js';
 
 // ── 1. SLUG DESDE LA URL ──────────────────────────────────────
 // vmenus.click/bonzas       → 'bonzas'
@@ -70,6 +71,8 @@ async function init() {
 			showInactivo();
 			return;
 		}
+
+		trackVisita(restaurante.id);
 
 		// ── 3. ESTILOS DINÁMICOS ──────────────────────────────────
 		applyStyles(restaurante);
