@@ -1,3 +1,5 @@
+import { trackClic } from './analytics.js';
+
 // ── ESTADO GLOBAL ─────────────────────────────────────────────
 export let restaurante = null;
 export let categorias = [];
@@ -119,6 +121,8 @@ export function buildMenu() {
 		renderModal();
 		document.getElementById('modalOverlay')?.classList.add('open');
 		document.body.style.overflow = 'hidden';
+		const p = currentCategoryProducts[idx];
+		if (p) trackClic(restaurante?.id, p.id);
 	}
 
 	export function renderModal() {
