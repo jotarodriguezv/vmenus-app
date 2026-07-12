@@ -20,6 +20,25 @@ import {
 // vmenus.click/malparados   → 'malparados'
 const slug = window.location.pathname.split('/').filter(Boolean)[0];
 
+// ── VISTA PREVIA SIN GUARDAR ───────────────────────────────────
+// El panel de administración abre esta misma página con
+// ?preview=<json> conteniendo color_primario/color_secundario/atributos
+// del formulario (sin persistir en Supabase) para poder verlos aplicados
+// antes de decidir guardar.
+function leerPreviewDraft() {
+	const raw = new URLSearchParams(window.location.search).get('preview');
+	if (!raw) return null;
+	try { return JSON.parse(decodeURIComponent(raw)); } catch { return null; }
+}
+const previewDraft = leerPreviewDraft();
+
+function mostrarBannerPreview() {
+	const banner = document.createElement('div');
+	banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#ffb020;color:#0a0a0a;text-align:center;padding:6px 10px;font-size:12px;font-weight:700;letter-spacing:0.5px;font-family:sans-serif;';
+	banner.textContent = '👁 VISTA PREVIA — cambios sin guardar';
+	document.body.appendChild(banner);
+}
+
 async function init() {
 	if (!slug) {
 		// Raíz del dominio sin slug → landing o mensaje
@@ -35,6 +54,14 @@ async function init() {
 		if (!restData.length) throw new Error('Restaurante no encontrado');
 
 		const restaurante = restData[0];
+
+		if (previewDraft) {
+			if (previewDraft.color_primario) restaurante.color_primario = previewDraft.color_primario;
+			if (previewDraft.color_secundario) restaurante.color_secundario = previewDraft.color_secundario;
+			restaurante.atributos = { ...(restaurante.atributos || {}), ...(previewDraft.atributos || {}) };
+			mostrarBannerPreview();
+		}
+
 		setRestaurante(restaurante);
 
 		// Restaurante inactivo (suspendido por impago, etc.)
