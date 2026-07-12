@@ -5,6 +5,7 @@
 
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { buildNav as buildSidebarNav } from './sidebar.js';
+import { trackClic } from '../core/analytics.js';
 
 // ── CATÁLOGO DE MÉTODOS DE PAGO ─────────────────────────────────
 // El restaurante activa/desactiva cada uno y llena sus datos desde
@@ -89,6 +90,7 @@ export function buildMenu() {
 					<span class="noimg-add-indicator">+</span>
 				</div>`;
 				row.onclick = () => {
+					trackClic(restaurante?.id, p.id);
 					if (tieneOpciones) {
 						openCustomModal(p.id);
 					} else {
@@ -116,6 +118,7 @@ export function buildMenu() {
 			</div>`;
 
 			card.onclick = () => {
+				trackClic(restaurante?.id, p.id);
 				if (tieneOpciones) {
 					openCustomModal(p.id);
 				} else {
