@@ -96,8 +96,10 @@ export function buildMenu() {
 					} else {
 						addSimpleToCart(p);
 						const ind = row.querySelector('.noimg-add-indicator');
-						ind.textContent = '✓';
-						setTimeout(() => { ind.textContent = '+'; }, 800);
+						if (ind) {
+							ind.textContent = '✓';
+							setTimeout(() => { ind.textContent = '+'; }, 800);
+						}
 					}
 				};
 				grid.appendChild(row);
@@ -124,8 +126,10 @@ export function buildMenu() {
 				} else {
 					addSimpleToCart(p);
 					const btn = card.querySelector('.card-add-btn');
-					btn.textContent = '✓';
-					setTimeout(() => { btn.textContent = '+'; }, 800);
+					if (btn) {
+						btn.textContent = '✓';
+						setTimeout(() => { btn.textContent = '+'; }, 800);
+					}
 				}
 			};
 
