@@ -810,6 +810,11 @@
 
 			/* Portada */
 			.exp-cover { position: relative; width: 100%; height: 420px; overflow: hidden; background: var(--surface); }
+			/* Portada compacta (sin imagen de fondo): sin hueco grande */
+			.exp-cover.exp-cover-compact { height: auto; background: transparent; }
+			.exp-cover.exp-cover-compact .exp-cover-overlay { display: none; }
+			.exp-cover.exp-cover-compact .exp-cover-content { position: static; padding: 76px 22px 18px; }
+			.exp-cover.exp-cover-compact .exp-cover-title { text-shadow: none; }
 			.exp-cover-img { width: 100%; height: 100%; object-fit: cover; }
 			.exp-cover-placeholder { width: 100%; height: 100%; background: linear-gradient(135deg, var(--surface), var(--card)); }
 			.exp-cover-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.82) 100%); }
@@ -1168,8 +1173,10 @@
 			window.activarTema = function(tema, restaurante) {
 				if (tema === 'explorar') {
 					// El tema explorar construye todo su propio DOM en explorar.js.
-					// Aquí solo dejamos ocultos los bloques de los otros modelos
-					// (ya están display:none por defecto) y no tocamos el header.
+					// Ocultamos el footer compartido y el botón scroll-top para que
+					// no dupliquen/estorben con los que trae el propio tema.
+					const f = document.querySelector('.footer'); if (f) f.style.display = 'none';
+					const st = document.getElementById('scrollTop'); if (st) st.style.display = 'none';
 					return;
 				}
 				if (tema === 'sidebar' || tema === 'carrito') {
