@@ -95,8 +95,8 @@ async function init() {
 		temaModule.buildNav();
 
 		// ── 6. MENÚ ───────────────────────────────────────────────
-		// El tema carrito tiene su propio render (agregar/personalizar en vez de modal de info)
-		if (tema === 'carrito') temaModule.buildMenu();
+		// carrito y explorar tienen su propio render (no usan el buildMenu compartido)
+		if (tema === 'carrito' || tema === 'explorar') temaModule.buildMenu();
 		else buildMenu();
 
 		// Scroll spy solo para topnav, después de que el DOM esté listo
