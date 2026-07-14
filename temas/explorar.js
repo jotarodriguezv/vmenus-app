@@ -150,10 +150,13 @@ export function buildMenu() {
 	// Portada
 	const at = restaurante.atributos || {};
 	const cover = document.createElement('div');
-	cover.className = 'exp-cover';
-	const bg = restaurante.fondo_url
+	// Sin imagen de fondo → portada compacta (sin el hueco grande).
+	// Con imagen → portada completa tipo revista (420px).
+	const tieneFoto = !!restaurante.fondo_url;
+	cover.className = 'exp-cover' + (tieneFoto ? '' : ' exp-cover-compact');
+	const bg = tieneFoto
 		? `<img class="exp-cover-img" src="${esc(restaurante.fondo_url)}" alt="" onerror="this.style.display='none'">`
-		: `<div class="exp-cover-placeholder"></div>`;
+		: '';
 	const logo = restaurante.logo_url
 		? `<div class="exp-cover-logo"><img src="${esc(restaurante.logo_url)}" alt="" onerror="this.parentNode.style.display='none'"></div>`
 		: '';
