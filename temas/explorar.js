@@ -150,12 +150,13 @@ export function buildMenu() {
 	// Portada
 	const at = restaurante.atributos || {};
 	const cover = document.createElement('div');
-	// Sin imagen de fondo → portada compacta (sin el hueco grande).
-	// Con imagen → portada completa tipo revista (420px).
-	const tieneFoto = !!restaurante.fondo_url;
-	cover.className = 'exp-cover' + (tieneFoto ? '' : ' exp-cover-compact');
-	const bg = tieneFoto
-		? `<img class="exp-cover-img" src="${esc(restaurante.fondo_url)}" alt="" onerror="this.style.display='none'">`
+	// La portada es OPCIONAL y usa su propia imagen (portada_url), distinta
+	// de la imagen de fondo del sitio. Solo se muestra grande si está
+	// activada Y tiene imagen; si no, portada compacta (solo el nombre).
+	const portadaOn = !!(at.portada_activa && at.portada_url);
+	cover.className = 'exp-cover' + (portadaOn ? '' : ' exp-cover-compact');
+	const bg = portadaOn
+		? `<img class="exp-cover-img" src="${esc(at.portada_url)}" alt="" onerror="this.style.display='none'">`
 		: '';
 	const logo = restaurante.logo_url
 		? `<div class="exp-cover-logo"><img src="${esc(restaurante.logo_url)}" alt="" onerror="this.parentNode.style.display='none'"></div>`
