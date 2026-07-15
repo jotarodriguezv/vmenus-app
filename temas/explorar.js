@@ -253,14 +253,22 @@ function renderDishes() {
 		section.className = 'exp-section';
 		section.id = 'exp-sec-' + cat.id;
 
-		// Cabecera de categoría (banner con imagen o degradado)
+		// Cabecera de categoría:
+		//  - con imagen  → banner grande tipo revista
+		//  - sin imagen  → título compacto con línea (sin el recuadro negro)
 		const imgCab = cat.atributos?.imagen_cabecera;
+		const label = esc((cat.emoji ? cat.emoji + ' ' : '') + cat.nombre);
 		const header = document.createElement('div');
-		header.className = 'exp-cat-header';
-		header.innerHTML = `
-			${imgCab ? `<img class="exp-cat-header-img" src="${esc(imgCab)}" alt="" onerror="this.style.display='none'">` : `<div class="exp-cat-header-ph"></div>`}
-			<div class="exp-cat-header-overlay"></div>
-			<div class="exp-cat-header-label"><span>${esc((cat.emoji ? cat.emoji + ' ' : '') + cat.nombre)}</span></div>`;
+		if (imgCab) {
+			header.className = 'exp-cat-header';
+			header.innerHTML = `
+				<img class="exp-cat-header-img" src="${esc(imgCab)}" alt="" onerror="this.style.display='none'">
+				<div class="exp-cat-header-overlay"></div>
+				<div class="exp-cat-header-label"><span>${label}</span></div>`;
+		} else {
+			header.className = 'exp-cat-header-compact';
+			header.innerHTML = `<span>${label}</span>`;
+		}
 		section.appendChild(header);
 
 		const wrap = document.createElement('div');
