@@ -17,9 +17,27 @@ import {
 import { trackVisita } from './analytics.js';
 
 // ── 1. SLUG DESDE LA URL ──────────────────────────────────────
-// vmenus.click/bonzas       → 'bonzas'
-// vmenus.click/malparados   → 'malparados'
-const slug = window.location.pathname.split('/').filter(Boolean)[0];
+// Se aceptan las dos formas a la vez, siempre, sin que el restaurante
+// tenga que elegir una:
+//   menu.vmenus.co/bonzas   → 'bonzas'   (ruta)
+//   bonzas.vmenus.co        → 'bonzas'   (subdominio)
+// Que ambas respondan es lo que permite cambiar la forma "oficial" de un
+// restaurante en el panel sin invalidar los QR que ya repartió.
+//
+// Hosts que son la plataforma misma, no un restaurante.
+const SUBDOMINIOS_RESERVADOS = ['menu', 'www', 'admin', 'app', 'api'];
+
+function leerSlug() {
+	const host   = window.location.hostname;
+	const porRuta = window.location.pathname.split('/').filter(Boolean)[0] || '';
+	const partes = host.split('.');
+	// Dominio desnudo (vmenus.co), localhost o una IP: no hay subdominio
+	// que leer, así que solo queda la ruta.
+	if (/^\d+\.\d+\.\d+\.\d+$/.test(host) || partes.length < 3) return porRuta;
+	return SUBDOMINIOS_RESERVADOS.includes(partes[0]) ? porRuta : partes[0];
+}
+
+const slug = leerSlug();
 
 // ── VISTA PREVIA SIN GUARDAR ───────────────────────────────────
 // El panel de administración abre esta misma página con
