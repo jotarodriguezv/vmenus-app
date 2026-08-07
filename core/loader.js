@@ -15,6 +15,7 @@ import {
 	openPromo, closePromo, closeLightbox, closeModal
 } from './menu.js';
 import { trackVisita } from './analytics.js';
+import { aplicarHorarios } from './horarios.js';
 
 // ── 1. SLUG DESDE LA URL ──────────────────────────────────────
 // Se aceptan las dos formas a la vez, siempre, sin que el restaurante
@@ -100,8 +101,12 @@ async function init() {
 			sbFetch('categorias', `restaurante_id=eq.${restaurante.id}&select=*&order=orden.asc`),
 			sbFetch('productos', `restaurante_id=eq.${restaurante.id}&disponible=eq.true&select=*&order=precio_numerico.asc`)
 		]);
-		setCategorias(cats);
-		setProductos(prods);
+		// Las categorías con horario se ocultan fuera de su franja. Se filtra
+		// aquí, antes de repartir los datos, para que los cuatro temas y sus
+		// navegaciones vean exactamente el mismo menú.
+		const visible = aplicarHorarios(cats, prods, restaurante);
+		setCategorias(visible.categorias);
+		setProductos(visible.productos);
 
 		showLoading(false);
 
