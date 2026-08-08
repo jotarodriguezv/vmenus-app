@@ -13,6 +13,7 @@
 
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { trackClic } from '../core/analytics.js';
+import { esc } from '../core/html.js';
 
 // ── ESTADO DEL TEMA ───────────────────────────────────────────
 let viewMode = 'list';        // 'list' | 'grid'
@@ -52,9 +53,8 @@ const IC = {
 	close: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
 };
 
-function esc(s) {
-	return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
+// esc() vivía aquí; se movió a core/html.js para que los otros temas lo
+// compartan en vez de quedarse sin escapar, que es lo que había pasado.
 
 // ══════════════════════════════════════════════════════════════
 // BUILD NAV — controles flotantes, portada y barra inferior
