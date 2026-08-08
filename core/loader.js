@@ -99,7 +99,7 @@ async function init() {
 		// ── 4. DATOS DE MENÚ ──────────────────────────────────────
 		const [cats, prods] = await Promise.all([
 			sbFetch('categorias', `restaurante_id=eq.${restaurante.id}&select=*&order=orden.asc`),
-			sbFetch('productos', `restaurante_id=eq.${restaurante.id}&disponible=eq.true&select=*&order=precio_numerico.asc`)
+			sbFetch('productos', `restaurante_id=eq.${restaurante.id}&disponible=eq.true&select=*&order=${ordenDeProductos(restaurante)}`)
 		]);
 		// Las categorías con horario se ocultan fuera de su franja. Se filtra
 		// aquí, antes de repartir los datos, para que los cuatro temas y sus
@@ -157,6 +157,22 @@ async function init() {
 			No se pudo cargar el menú. Intenta de nuevo.
 		</p>`;
 	}
+}
+
+// ── ORDEN DE LOS PRODUCTOS ────────────────────────────────────
+// Lo elige el restaurante desde el panel. Por defecto, de menor a mayor
+// precio: es como funcionaba antes de que la opción existiera.
+const ORDEN_PRODUCTOS = {
+	precio_asc:  'precio_numerico.asc',
+	precio_desc: 'precio_numerico.desc',
+	nombre_az:   'nombre.asc',
+	// El manual necesita desempate: los productos creados antes de la
+	// primera reordenación comparten valores de "orden".
+	personalizado: 'orden.asc,nombre.asc',
+};
+
+function ordenDeProductos(restaurante) {
+	return ORDEN_PRODUCTOS[restaurante.atributos?.orden_productos] || ORDEN_PRODUCTOS.precio_asc;
 }
 
 // ── APLICAR ESTILOS DINÁMICOS ─────────────────────────────────
