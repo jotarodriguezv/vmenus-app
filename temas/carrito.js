@@ -145,7 +145,10 @@ export function buildMenu() {
 function addSimpleToCart(p) {
 	const existing = cart.find(i => i.cartKey === p.id);
 	if (existing) existing.cantidad++;
-	else cart.push({ cartKey: p.id, id: p.id, name: p.nombre, price: p.precio_numerico, cantidad: 1, descripcion: '' });
+	// 'extras' guarda aparte lo que suman los toppings, para poder recalcular
+	// el precio contra el menú de hoy sin perder el recargo. Un producto
+	// simple no lleva ninguno.
+	else cart.push({ cartKey: p.id, id: p.id, name: p.nombre, price: p.precio_numerico, extras: 0, cantidad: 1, descripcion: '' });
 	saveCartToStorage();
 	updateCartUI();
 }
@@ -255,7 +258,7 @@ function addCustomToCart() {
 
 	const existing = cart.find(i => i.cartKey === cartKey);
 	if (existing) existing.cantidad += customQty;
-	else cart.push({ cartKey, id: customProduct.id, name: customProduct.nombre, price: precioUnit, cantidad: customQty, descripcion });
+	else cart.push({ cartKey, id: customProduct.id, name: customProduct.nombre, price: precioUnit, extras, cantidad: customQty, descripcion });
 
 	customEditingKey = null;
 	saveCartToStorage();
@@ -266,13 +269,91 @@ function addCustomToCart() {
 // ── CARRITO ──────────────────────────────────────────────────
 function storageKey() { return `${restaurante?.slug || 'vmenus'}_cart`; }
 
-function saveCartToStorage() { localStorage.setItem(storageKey(), JSON.stringify(cart)); }
+// El carrito guardado se versiona: si el formato cambia, se descarta en vez
+// de intentar interpretar algo que ya no encaja. Un carrito es efímero; vale
+// más perderlo una vez que enviar un pedido mal calculado.
+const CART_VERSION = 2;
+
+function saveCartToStorage() {
+	localStorage.setItem(storageKey(), JSON.stringify({ v: CART_VERSION, items: cart }));
+}
+
+// ── REVALIDAR EL CARRITO GUARDADO ─────────────────────────────
+// El carrito vive en el navegador del cliente y puede reaparecer días
+// después. Sin cruzarlo con el menú de hoy, el pedido sale con el precio que
+// tenía cuando se añadió y con productos que quizá ya no existen: al
+// restaurante le llega un pedido que no puede cumplir al precio que dice.
+//
+// 'productos' ya viene cargado y filtrado (solo disponibles, y solo los de
+// categorías dentro de su franja horaria), así que sirve de fuente de verdad.
+function revalidarCarrito(guardado) {
+	const vivos = [], retirados = [], reprecio = [];
+
+	for (const item of guardado) {
+		const p = productos.find(pr => pr.id === item.id);
+		// No está en el menú de ahora: agotado, borrado o fuera de horario.
+		if (!p) { retirados.push(item.name); continue; }
+
+		const extras = Number(item.extras) || 0;
+		const precioHoy = p.precio_numerico + extras;
+		if (precioHoy !== item.price) {
+			reprecio.push({ nombre: p.nombre, antes: item.price, ahora: precioHoy });
+			item.price = precioHoy;
+		}
+		item.name = p.nombre;   // el nombre también pudo cambiar en el panel
+		vivos.push(item);
+	}
+	return { vivos, retirados, reprecio };
+}
+
+function avisarCambiosCarrito({ retirados, reprecio }) {
+	if (!retirados.length && !reprecio.length) return;
+	const cont = document.getElementById('cartItems');
+	if (!cont) return;
+
+	const bloques = [];
+	if (reprecio.length) {
+		bloques.push(`<div><strong>${reprecio.length === 1 ? 'Un producto cambió de precio' : reprecio.length + ' productos cambiaron de precio'}</strong></div>`
+			+ reprecio.map(r => `<div style="opacity:.85">${esc(r.nombre)}: $${r.antes.toLocaleString('es-CO')} → $${r.ahora.toLocaleString('es-CO')}</div>`).join(''));
+	}
+	if (retirados.length) {
+		bloques.push(`<div><strong>${retirados.length === 1 ? 'Quitamos un producto que ya no está disponible' : 'Quitamos ' + retirados.length + ' productos que ya no están disponibles'}</strong></div>`
+			+ retirados.map(n => `<div style="opacity:.85">${esc(n)}</div>`).join(''));
+	}
+
+	const aviso = document.createElement('div');
+	aviso.className = 'cart-aviso';
+	aviso.style.cssText = 'background:rgba(255,176,32,.12);border:1px solid rgba(255,176,32,.45);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.5;color:var(--text)';
+	aviso.innerHTML = `<div style="margin-bottom:6px">🛈 Tu carrito se actualizó desde tu última visita</div>${bloques.join('<div style="height:6px"></div>')}`;
+	cont.insertAdjacentElement('afterbegin', aviso);
+}
 
 function loadCartFromStorage() {
+	let guardado;
 	try {
-		const saved = localStorage.getItem(storageKey());
-		if (saved) { cart = JSON.parse(saved); updateCartUI(); }
-	} catch { cart = []; }
+		const raw = localStorage.getItem(storageKey());
+		if (!raw) return;
+		const datos = JSON.parse(raw);
+		// Formato anterior (un array suelto, sin 'extras'): no se puede
+		// recalcular el precio de un producto personalizado sin saber cuánto
+		// sumaban sus toppings, así que se descarta.
+		if (!datos || datos.v !== CART_VERSION || !Array.isArray(datos.items)) {
+			localStorage.removeItem(storageKey());
+			return;
+		}
+		guardado = datos.items;
+	} catch {
+		localStorage.removeItem(storageKey());
+		return;
+	}
+
+	const { vivos, retirados, reprecio } = revalidarCarrito(guardado);
+	cart = vivos;
+	// Se persiste ya corregido: si el cliente cierra sin pedir, la próxima
+	// visita arranca del estado bueno y no repite el mismo aviso.
+	if (retirados.length || reprecio.length) saveCartToStorage();
+	updateCartUI();
+	avisarCambiosCarrito({ retirados, reprecio });
 }
 
 function updateQuantity(cartKey, change) {
@@ -415,7 +496,9 @@ function updateCheckoutSummary() {
 
 function sendWhatsAppOrder(event) {
 	event.preventDefault();
-	const whatsapp = restaurante?.atributos?.whatsapp_pedidos;
+	// wa.me solo acepta dígitos: un número escrito como "+57 300 123 4567"
+	// genera un enlace que no abre nada y falla justo al final del pedido.
+	const whatsapp = String(restaurante?.atributos?.whatsapp_pedidos ?? '').replace(/\D/g, '');
 	if (!whatsapp) {
 		alert('Este restaurante no tiene configurado un número de WhatsApp para pedidos.');
 		return;
@@ -439,7 +522,16 @@ function sendWhatsAppOrder(event) {
 	const total = cart.reduce((sum, i) => sum + i.price * i.cantidad, 0);
 	msg += `\n*TOTAL: $${total.toLocaleString('es-CO')}*`;
 
-	window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+	const url = `https://wa.me/${whatsapp}?text=${encodeURIComponent(msg)}`;
+	const ventana = window.open(url, '_blank');
+
+	// Si el navegador bloqueó la ventana, el pedido no llegó a ninguna parte.
+	// Vaciar el carrito aquí le borraba al cliente todo lo que había armado y
+	// lo obligaba a empezar de cero: se conserva y se le da otra vía.
+	if (!ventana) {
+		mostrarEnlaceManual(url);
+		return;
+	}
 
 	cart = [];
 	saveCartToStorage();
@@ -447,4 +539,30 @@ function sendWhatsAppOrder(event) {
 	closeCheckout();
 	document.getElementById('clientName').value = '';
 	document.getElementById('clientAddress').value = '';
+}
+
+// Enlace de reserva cuando el emergente no abre. Es un <a> de verdad: al
+// pulsarlo hay gesto del usuario otra vez, que es lo que suelen exigir los
+// bloqueadores.
+function mostrarEnlaceManual(url) {
+	const cont = document.getElementById('checkoutSummary');
+	if (!cont) { window.location.href = url; return; }
+	document.getElementById('checkoutManual')?.remove();
+	const aviso = document.createElement('div');
+	aviso.id = 'checkoutManual';
+	aviso.style.cssText = 'background:rgba(255,176,32,.12);border:1px solid rgba(255,176,32,.45);border-radius:8px;padding:12px;margin-top:12px;font-size:13px;line-height:1.5;text-align:center;color:var(--text)';
+	aviso.innerHTML = `<div style="margin-bottom:8px">Tu navegador bloqueó la apertura de WhatsApp. Tu pedido sigue guardado.</div>
+		<a href="${escUrl(url)}" target="_blank" rel="noopener" style="display:inline-block;background:var(--accent);color:#000;padding:10px 18px;border-radius:8px;font-weight:700;text-decoration:none">Abrir WhatsApp y enviar</a>`;
+	// Al pulsar el enlace el pedido sí sale, así que a partir de ahí el
+	// carrito se vacía igual que en el camino normal.
+	aviso.querySelector('a').addEventListener('click', () => {
+		cart = [];
+		saveCartToStorage();
+		updateCartUI();
+		aviso.remove();
+		closeCheckout();
+		document.getElementById('clientName').value = '';
+		document.getElementById('clientAddress').value = '';
+	});
+	cont.insertAdjacentElement('afterend', aviso);
 }
