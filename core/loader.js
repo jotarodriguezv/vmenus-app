@@ -29,6 +29,15 @@ import { planDe } from './planes.js';
 // Hosts que son la plataforma misma, no un restaurante.
 const SUBDOMINIOS_RESERVADOS = ['menu', 'www', 'admin', 'app', 'api'];
 
+// Columnas de 'restaurantes' que el menú público necesita. Es la lista
+// completa de la tabla menos 'created_at' (no se usa). El PIN vive en otra
+// tabla, sin lectura pública, y no debe volver aquí nunca.
+const COLUMNAS_PUBLICAS = [
+	'id', 'nombre', 'slug', 'logo_url', 'fondo_url',
+	'color_primario', 'color_secundario',
+	'promo_activa', 'promo_imagen_url', 'activo', 'atributos'
+].join(',');
+
 function leerSlug() {
 	const host   = window.location.hostname;
 	const porRuta = window.location.pathname.split('/').filter(Boolean)[0] || '';
@@ -71,7 +80,12 @@ async function init() {
 		showLoading(true);
 
 		// ── 2. DATOS DEL RESTAURANTE ─────────────────────────────
-		const restData = await sbFetch('restaurantes', `slug=eq.${slug}&select=*`);
+		// Se piden columnas explícitas y nunca '*': esta respuesta viaja al
+		// navegador de cualquier visitante, así que la lista de abajo es
+		// exactamente lo que la plataforma acepta hacer público. Una columna
+		// nueva en la tabla no se filtra sola por haberla creado.
+		const restData = await sbFetch('restaurantes',
+			`slug=eq.${encodeURIComponent(slug)}&select=${COLUMNAS_PUBLICAS}`);
 		if (!restData.length) throw new Error('Restaurante no encontrado');
 
 		const restaurante = restData[0];
