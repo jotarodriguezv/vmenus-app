@@ -1,4 +1,5 @@
 import { trackClic } from './analytics.js';
+import { esc, escUrl } from './html.js';
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────
 export let restaurante = null;
@@ -51,7 +52,7 @@ export function buildMenu() {
 		section.id = 'sec-' + cat.id;
 		section.innerHTML = `
 		<div class="category-header">
-			<div class="category-title">${cat.emoji || ''} ${cat.nombre}</div>
+			<div class="category-title">${esc(cat.emoji || '')} ${esc(cat.nombre)}</div>
 			<div class="category-line"></div>
 		</div>
 		`;
@@ -66,12 +67,12 @@ export function buildMenu() {
 				item.onclick = () => openModal(cat.id, prods.indexOf(p));
 				item.innerHTML = `
 				<span class="list-name">
-					${p.nombre}
+					${esc(p.nombre)}
 					${p.descripcion_avanzada
-				? `<span class="list-desc-avanzada">${p.descripcion_avanzada}</span>`
+				? `<span class="list-desc-avanzada">${esc(p.descripcion_avanzada)}</span>`
 					: ''}
 				</span>
-				<span class="list-price">${p.precio}</span>
+				<span class="list-price">${esc(p.precio)}</span>
 				`;
 				list.appendChild(item);
 			});
@@ -87,8 +88,8 @@ export function buildMenu() {
 					row.className = 'product-noimg';
 					row.onclick = () => openModal(cat.id, idx);
 					row.innerHTML = `
-					<div class="card-name">${p.nombre}</div>
-					<div class="card-price">${p.precio}</div>
+					<div class="card-name">${esc(p.nombre)}</div>
+					<div class="card-price">${esc(p.precio)}</div>
 					`;
 					grid.appendChild(row);
 					return;
@@ -98,12 +99,12 @@ export function buildMenu() {
 				card.onclick = () => openModal(cat.id, idx);
 				card.innerHTML = `
 				<div class="card-img-wrap">
-					<img class="card-img" src="${p.imagen_url}" alt="${p.nombre}" loading="lazy"
+					<img class="card-img" src="${escUrl(p.imagen_url)}" alt="${esc(p.nombre)}" loading="lazy"
 						onerror="this.parentNode.innerHTML=window.vmNoImg()">
 				</div>
 				<div class="card-body">
-				<div class="card-name">${p.nombre}</div>
-				<div class="card-price">${p.precio}</div>
+				<div class="card-name">${esc(p.nombre)}</div>
+				<div class="card-price">${esc(p.precio)}</div>
 					</div>
 					`;
 					grid.appendChild(card);
@@ -316,9 +317,9 @@ export function buildMenu() {
 	bar.className = 'social-bar';
 	bar.id = 'socialBar';
 	bar.innerHTML = links.map(l => `
-    <a class="social-btn" href="${l.href}" target="_blank" rel="noopener">
+    <a class="social-btn" href="${escUrl(l.href)}" target="_blank" rel="noopener">
 		${l.icon}
-		<span>${l.label}</span>
+		<span>${esc(l.label)}</span>
     </a>
 	`).join('');
 	document.body.appendChild(bar);
