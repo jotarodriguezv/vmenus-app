@@ -6,6 +6,7 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { buildNav as buildSidebarNav } from './sidebar.js';
 import { trackClic } from '../core/analytics.js';
+import { esc, escUrl } from '../core/html.js';
 
 // ── CATÁLOGO DE MÉTODOS DE PAGO ─────────────────────────────────
 // El restaurante activa/desactiva cada uno y llena sus datos desde
@@ -65,7 +66,7 @@ export function buildMenu() {
 		section.id = 'sec-' + cat.id;
 		section.innerHTML = `
 		<div class="category-header">
-			<div class="category-title">${cat.emoji || ''} ${cat.nombre}</div>
+			<div class="category-title">${esc(cat.emoji || '')} ${esc(cat.nombre)}</div>
 			<div class="category-line"></div>
 		</div>`;
 
@@ -82,11 +83,11 @@ export function buildMenu() {
 				row.className = 'product-noimg';
 				row.innerHTML = `
 				<div>
-					<div class="card-name">${p.nombre}</div>
+					<div class="card-name">${esc(p.nombre)}</div>
 					${tieneOpciones ? '<div class="card-hint">Toca para personalizar</div>' : ''}
 				</div>
 				<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-					<div class="card-price">${p.precio}</div>
+					<div class="card-price">${esc(p.precio)}</div>
 					<span class="noimg-add-indicator">+</span>
 				</div>`;
 				row.onclick = () => {
@@ -110,12 +111,12 @@ export function buildMenu() {
 			card.className = 'product-card has-img';
 			card.innerHTML = `
 			<div class="card-img-wrap">
-				<img class="card-img" src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" onerror="this.parentNode.innerHTML=window.vmNoImg()">
+				<img class="card-img" src="${escUrl(p.imagen_url)}" alt="${esc(p.nombre)}" loading="lazy" onerror="this.parentNode.innerHTML=window.vmNoImg()">
 				<button class="card-add-btn" title="${tieneOpciones ? 'Personalizar' : 'Agregar'}">+</button>
 			</div>
 			<div class="card-body">
-				<div class="card-name">${p.nombre}</div>
-				<div class="card-price">${p.precio}</div>
+				<div class="card-name">${esc(p.nombre)}</div>
+				<div class="card-price">${esc(p.precio)}</div>
 				${tieneOpciones ? '<div class="card-hint">Toca para personalizar</div>' : ''}
 			</div>`;
 
@@ -316,8 +317,8 @@ function updateCartUI() {
 			div.className = 'cart-item';
 			div.innerHTML = `
 			<div class="cart-item-info">
-				<div class="cart-item-name">${item.name}</div>
-				${item.descripcion ? `<div class="cart-item-desc">${item.descripcion}</div>` : ''}
+				<div class="cart-item-name">${esc(item.name)}</div>
+				${item.descripcion ? `<div class="cart-item-desc">${esc(item.descripcion)}</div>` : ''}
 				<div class="cart-item-price">$${(item.price * item.cantidad).toLocaleString('es-CO')}</div>
 			</div>
 			<div class="cart-item-side">
@@ -387,7 +388,9 @@ function updatePaymentDetails() {
 	const key = select.value;
 	const def = METODOS_PAGO_CATALOGO[key];
 	if (def?.detalle && mp[key]) {
-		box.innerHTML = `<div class="checkout-summary-item" style="color:var(--text)"><span>${def.detalle(mp[key])}</span></div>`;
+		// Los datos de pago (titular, número de cuenta, llave) los escribe el
+		// restaurante desde el panel, así que también hay que escaparlos.
+		box.innerHTML = `<div class="checkout-summary-item" style="color:var(--text)"><span>${esc(def.detalle(mp[key]))}</span></div>`;
 		box.style.display = 'block';
 	} else {
 		box.style.display = 'none';
@@ -404,7 +407,7 @@ function updateCheckoutSummary() {
 	const total = cart.reduce((sum, i) => sum + i.price * i.cantidad, 0);
 	summary.innerHTML = cart.map(item => `
 		<div class="checkout-summary-item">
-			<span>${item.name} x${item.cantidad}${item.descripcion ? `<br><small style="color:var(--text-dim)">${item.descripcion}</small>` : ''}</span>
+			<span>${esc(item.name)} x${item.cantidad}${item.descripcion ? `<br><small style="color:var(--text-dim)">${esc(item.descripcion)}</small>` : ''}</span>
 			<span>$${(item.price * item.cantidad).toLocaleString('es-CO')}</span>
 		</div>`).join('') + `
 		<div class="checkout-summary-total"><span>Total</span><span>$${total.toLocaleString('es-CO')}</span></div>`;
