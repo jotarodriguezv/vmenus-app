@@ -16,6 +16,7 @@ import {
 } from './menu.js';
 import { trackVisita } from './analytics.js';
 import { aplicarHorarios } from './horarios.js';
+import { planDe } from './planes.js';
 
 // ── 1. SLUG DESDE LA URL ──────────────────────────────────────
 // Se aceptan las dos formas a la vez, siempre, sin que el restaurante
@@ -104,7 +105,10 @@ async function init() {
 		// Las categorías con horario se ocultan fuera de su franja. Se filtra
 		// aquí, antes de repartir los datos, para que los cuatro temas y sus
 		// navegaciones vean exactamente el mismo menú.
-		const visible = aplicarHorarios(cats, prods, restaurante);
+		// Los horarios de categoría son de plan; sin ellos se muestra todo.
+		const visible = planDe(restaurante).horarios
+			? aplicarHorarios(cats, prods, restaurante)
+			: { categorias: cats, productos: prods };
 		setCategorias(visible.categorias);
 		setProductos(visible.productos);
 
@@ -137,7 +141,10 @@ async function init() {
 			setTimeout(() => openPromo(), 700);
 		}
 
-		// ── 9. TÍTULO DE LA PÁGINA ────────────────────────────────
+		// ── 9. CRÉDITO DE LA PLATAFORMA ──────────────────────────
+		mostrarCredito(restaurante);
+
+		// ── 10. TÍTULO DE LA PÁGINA ───────────────────────────────
 		document.title = `${restaurante.nombre} — Menú Digital`;
 
 		// Favicon dinámico por restaurante
@@ -157,6 +164,25 @@ async function init() {
 			No se pudo cargar el menú. Intenta de nuevo.
 		</p>`;
 	}
+}
+
+// ── CRÉDITO DE LA PLATAFORMA ──────────────────────────────────
+// Una línea discreta con enlace, al pie del menú. Los planes que la
+// quitan son los que pagan por marca blanca.
+//
+// Se añade al final, cuando el tema ya construyó su pie: 'explorar'
+// arma el suyo propio y esconde el compartido, así que hay que buscar
+// los dos. El pie del restaurante (su copyright) no se toca.
+function mostrarCredito(restaurante) {
+	if (!planDe(restaurante).marca) return;
+	const destino = document.getElementById('expFooter')
+		|| document.querySelector('.footer')
+		|| document.getElementById('mainContent');
+	if (!destino) return;
+	const credito = document.createElement('div');
+	credito.className = 'vm-credito';
+	credito.innerHTML = '<a href="https://vmenus.co" target="_blank" rel="noopener">Hecho con VMenus</a>';
+	destino.appendChild(credito);
 }
 
 // ── ORDEN DE LOS PRODUCTOS ────────────────────────────────────
