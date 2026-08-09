@@ -224,12 +224,27 @@ function updateCustomQtyUI() {
 	updateCustomTotal();
 }
 
+// Recargo de los toppings premium marcados. Está aquí y no repetido en los
+// dos sitios que lo usan —el total del modal y el alta en el carrito— porque
+// si divergen, al cliente se le enseña un precio y se le cobra otro.
+//
+// Se suma una sola vez por nombre: si el catálogo del restaurante trae dos
+// entradas con el mismo nombre, casarían las dos y el cliente pagaría el
+// recargo doble habiéndolo marcado una vez. El panel ya impide crear
+// duplicados, pero los que pudieran estar guardados no deben cobrar de más.
+function recargoPremium(attr) {
+	const yaSumados = new Set();
+	return (attr?.toppings_premium || []).reduce((sum, t) => {
+		if (!selectedPremium.has(t.nombre) || yaSumados.has(t.nombre)) return sum;
+		yaSumados.add(t.nombre);
+		return sum + (Number(t.precio) || 0);
+	}, 0);
+}
+
 function updateCustomTotal() {
 	if (!customProduct) return;
 	const attr = customProduct.atributos || {};
-	const extras = (attr.toppings_premium || [])
-		.filter(t => selectedPremium.has(t.nombre))
-		.reduce((sum, t) => sum + t.precio, 0);
+	const extras = recargoPremium(attr);
 	const total = (customProduct.precio_numerico + extras) * customQty;
 	document.getElementById('customTotal').textContent = '$' + total.toLocaleString('es-CO');
 }
@@ -242,9 +257,7 @@ function closeCustomModal() {
 function addCustomToCart() {
 	if (!customProduct) return;
 	const attr = customProduct.atributos || {};
-	const extras = (attr.toppings_premium || [])
-		.filter(t => selectedPremium.has(t.nombre))
-		.reduce((sum, t) => sum + t.precio, 0);
+	const extras = recargoPremium(attr);
 	const precioUnit = customProduct.precio_numerico + extras;
 
 	const partes = [];
