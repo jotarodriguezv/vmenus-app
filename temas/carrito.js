@@ -5,7 +5,7 @@
 
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { buildNav as buildSidebarNav } from './sidebar.js';
-import { trackClic } from '../core/analytics.js';
+import { trackClic, trackAgregarCarrito } from '../core/analytics.js';
 import { esc, escUrl } from '../core/html.js';
 
 // ── CATÁLOGO DE MÉTODOS DE PAGO ─────────────────────────────────
@@ -143,6 +143,7 @@ export function buildMenu() {
 }
 
 function addSimpleToCart(p) {
+	trackAgregarCarrito(restaurante?.id, p.id);
 	const existing = cart.find(i => i.cartKey === p.id);
 	if (existing) existing.cantidad++;
 	// 'extras' guarda aparte lo que suman los toppings, para poder recalcular
@@ -268,6 +269,10 @@ function addCustomToCart() {
 	if (selectedSalsas.size)  partes.push(`Salsas: ${[...selectedSalsas].join(', ')}`);
 	const descripcion = partes.join(' | ');
 	const cartKey = `${customProduct.id}__${descripcion}`;
+
+	// Solo cuando se añade de verdad. Al editar uno que ya estaba en el
+	// carrito no se registra: sería contar dos veces el mismo interés.
+	if (!customEditingKey) trackAgregarCarrito(restaurante?.id, customProduct.id);
 
 	if (customEditingKey) cart = cart.filter(i => i.cartKey !== customEditingKey);
 
