@@ -232,10 +232,12 @@ function updateCustomQtyUI() {
 // entradas con el mismo nombre, casarían las dos y el cliente pagaría el
 // recargo doble habiéndolo marcado una vez. El panel ya impide crear
 // duplicados, pero los que pudieran estar guardados no deben cobrar de más.
-function recargoPremium(attr) {
+// 'marcados' se puede pasar en las pruebas; en producción son los toppings
+// que el cliente tiene seleccionados ahora mismo en el modal.
+export function recargoPremium(attr, marcados = selectedPremium) {
 	const yaSumados = new Set();
 	return (attr?.toppings_premium || []).reduce((sum, t) => {
-		if (!selectedPremium.has(t.nombre) || yaSumados.has(t.nombre)) return sum;
+		if (!marcados.has(t.nombre) || yaSumados.has(t.nombre)) return sum;
 		yaSumados.add(t.nombre);
 		return sum + (Number(t.precio) || 0);
 	}, 0);
@@ -315,7 +317,7 @@ function saveCartToStorage(refrescar = true) {
 //
 // 'productos' ya viene cargado y filtrado (solo disponibles, y solo los de
 // categorías dentro de su franja horaria), así que sirve de fuente de verdad.
-function revalidarCarrito(guardado) {
+export function revalidarCarrito(guardado) {
 	const vivos = [], retirados = [], reprecio = [];
 
 	for (const item of guardado) {
@@ -357,7 +359,7 @@ function avisarCambiosCarrito({ retirados, reprecio }) {
 	cont.insertAdjacentElement('afterbegin', aviso);
 }
 
-function loadCartFromStorage() {
+export function loadCartFromStorage() {
 	let guardado;
 	try {
 		const raw = localStorage.getItem(storageKey());
