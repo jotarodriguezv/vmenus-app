@@ -274,8 +274,24 @@ function storageKey() { return `${restaurante?.slug || 'vmenus'}_cart`; }
 // más perderlo una vez que enviar un pedido mal calculado.
 const CART_VERSION = 2;
 
-function saveCartToStorage() {
-	localStorage.setItem(storageKey(), JSON.stringify({ v: CART_VERSION, items: cart }));
+// Un carrito de comida es una intención del momento. Alguien que mira el menú
+// a media tarde para pedir en la noche sigue siendo el mismo pedido, así que
+// el plazo tiene que cubrir eso; uno de hace tres días ya no lo es y solo
+// genera confusión al reaparecer. Pasado el plazo se descarta en silencio:
+// avisar de algo que el cliente ya olvidó no aporta nada.
+const CART_TTL_MS = 24 * 60 * 60 * 1000;
+
+// Momento en que el CLIENTE tocó el carrito por última vez. El plazo corre
+// desde ahí y no desde que se creó, para que ir añadiendo cosas a lo largo de
+// la tarde no lo caduque a media compra.
+let cartTs = Date.now();
+
+// 'refrescar' separa lo que hace el cliente de lo que hace el sistema: cuando
+// el carrito se guarda solo porque se revalidó al abrir, el plazo no se
+// reinicia. Si no, bastaría con abrir el menú para que no caducara nunca.
+function saveCartToStorage(refrescar = true) {
+	if (refrescar) cartTs = Date.now();
+	localStorage.setItem(storageKey(), JSON.stringify({ v: CART_VERSION, ts: cartTs, items: cart }));
 }
 
 // ── REVALIDAR EL CARRITO GUARDADO ─────────────────────────────
@@ -342,16 +358,28 @@ function loadCartFromStorage() {
 			return;
 		}
 		guardado = datos.items;
+		// Los carritos guardados antes de que existiera la marca de tiempo no
+		// llevan 'ts'. Se toman como recientes en vez de borrarlos: el cliente
+		// no tiene por qué pagar un cambio de formato con su pedido.
+		cartTs = Number(datos.ts) || Date.now();
 	} catch {
 		localStorage.removeItem(storageKey());
+		return;
+	}
+
+	if (Date.now() - cartTs > CART_TTL_MS) {
+		localStorage.removeItem(storageKey());
+		cart = [];
+		cartTs = Date.now();
 		return;
 	}
 
 	const { vivos, retirados, reprecio } = revalidarCarrito(guardado);
 	cart = vivos;
 	// Se persiste ya corregido: si el cliente cierra sin pedir, la próxima
-	// visita arranca del estado bueno y no repite el mismo aviso.
-	if (retirados.length || reprecio.length) saveCartToStorage();
+	// visita arranca del estado bueno y no repite el mismo aviso. Sin
+	// refrescar el plazo: esto lo hace el sistema, no el cliente.
+	if (retirados.length || reprecio.length) saveCartToStorage(false);
 	updateCartUI();
 	avisarCambiosCarrito({ retirados, reprecio });
 }
