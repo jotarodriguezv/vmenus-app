@@ -1,5 +1,6 @@
 import { trackClic } from './analytics.js';
 import { esc, escUrl } from './html.js';
+import { fotosDe, construirCarrusel } from './carrusel.js';
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────
 export let restaurante = null;
@@ -131,20 +132,18 @@ export function buildMenu() {
 		const wrap = document.getElementById('modalImgWrap');
 		if (!wrap) return;
 
-		// Construir array de imágenes: principal + adicionales (carrusel opcional)
-		const imgs = [];
-		if (p.imagen_url) imgs.push(p.imagen_url);
-			(p.atributos?.imagenes || []).forEach(u => {
-			if (u && !imgs.includes(u)) imgs.push(u);
-		});
+		// Principal + adicionales. El carrusel vive en core/carrusel.js para
+		// que los temas con modal propio usen el mismo, no una copia.
+		const imgs = fotosDe(p);
 
 		// Limpiar contenido previo (mantener botones)
 		wrap.querySelectorAll('.modal-carousel, .modal-img, .no-img-placeholder, .modal-no-img')
 		.forEach(el => el.remove());
 
-		if (imgs.length === 0) {
-			// Sin imagen
-			wrap.insertAdjacentHTML('afterbegin', `<div class="modal-no-img">${noImgHtml()}</div>`);
+		const carrusel = construirCarrusel(imgs, { alt: p.nombre, alAmpliar: openLightbox });
+
+		if (carrusel) {
+			wrap.insertAdjacentElement('afterbegin', carrusel);
 
 		} else if (imgs.length === 1) {
 			// Imagen simple
@@ -160,55 +159,8 @@ export function buildMenu() {
 			wrap.insertAdjacentElement('afterbegin', img);
 
 		} else {
-			// Carrusel (múltiples imágenes)
-			let currentSlide = 0;
-			const carousel  = document.createElement('div');
-			carousel.className = 'modal-carousel';
-			const track = document.createElement('div');
-			track.className = 'carousel-track';
-
-			imgs.forEach(url => {
-				const slide = document.createElement('div');
-				slide.className = 'carousel-slide';
-				const img = document.createElement('img');
-				img.src = url;
-				img.alt = p.nombre;
-				img.onclick = () => openLightbox(url);
-				slide.appendChild(img);
-				track.appendChild(slide);
-			});
-
-			const dotsWrap = document.createElement('div');
-			dotsWrap.className = 'carousel-dots';
-			const dots = imgs.map((_, i) => {
-				const dot = document.createElement('div');
-				dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
-				dot.onclick = () => goToSlide(i);
-				dotsWrap.appendChild(dot);
-				return dot;
-			});
-
-			function goToSlide(idx) {
-				currentSlide = idx;
-				track.style.transform = `translateX(-${idx * 100}%)`;
-				dots.forEach((d, i) => d.classList.toggle('active', i === idx));
-			}
-
-			// Swipe independiente del swipe de navegación entre productos
-			let startX = 0;
-			carousel.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-			carousel.addEventListener('touchend', e => {
-				const diff = startX - e.changedTouches[0].clientX;
-				if (Math.abs(diff) > 40) {
-					if (diff > 0 && currentSlide < imgs.length - 1) goToSlide(currentSlide + 1);
-					if (diff < 0 && currentSlide > 0)               goToSlide(currentSlide - 1);
-				}
-				e.stopPropagation();
-			});
-
-			carousel.appendChild(track);
-			carousel.appendChild(dotsWrap);
-			wrap.insertAdjacentElement('afterbegin', carousel);
+			// Sin imagen
+			wrap.insertAdjacentHTML('afterbegin', `<div class="modal-no-img">${noImgHtml()}</div>`);
 		}
 
 		// Datos del producto
