@@ -26,3 +26,10 @@ export function trackVisita(restauranteId) {
 export function trackClic(restauranteId, productoId) {
 	enviar({ restaurante_id: restauranteId, tipo: 'clic', producto_id: productoId });
 }
+
+// Solo lo emiten los restaurantes con el modelo carrito. Es la señal más
+// fuerte de interés: abrir una ficha puede ser curiosidad, meterla al
+// carrito es intención de pedir.
+export function trackAgregarCarrito(restauranteId, productoId) {
+	enviar({ restaurante_id: restauranteId, tipo: 'agregar_carrito', producto_id: productoId });
+}
