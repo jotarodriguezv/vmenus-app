@@ -56,6 +56,29 @@ const IC = {
 // esc() vivía aquí; se movió a core/html.js para que los otros temas lo
 // compartan en vez de quedarse sin escapar, que es lo que había pasado.
 
+// ── SUSTITUTO CUANDO LA IMAGEN NO CARGA ───────────────────────
+// El emoji de la categoría lo escribe el restaurante desde el panel, y aquí
+// acababa dentro de un onerror="…", es decir, dentro de una cadena de
+// JavaScript dentro de un atributo HTML. En ese sitio escapar NO basta: el
+// navegador decodifica las entidades del atributo ANTES de interpretarlo como
+// código, así que un &#39; vuelve a ser comilla y cierra la cadena.
+//
+// La solución no es escapar mejor, es no construir código a partir de datos:
+// se quita el JavaScript en línea y el reemplazo se hace con un manejador de
+// verdad, poniendo el emoji con textContent, donde no hay nada que escapar.
+function marcadorImagen(emoji, clase) {
+	const ph = document.createElement('div');
+	ph.className = clase;
+	ph.textContent = emoji || '🍽';
+	return ph;
+}
+
+function alFallarImagen(raiz, selector, emoji, clase) {
+	const img = raiz.querySelector(selector);
+	if (!img) return;
+	img.addEventListener('error', () => img.replaceWith(marcadorImagen(emoji, clase)), { once: true });
+}
+
 // ══════════════════════════════════════════════════════════════
 // BUILD NAV — controles flotantes, portada y barra inferior
 // ══════════════════════════════════════════════════════════════
@@ -305,8 +328,8 @@ function itemLista(p, cat, map) {
 	let thumb = '';
 	if (!sinFoto) {
 		thumb = p.imagen_url
-			? `<div class="exp-thumb"><img src="${esc(p.imagen_url)}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='<div class=\\'exp-thumb-ph\\'>${cat.emoji || '🍽'}</div>'"></div>`
-			: `<div class="exp-thumb"><div class="exp-thumb-ph">${cat.emoji || '🍽'}</div></div>`;
+			? `<div class="exp-thumb"><img src="${esc(p.imagen_url)}" alt="" loading="lazy"></div>`
+			: `<div class="exp-thumb"><div class="exp-thumb-ph">${esc(cat.emoji || '🍽')}</div></div>`;
 	}
 	div.innerHTML = `
 		${thumb}
@@ -319,6 +342,7 @@ function itemLista(p, cat, map) {
 			${p.descripcion ? `<p class="exp-item-desc">${esc(p.descripcion)}</p>` : ''}
 			${chipsFiltrosProducto(p, map)}
 		</div>`;
+	alFallarImagen(div, '.exp-thumb img', cat.emoji, 'exp-thumb-ph');
 	div.onclick = () => openExpModal(p, cat, map);
 	return div;
 }
@@ -330,8 +354,8 @@ function itemCard(p, cat, map) {
 	let img = '';
 	if (!sinFoto) {
 		img = p.imagen_url
-			? `<img class="exp-card-img" src="${esc(p.imagen_url)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'exp-card-ph\\'>${cat.emoji || '🍽'}</div>'">`
-			: `<div class="exp-card-ph">${cat.emoji || '🍽'}</div>`;
+			? `<img class="exp-card-img" src="${esc(p.imagen_url)}" alt="" loading="lazy">`
+			: `<div class="exp-card-ph">${esc(cat.emoji || '🍽')}</div>`;
 	}
 	// Un solo badge arriba (prioridad popular > chef > nuevo)
 	let topBadge = '';
@@ -345,6 +369,7 @@ function itemCard(p, cat, map) {
 			${p.descripcion ? `<div class="exp-card-desc">${esc(p.descripcion)}</div>` : ''}
 			<div class="exp-card-price">${esc(p.precio)}</div>
 		</div>`;
+	alFallarImagen(div, '.exp-card-img', cat.emoji, 'exp-card-ph');
 	div.onclick = () => openExpModal(p, cat, map);
 	return div;
 }
@@ -373,8 +398,8 @@ function openExpModal(p, cat, map) {
 	let img = '';
 	if (!sinFoto) {
 		img = p.imagen_url
-			? `<img class="exp-modal-img" src="${esc(p.imagen_url)}" alt="" onerror="this.outerHTML='<div class=\\'exp-modal-ph\\'>${cat.emoji || '🍽'}</div>'">`
-			: `<div class="exp-modal-ph">${cat.emoji || '🍽'}</div>`;
+			? `<img class="exp-modal-img" src="${esc(p.imagen_url)}" alt="">`
+			: `<div class="exp-modal-ph">${esc(cat.emoji || '🍽')}</div>`;
 	}
 	const ids = (p.atributos?.filtros || []).filter(id => map[id]);
 	const filtrosBloque = ids.length
@@ -390,6 +415,7 @@ function openExpModal(p, cat, map) {
 			${p.descripcion_avanzada ? `<p class="exp-modal-desc-adv">${esc(p.descripcion_avanzada)}</p>` : ''}
 			${filtrosBloque}
 		</div>`;
+	alFallarImagen(cont, '.exp-modal-img', cat.emoji, 'exp-modal-ph');
 	document.getElementById('expModalBg').classList.add('open');
 	document.getElementById('expModal').classList.add('open');
 	document.body.style.overflow = 'hidden';
