@@ -1,0 +1,10 @@
+{
+  "name": "vmenus-app",
+  "version": "1.0.0",
+  "description": "Menú digital público. Sitio estático servido por nginx; este package.json existe solo para las pruebas.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  }
+}

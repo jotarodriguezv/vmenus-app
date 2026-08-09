@@ -1,0 +1,9 @@
+# El Dockerfile hace COPY . a la raíz web de nginx, así que todo lo que no
+# se excluya aquí queda servido públicamente. Las pruebas y los metadatos del
+# repositorio no pintan nada en el sitio.
+test/
+package.json
+.dockerignore
+.git
+.gitignore
+*.md
