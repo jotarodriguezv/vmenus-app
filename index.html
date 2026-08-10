@@ -958,6 +958,12 @@
 			.exp-modal.open { transform: translateX(-50%) translateY(0); }
 			.exp-modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; }
 			.exp-modal-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+			/* El carrusel se reutiliza tal cual del modal compartido, pero allí
+			   hereda la altura de un contenedor fijo y aquí no hay ninguno: sin
+			   esto se quedaría en cero de alto. Se le da la misma proporción
+			   que la imagen simple para que el modal no dé un salto al pasar
+			   de un producto con una foto a otro con varias. */
+			.exp-modal .modal-carousel { aspect-ratio: 4/3; height: auto; }
 			.exp-modal-ph { width: 100%; aspect-ratio: 3/2; display: flex; align-items: center; justify-content: center; font-size: 60px; background: var(--card); }
 			.exp-modal-body { padding: 18px 20px 30px; }
 			.exp-modal-title { font-family: var(--font-titulo, inherit); font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
