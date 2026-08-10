@@ -14,6 +14,7 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { trackClic } from '../core/analytics.js';
 import { esc } from '../core/html.js';
+import { fotosDe, construirCarrusel } from '../core/carrusel.js';
 
 // ── ESTADO DEL TEMA ───────────────────────────────────────────
 let viewMode = 'list';        // 'list' | 'grid'
@@ -395,11 +396,18 @@ function openExpModal(p, cat, map) {
 	trackClic(restaurante?.id, p.id);
 	const cont = document.getElementById('expModalContent');
 	const sinFoto = cat.sin_fotos;
+	// Con varias fotos se usa el mismo carrusel que el modal compartido; con
+	// una sola, la imagen suelta de siempre. El hueco se deja vacío aquí y el
+	// carrusel se inserta después, porque es un elemento con sus propios
+	// manejadores y no se puede armar como cadena de HTML.
+	const fotos = sinFoto ? [] : fotosDe(p);
 	let img = '';
 	if (!sinFoto) {
-		img = p.imagen_url
-			? `<img class="exp-modal-img" src="${esc(p.imagen_url)}" alt="">`
-			: `<div class="exp-modal-ph">${esc(cat.emoji || '🍽')}</div>`;
+		img = fotos.length > 1
+			? '<div id="expModalFotos"></div>'
+			: (fotos.length === 1
+				? `<img class="exp-modal-img" src="${esc(fotos[0])}" alt="">`
+				: `<div class="exp-modal-ph">${esc(cat.emoji || '🍽')}</div>`);
 	}
 	const ids = (p.atributos?.filtros || []).filter(id => map[id]);
 	const filtrosBloque = ids.length
@@ -416,6 +424,14 @@ function openExpModal(p, cat, map) {
 			${filtrosBloque}
 		</div>`;
 	alFallarImagen(cont, '.exp-modal-img', cat.emoji, 'exp-modal-ph');
+
+	// Sin alAmpliar: este tema no tiene visor de imagen, así que las fotos no
+	// se abren y tampoco muestran el cursor de zoom.
+	if (fotos.length > 1) {
+		document.getElementById('expModalFotos')
+			?.replaceWith(construirCarrusel(fotos, { alt: p.nombre }));
+	}
+
 	document.getElementById('expModalBg').classList.add('open');
 	document.getElementById('expModal').classList.add('open');
 	document.body.style.overflow = 'hidden';
