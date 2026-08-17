@@ -19,6 +19,7 @@ export const PLANES = {
 		qr_disenador: false,   // el QR se genera igual; lo que no hay es personalizarlo
 		estadisticas: false,
 		horarios: false,
+		videos: false,
 	},
 	pedidos: {
 		nombre: 'Pedidos',
@@ -27,6 +28,7 @@ export const PLANES = {
 		qr_disenador: true,
 		estadisticas: true,
 		horarios: true,
+		videos: false,
 	},
 	completo: {
 		nombre: 'Completo',
@@ -35,6 +37,21 @@ export const PLANES = {
 		qr_disenador: true,
 		estadisticas: true,
 		horarios: true,
+		videos: false,
+	},
+	// La carta en video va en su propio plan porque su coste no se parece
+	// al de los demás: cada plato es un archivo que hay que almacenar,
+	// convertir y servir muchas veces. 'videos' es lo que abre la subida
+	// en el panel; el modelo 'video' es lo que la carta sabe pintar. Las
+	// dos cosas van juntas y solo aquí.
+	video: {
+		nombre: 'Video',
+		modelos: ['topnav', 'sidebar', 'explorar', 'carrito', 'video'],
+		marca: false,
+		qr_disenador: true,
+		estadisticas: true,
+		horarios: true,
+		videos: true,
 	},
 };
 
