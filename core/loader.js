@@ -129,19 +129,19 @@ async function init() {
 		showLoading(false);
 
 		// ── 5. TEMA DE NAV ────────────────────────────────────────
-		const tema = restaurante.atributos?.nav || 'topnav'; // 'topnav' | 'sidebar' | 'carrito'
+		const tema = restaurante.atributos?.nav || 'topnav'; // 'topnav' | 'sidebar' | 'carrito' | 'explorar' | 'video'
 		// Mostrar/ocultar bloques HTML según el tema
 		window.activarTema?.(tema, restaurante);
 		const temaModule = await import(`../temas/${tema}.js`);
 		temaModule.buildNav();
 
 		// ── 6. MENÚ ───────────────────────────────────────────────
-		// carrito y explorar tienen su propio render (no usan el buildMenu compartido)
-		if (tema === 'carrito' || tema === 'explorar') temaModule.buildMenu();
+		// carrito, explorar y video tienen su propio render (no usan el buildMenu compartido)
+		if (tema === 'carrito' || tema === 'explorar' || tema === 'video') temaModule.buildMenu();
 		else buildMenu();
 
-		// Scroll spy solo para topnav, después de que el DOM esté listo
-		if (tema === 'topnav' && temaModule.initScrollSpy) {
+		// Scroll spy para los temas de nav horizontal, después de que el DOM esté listo
+		if ((tema === 'topnav' || tema === 'video') && temaModule.initScrollSpy) {
   			requestAnimationFrame(() => temaModule.initScrollSpy());
 		}
 
