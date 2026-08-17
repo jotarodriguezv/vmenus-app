@@ -971,6 +971,103 @@
 			.exp-modal-desc { font-size: 14px; color: var(--text-muted); line-height: 1.65; }
 			.exp-modal-desc-adv { font-size: 13px; color: var(--text-dim); line-height: 1.6; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 			.exp-modal-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+
+			/* ══════════════════════════════════════════════════════════
+			   TEMA: VIDEO  (carta en video — una columna, 16:9)
+			   Se activa cuando atributos.nav = 'video'
+
+			   Reutiliza la nav sticky y los .nav-btn del tema topnav: la
+			   diferencia no está en la navegación sino en el cuerpo, así
+			   que no hace falta duplicar esos estilos.
+			══════════════════════════════════════════════════════════ */
+
+			/* En pantalla ancha la carta no se estira: un video de 16:9 a
+			   1400 px de ancho pide una resolución que no vamos a servir y
+			   deja la ficha perdida en medio del vacío. Se queda en una
+			   columna centrada del ancho de un móvil grande. */
+			.vid-lista { max-width: 620px; margin: 0 auto; padding: 8px 12px 40px; }
+
+			.vid-cat {
+				font-family: var(--font-titulo, inherit);
+				font-size: 13px;
+				font-weight: 700;
+				letter-spacing: 3px;
+				text-transform: uppercase;
+				color: var(--primary);
+				padding: 26px 4px 12px;
+			}
+
+			.vid-plato {
+				background: var(--card);
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				overflow: hidden;
+				margin-bottom: 16px;
+			}
+
+			/* El hueco manda: 16:9 fijo pase lo que pase. Reservarlo con
+			   aspect-ratio evita además que la página pegue un salto
+			   cuando el video termina de cargar. */
+			.vid-media {
+				position: relative;
+				width: 100%;
+				aspect-ratio: 16 / 9;
+				background: var(--surface);
+			}
+
+			/* cover, no contain: si entra un archivo que no es 16:9 se
+			   recorta, pero no aparecen franjas negras a los lados. */
+			.vid-media > video,
+			.vid-media > img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				display: block;
+			}
+
+			.vid-media > .no-img-placeholder {
+				width: 100%;
+				height: 100%;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				opacity: .35;
+			}
+
+			.vid-info { padding: 14px 16px 16px; }
+
+			/* El precio no se encoge ni se parte: el nombre ocupa lo que
+			   sobra y hace las líneas que necesite. */
+			.vid-fila {
+				display: flex;
+				align-items: baseline;
+				justify-content: space-between;
+				gap: 14px;
+			}
+
+			.vid-nombre {
+				font-family: var(--font-titulo, inherit);
+				font-size: 17px;
+				font-weight: 700;
+				line-height: 1.3;
+				color: var(--text);
+			}
+
+			.vid-precio {
+				font-family: var(--font-titulo, inherit);
+				font-size: 17px;
+				font-weight: 700;
+				color: var(--primary);
+				white-space: nowrap;
+				flex-shrink: 0;
+			}
+
+			.vid-desc {
+				margin-top: 7px;
+				font-size: 13.5px;
+				line-height: 1.6;
+				color: var(--text-muted);
+			}
 		</style>
 	</head>
 	<body>
