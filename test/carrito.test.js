@@ -15,7 +15,7 @@ globalThis.localStorage = {
 globalThis.document = { getElementById: () => null };
 
 const { setRestaurante, setProductos } = await import('../core/menu.js');
-const { revalidarCarrito, recargoPremium, loadCartFromStorage } = await import('../temas/carrito.js');
+const { revalidarCarrito, recargoPremium, loadCartFromStorage } = await import('../core/carrito.js');
 
 const P = (id, nombre, precio) => ({ id, nombre, precio_numerico: precio, categoria_id: 'c1' });
 const CLAVE = 'pruebas_cart';
