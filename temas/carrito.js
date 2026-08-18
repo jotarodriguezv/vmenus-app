@@ -1,12 +1,24 @@
-// ── TEMA: CARRITO ─────────────────────────────────────────────
-// Header fijo + sidebar (igual que temas/sidebar.js) + carrito de
-// compras que arma el pedido y lo envía por WhatsApp.
-// Se activa cuando atributos.nav = 'carrito'.
+// ── CARRITO ───────────────────────────────────────────────────
+// El carrito de compras: estado, guardado en el navegador, personalización
+// por toppings, checkout y envío por WhatsApp.
+//
+// Vivía entero dentro de temas/carrito.js. Se sacó aquí cuando el modelo de
+// video también quiso carrito: la alternativa era copiar seiscientas líneas
+// a otro tema, y eso ya nos costó un fallo una vez — el escapado de HTML
+// vivía dentro de temas/explorar.js y los demás temas se quedaron sin él.
+// Por eso existen core/html.js y core/carrusel.js, y por eso existe este.
+//
+// Lo que NO está aquí es cómo se pinta el catálogo: cada tema dibuja sus
+// platos como quiera y llama a agregarSimple() u openCustomModal(). El
+// marcado del carrito (barra lateral, checkout, modal de personalización)
+// vive en index.html y lo comparten todos.
+//
+// Aquí se toca dinero. Un fallo no rompe la página: hace que al restaurante
+// le llegue un pedido con el precio equivocado.
 
-import { restaurante, categorias, productos } from '../core/menu.js';
-import { buildNav as buildSidebarNav } from './sidebar.js';
-import { trackClic, trackAgregarCarrito } from '../core/analytics.js';
-import { esc, escUrl } from '../core/html.js';
+import { restaurante, productos } from './menu.js';
+import { trackAgregarCarrito } from './analytics.js';
+import { esc, escUrl } from './html.js';
 
 // ── CATÁLOGO DE MÉTODOS DE PAGO ─────────────────────────────────
 // El restaurante activa/desactiva cada uno y llena sus datos desde
@@ -27,120 +39,6 @@ let customQty = 1;
 let selectedPlatino = new Set();
 let selectedPremium = new Set();
 let selectedSalsas  = new Set();
-
-// ── NAV (reutiliza el sidebar + agrega el botón de carrito) ────
-export function buildNav() {
-	buildSidebarNav();
-	loadCartFromStorage();
-	document.getElementById('btnMenos')?.addEventListener('click', () => {
-		if (customQty > 1) { customQty--; updateCustomQtyUI(); }
-	});
-	document.getElementById('btnMas')?.addEventListener('click', () => {
-		customQty++; updateCustomQtyUI();
-	});
-	document.getElementById('btnAgregarCarrito')?.addEventListener('click', addCustomToCart);
-	document.getElementById('customOverlay')?.addEventListener('click', e => {
-		if (e.target.id === 'customOverlay') closeCustomModal();
-	});
-
-	window.vmToggleCart = toggleCart;
-	window.vmOpenCheckout = openCheckout;
-	window.vmCloseCheckout = closeCheckout;
-	window.vmSendWhatsAppOrder = sendWhatsAppOrder;
-	window.vmCloseCustomModal = closeCustomModal;
-	window.vmUpdatePaymentDetails = updatePaymentDetails;
-}
-
-// ── MENÚ (grid propio: click = agregar/personalizar, no info) ──
-export function buildMenu() {
-	const main = document.getElementById('mainContent');
-	if (!main) return;
-	main.innerHTML = '';
-
-	categorias.forEach(cat => {
-		const prods = productos.filter(p => p.categoria_id === cat.id);
-		if (!prods.length) return;
-
-		const section = document.createElement('div');
-		section.className = 'category-section';
-		section.id = 'sec-' + cat.id;
-		section.innerHTML = `
-		<div class="category-header">
-			<div class="category-title">${esc(cat.emoji || '')} ${esc(cat.nombre)}</div>
-			<div class="category-line"></div>
-		</div>`;
-
-		const grid = document.createElement('div');
-		grid.className = 'products-grid';
-
-		prods.forEach(p => {
-			const attr = p.atributos || {};
-			const tieneOpciones = !!(attr.toppings_platino?.length || attr.toppings_premium?.length || attr.salsas?.length);
-
-			// Sin imagen asignada: fila compacta, sin caja de foto (como una categoría "sin fotos")
-			if (!p.imagen_url) {
-				const row = document.createElement('div');
-				row.className = 'product-noimg';
-				row.innerHTML = `
-				<div>
-					<div class="card-name">${esc(p.nombre)}</div>
-					${tieneOpciones ? '<div class="card-hint">Toca para personalizar</div>' : ''}
-				</div>
-				<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-					<div class="card-price">${esc(p.precio)}</div>
-					<span class="noimg-add-indicator">+</span>
-				</div>`;
-				row.onclick = () => {
-					trackClic(restaurante?.id, p.id);
-					if (tieneOpciones) {
-						openCustomModal(p.id);
-					} else {
-						addSimpleToCart(p);
-						const ind = row.querySelector('.noimg-add-indicator');
-						if (ind) {
-							ind.textContent = '✓';
-							setTimeout(() => { ind.textContent = '+'; }, 800);
-						}
-					}
-				};
-				grid.appendChild(row);
-				return;
-			}
-
-			const card = document.createElement('div');
-			card.className = 'product-card has-img';
-			card.innerHTML = `
-			<div class="card-img-wrap">
-				<img class="card-img" src="${escUrl(p.imagen_url)}" alt="${esc(p.nombre)}" loading="lazy" onerror="this.parentNode.innerHTML=window.vmNoImg()">
-				<button class="card-add-btn" title="${tieneOpciones ? 'Personalizar' : 'Agregar'}">+</button>
-			</div>
-			<div class="card-body">
-				<div class="card-name">${esc(p.nombre)}</div>
-				<div class="card-price">${esc(p.precio)}</div>
-				${tieneOpciones ? '<div class="card-hint">Toca para personalizar</div>' : ''}
-			</div>`;
-
-			card.onclick = () => {
-				trackClic(restaurante?.id, p.id);
-				if (tieneOpciones) {
-					openCustomModal(p.id);
-				} else {
-					addSimpleToCart(p);
-					const btn = card.querySelector('.card-add-btn');
-					if (btn) {
-						btn.textContent = '✓';
-						setTimeout(() => { btn.textContent = '+'; }, 800);
-					}
-				}
-			};
-
-			grid.appendChild(card);
-		});
-
-		section.appendChild(grid);
-		main.appendChild(section);
-	});
-}
 
 function addSimpleToCart(p) {
 	trackAgregarCarrito(restaurante?.id, p.id);
@@ -613,4 +511,44 @@ function mostrarEnlaceManual(url) {
 		document.getElementById('clientAddress').value = '';
 	});
 	cont.insertAdjacentElement('afterend', aviso);
+}
+
+// ── ARRANQUE ──────────────────────────────────────────────────
+// Lo llama el tema que tenga el carrito encendido, después de construir su
+// nav. Engancha los botones del modal de personalización y publica en
+// window lo que el marcado de index.html invoca con onclick.
+export function activarCarrito() {
+	loadCartFromStorage();
+
+	document.getElementById('btnMenos')?.addEventListener('click', () => {
+		if (customQty > 1) { customQty--; updateCustomQtyUI(); }
+	});
+	document.getElementById('btnMas')?.addEventListener('click', () => {
+		customQty++; updateCustomQtyUI();
+	});
+	document.getElementById('btnAgregarCarrito')?.addEventListener('click', addCustomToCart);
+	document.getElementById('customOverlay')?.addEventListener('click', e => {
+		if (e.target.id === 'customOverlay') closeCustomModal();
+	});
+
+	// A propósito NO se enseña aquí ningún botón de carrito. Cada tema tiene
+	// el suyo en un sitio distinto —el de 'carrito' lo lleva en su cabecera
+	// fija, y un tema sin cabecera fija necesita otra cosa— así que enseñarlo
+	// es decisión del tema y no de la maquinaria.
+	window.vmToggleCart = toggleCart;
+	window.vmOpenCheckout = openCheckout;
+	window.vmCloseCheckout = closeCheckout;
+	window.vmSendWhatsAppOrder = sendWhatsAppOrder;
+	window.vmCloseCustomModal = closeCustomModal;
+	window.vmUpdatePaymentDetails = updatePaymentDetails;
+}
+
+export { addSimpleToCart as agregarSimple, openCustomModal, tienePersonalizacion };
+
+// Un plato con toppings, salsas o extras se personaliza antes de sumarlo;
+// uno normal entra directo. Lo pregunta cada tema para decidir qué hace su
+// botón, y así la regla vive en un solo sitio.
+function tienePersonalizacion(p) {
+	const a = p.atributos || {};
+	return !!(a.toppings_platino?.length || a.toppings_premium?.length || a.salsas?.length);
 }
