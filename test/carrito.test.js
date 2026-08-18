@@ -15,7 +15,7 @@ globalThis.localStorage = {
 globalThis.document = { getElementById: () => null };
 
 const { setRestaurante, setProductos } = await import('../core/menu.js');
-const { revalidarCarrito, recargoPremium, loadCartFromStorage } = await import('../core/carrito.js');
+const { revalidarCarrito, recargoPremium, loadCartFromStorage, opcionesDe } = await import('../core/carrito.js');
 
 const P = (id, nombre, precio) => ({ id, nombre, precio_numerico: precio, categoria_id: 'c1' });
 const CLAVE = 'pruebas_cart';
@@ -177,5 +177,79 @@ describe('loadCartFromStorage · caducidad a las 24 horas', () => {
 		guardar({ v: 2, items: [{ cartKey: 'h', id: 'h', name: 'HAMBURGUESA', price: 25000, extras: 0, cantidad: 1 }] });
 		loadCartFromStorage();
 		assert.notEqual(leido(), null, 'no debe borrarse por no tener fecha');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('opcionesDe · qué toppings ofrece cada plato', () => {
+	// El catálogo vive en el restaurante y el plato solo dice cuáles ofrece.
+	// Antes cada plato llevaba una copia con los precios dentro, y eso hacía
+	// que un plato nuevo naciera sin nada y que cambiar un precio en el
+	// catálogo no cambiara lo que pagaba el cliente.
+	const CATALOGO = {
+		toppings_platino: ['Cebolla', 'Tomate', 'Lechuga'],
+		toppings_premium: [{ nombre: 'Tocineta', precio: 4000 }, { nombre: 'Doble queso', precio: 3000 }],
+		salsas: ['BBQ', 'Piña', 'Rosada'],
+	};
+	const conCatalogo = (extra = {}) =>
+		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: { ...CATALOGO, ...extra } });
+
+	test('el precio sale del catálogo, no del plato', () => {
+		// Es el fallo que motivó el cambio: el restaurante sube un precio en
+		// el panel, el panel dice que guardó, y el cliente seguía pagando el
+		// de antes porque el plato llevaba su propia copia.
+		conCatalogo({ toppings_premium: [{ nombre: 'Tocineta', precio: 9000 }] });
+		const o = opcionesDe({ atributos: { personalizacion: { premium: ['Tocineta'] } } });
+		assert.equal(o.premium[0].precio, 9000, 'manda el catálogo de hoy');
+	});
+
+	test('un plato puede ofrecer solo una parte del catálogo', () => {
+		// Una hamburguesa lleva de todo; un perro, menos. Es el caso normal,
+		// no la excepción.
+		conCatalogo();
+		const o = opcionesDe({ atributos: { personalizacion: {
+			platino: ['Cebolla'], premium: ['Doble queso'], salsas: ['BBQ', 'Rosada'],
+		} } });
+		assert.deepEqual(o.platino, ['Cebolla']);
+		assert.deepEqual(o.premium.map(t => t.nombre), ['Doble queso']);
+		assert.deepEqual(o.salsas, ['BBQ', 'Rosada']);
+	});
+
+	test('lo que se borra del catálogo desaparece solo', () => {
+		// El plato sigue nombrando 'Piña' pero el restaurante ya la quitó. No
+		// puede aparecer en el modal: no tiene precio ni existe.
+		conCatalogo({ salsas: ['BBQ'] });
+		const o = opcionesDe({ atributos: { personalizacion: { salsas: ['BBQ', 'Piña'] } } });
+		assert.deepEqual(o.salsas, ['BBQ']);
+	});
+
+	test('un plato sin personalización no ofrece nada', () => {
+		// El caso del producto recién creado. Antes esto era indistinguible de
+		// un fallo; ahora es una respuesta.
+		conCatalogo();
+		const o = opcionesDe({ atributos: {} });
+		assert.deepEqual([o.platino, o.premium, o.salsas], [[], [], []]);
+	});
+
+	test('los platos con la copia antigua se siguen leyendo', () => {
+		// Compatibilidad: los que ya existen no pueden romperse mientras se
+		// migran. Si el plato trae copia, manda la copia.
+		conCatalogo();
+		const o = opcionesDe({ atributos: {
+			toppings_platino: ['Cebolla caramelizada'],
+			toppings_premium: [{ nombre: 'Trufa', precio: 12000 }],
+			salsas: ['Ajo'],
+		} });
+		assert.deepEqual(o.platino, ['Cebolla caramelizada']);
+		assert.equal(o.premium[0].precio, 12000);
+		assert.deepEqual(o.salsas, ['Ajo']);
+	});
+
+	test('una selección vacía es "no ofrece", no "ofrece todo"', () => {
+		// La gaseosa. Si una lista vacía se leyera como "todo el catálogo", se
+		// le ofrecerían toppings a una bebida.
+		conCatalogo();
+		const o = opcionesDe({ atributos: { personalizacion: { platino: [], premium: [], salsas: [] } } });
+		assert.deepEqual([o.platino, o.premium, o.salsas], [[], [], []]);
 	});
 });
