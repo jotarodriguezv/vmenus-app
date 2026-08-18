@@ -34,11 +34,51 @@ const METODOS_PAGO_CATALOGO = {
 
 let cart = [];
 let customProduct = null;
+let customOpciones = { platino: [], premium: [], salsas: [] };
 let customEditingKey = null;
 let customQty = 1;
 let selectedPlatino = new Set();
 let selectedPremium = new Set();
 let selectedSalsas  = new Set();
+
+// ── QUÉ OFRECE CADA PLATO ─────────────────────────────────────
+// El catálogo de toppings vive en el restaurante y cada plato dice cuáles
+// de sus elementos ofrece. Antes cada plato llevaba una COPIA del catálogo
+// con los precios dentro, y eso costaba dos cosas:
+//
+//   · Un plato nuevo nacía sin nada. El panel guardaba el catálogo en el
+//     restaurante y nadie hacía la copia, así que todo producto creado
+//     después de la carga inicial no admitía toppings — en silencio.
+//
+//   · Cambiar un precio en el catálogo no cambiaba lo que pagaba el
+//     cliente. La copia del plato seguía diciendo el precio viejo, el panel
+//     decía que había guardado, y nadie se enteraba.
+//
+// Guardando solo los nombres, el precio sale siempre del catálogo y un
+// topping borrado desaparece solo de los platos que lo ofrecían. El panel
+// no deja renombrar —solo añadir y borrar—, así que el nombre sirve de
+// identidad.
+function opcionesDe(p) {
+	const a = p?.atributos || {};
+	const sel = a.personalizacion;
+
+	// Platos de antes de este cambio: llevan su copia. Se siguen leyendo
+	// para no romperlos, y quedan migrados en cuanto se guarden desde el
+	// panel con la selección nueva.
+	if (!sel) return {
+		platino: a.toppings_platino || [],
+		premium: a.toppings_premium || [],
+		salsas:  a.salsas || [],
+	};
+
+	const cat = restaurante?.atributos || {};
+	const premiumSel = new Set(sel.premium || []);
+	return {
+		platino: (cat.toppings_platino || []).filter(t => (sel.platino || []).includes(t)),
+		premium: (cat.toppings_premium || []).filter(t => premiumSel.has(t.nombre)),
+		salsas:  (cat.salsas || []).filter(s => (sel.salsas || []).includes(s)),
+	};
+}
 
 function addSimpleToCart(p) {
 	trackAgregarCarrito(restaurante?.id, p.id);
@@ -76,18 +116,18 @@ function openCustomModal(productId, editingCartKey = null) {
 		selectedSalsas  = new Set();
 	}
 
-	const attr = p.atributos || {};
+	customOpciones = opcionesDe(p);
 	document.getElementById('customName').textContent = p.nombre;
 	document.getElementById('customBasePrice').textContent = `Precio base: ${p.precio}`;
 	updateCustomQtyUI();
 	document.getElementById('btnAgregarCarrito').textContent = editingCartKey ? '✏ GUARDAR CAMBIOS' : '🛒 AGREGAR AL CARRITO';
 
-	fillChipSection('secToppingsPlatino', 'listToppingsPlatino', attr.toppings_platino, t => t, selectedPlatino,
+	fillChipSection('secToppingsPlatino', 'listToppingsPlatino', customOpciones.platino, t => t, selectedPlatino,
 		t => toggleInSet(selectedPlatino, t));
-	fillChipSection('secToppingsPremium', 'listToppingsPremium', attr.toppings_premium,
+	fillChipSection('secToppingsPremium', 'listToppingsPremium', customOpciones.premium,
 		t => `${t.nombre} (+$${t.precio.toLocaleString('es-CO')})`, selectedPremium,
 		t => toggleInSet(selectedPremium, t.nombre), t => t.nombre);
-	fillChipSection('secSalsas', 'listSalsas', attr.salsas, s => s, selectedSalsas,
+	fillChipSection('secSalsas', 'listSalsas', customOpciones.salsas, s => s, selectedSalsas,
 		s => toggleInSet(selectedSalsas, s));
 
 	updateCustomTotal();
@@ -144,8 +184,7 @@ export function recargoPremium(attr, marcados = selectedPremium) {
 
 function updateCustomTotal() {
 	if (!customProduct) return;
-	const attr = customProduct.atributos || {};
-	const extras = recargoPremium(attr);
+	const extras = recargoPremium({ toppings_premium: customOpciones.premium });
 	const total = (customProduct.precio_numerico + extras) * customQty;
 	document.getElementById('customTotal').textContent = '$' + total.toLocaleString('es-CO');
 }
@@ -157,8 +196,7 @@ function closeCustomModal() {
 
 function addCustomToCart() {
 	if (!customProduct) return;
-	const attr = customProduct.atributos || {};
-	const extras = recargoPremium(attr);
+	const extras = recargoPremium({ toppings_premium: customOpciones.premium });
 	const precioUnit = customProduct.precio_numerico + extras;
 
 	const partes = [];
@@ -543,12 +581,12 @@ export function activarCarrito() {
 	window.vmUpdatePaymentDetails = updatePaymentDetails;
 }
 
-export { addSimpleToCart as agregarSimple, openCustomModal, tienePersonalizacion };
+export { addSimpleToCart as agregarSimple, openCustomModal, tienePersonalizacion, opcionesDe };
 
 // Un plato con toppings, salsas o extras se personaliza antes de sumarlo;
 // uno normal entra directo. Lo pregunta cada tema para decidir qué hace su
 // botón, y así la regla vive en un solo sitio.
 function tienePersonalizacion(p) {
-	const a = p.atributos || {};
-	return !!(a.toppings_platino?.length || a.toppings_premium?.length || a.salsas?.length);
+	const o = opcionesDe(p);
+	return !!(o.platino.length || o.premium.length || o.salsas.length);
 }
