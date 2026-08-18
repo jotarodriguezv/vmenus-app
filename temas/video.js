@@ -6,7 +6,7 @@ import { esc, escUrl } from '../core/html.js';
 // sangre en 16:9 con la ficha pegada debajo.
 //
 // Es el primer tema que no pinta imágenes sino video, y eso cambia
-// tres cosas respecto a los demás:
+// cuatro cosas respecto a los demás:
 //
 // 1. El peso. Un video ronda los 700 KB y una categoría puede tener
 //    doce platos. Cargarlos todos al abrir son ocho megas sobre la
@@ -14,13 +14,19 @@ import { esc, escUrl } from '../core/html.js';
 //    descarga hasta que el plato se acerca a la pantalla: los <video>
 //    nacen con preload="none" y sin src, solo con su portada.
 //
-// 2. El arranque. Un observador que llame a play() y pause() más
-//    rápido de lo que el navegador tarda en arrancar deja el video
-//    congelado — el famoso "AbortError: play() interrupted by pause()".
-//    Por eso todo pasa por reproducir()/pausar(), que esperan a que la
-//    promesa anterior se resuelva antes de hacer lo contrario.
+// 2. El arranque. Un observador que llame a play() y pause() más rápido
+//    de lo que el navegador tarda en arrancar deja el video congelado
+//    con la portada puesta — el famoso "AbortError: play() interrupted
+//    by pause()". Por eso todo pasa por reproducir()/pausar(), que
+//    esperan a que la promesa anterior se resuelva antes de hacer lo
+//    contrario.
 //
-// 3. El encuadre. El hueco es 16:9 fijo y el video va con object-fit
+// 3. La carga del aparato. Se mueve un solo video a la vez, el que más
+//    se ve. Dos decodificaciones de 720p a la vez mientras el dedo
+//    arrastra atascan un móvil de gama media, que es con lo que va a
+//    mirar la carta media sala.
+//
+// 4. El encuadre. El hueco es 16:9 fijo y el video va con object-fit
 //    cover, no contain: si algún día entra un archivo con otra
 //    proporción se recorta, pero la carta no se rompe con franjas
 //    negras a los lados.
@@ -158,18 +164,35 @@ function activarVideos() {
 
 	if (menosMovimiento) return;
 
-	// Reproducción: solo se mueve lo que está de verdad en pantalla.
+	// Reproducción: uno solo a la vez, el que más se vea.
+	//
+	// En una pantalla de móvil caben dos tarjetas a medias, y dejando que se
+	// muevan las dos hay dos decodificaciones de 720p simultáneas mientras el
+	// dedo arrastra. Un teléfono de gama media se atasca ahí — y la gama media
+	// es la mitad de quienes van a mirar la carta sentados en la mesa.
+	//
+	// Hacen falta varios umbrales y no uno: con threshold único el navegador
+	// solo avisa al cruzarlo, y aquí hay que saber cuál de los dos se ve más
+	// en cada momento, no si se ven.
+	const visibles = new Map();
+
 	const ioPlay = new IntersectionObserver(entradas => {
 		entradas.forEach(e => {
-			const v = e.target;
-			if (e.isIntersecting) {
-				if (!v.src && v.dataset.src) v.src = v.dataset.src;
-				reproducir(v);
-			} else {
-				pausar(v);
-			}
+			if (e.isIntersecting) visibles.set(e.target, e.intersectionRatio);
+			else visibles.delete(e.target);
 		});
-	}, { threshold: 0.5 });
+
+		let elegido = null, mejor = 0;
+		for (const [v, cuanto] of visibles) {
+			if (cuanto > mejor) { mejor = cuanto; elegido = v; }
+		}
+
+		videos.forEach(v => {
+			if (v !== elegido) return pausar(v);
+			if (!v.src && v.dataset.src) v.src = v.dataset.src;
+			reproducir(v);
+		});
+	}, { threshold: [0, 0.25, 0.5, 0.75, 1] });
 
 	videos.forEach(v => ioPlay.observe(v));
 
