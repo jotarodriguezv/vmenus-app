@@ -357,8 +357,13 @@ function removeFromCart(cartKey) {
 
 function updateCartUI() {
 	const count = cart.reduce((sum, i) => sum + i.cantidad, 0);
+	// Dos contadores porque hay dos botones: el de la cabecera fija del modelo
+	// 'carrito' y el flotante de los temas que no tienen cabecera. Cada tema
+	// enseña el suyo; aquí se actualizan los dos sin preguntar cuál existe.
 	const cartCount = document.getElementById('cartCount');
 	if (cartCount) cartCount.textContent = count;
+	const fabCount = document.getElementById('cartFabCount');
+	if (fabCount) fabCount.textContent = count;
 
 	const itemsDiv = document.getElementById('cartItems');
 	const emptyDiv = document.getElementById('cartEmpty');
