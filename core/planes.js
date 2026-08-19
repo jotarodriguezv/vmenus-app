@@ -20,6 +20,7 @@ export const PLANES = {
 		estadisticas: false,
 		horarios: false,
 		videos: false,
+		carrito: false,
 	},
 	pedidos: {
 		nombre: 'Pedidos',
@@ -29,6 +30,7 @@ export const PLANES = {
 		estadisticas: true,
 		horarios: true,
 		videos: false,
+		carrito: true,
 	},
 	completo: {
 		nombre: 'Completo',
@@ -38,7 +40,13 @@ export const PLANES = {
 		estadisticas: true,
 		horarios: true,
 		videos: false,
+		carrito: true,
 	},
+	// 'carrito' era solo un modelo de página; ahora es además una capacidad
+	// que otros modelos pueden encender —el de video, el primero— sin copiar
+	// las seiscientas líneas del carrito a cada tema. El modelo sigue en la
+	// lista de 'modelos' para los que lo usan como página entera.
+	//
 	// La carta en video va en su propio plan porque su coste no se parece
 	// al de los demás: cada plato es un archivo que hay que almacenar,
 	// convertir y servir muchas veces. 'videos' es lo que abre la subida
@@ -52,6 +60,7 @@ export const PLANES = {
 		estadisticas: true,
 		horarios: true,
 		videos: true,
+		carrito: true,
 	},
 };
 
