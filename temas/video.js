@@ -1,5 +1,7 @@
-import { categorias, productos, noImgHtml } from '../core/menu.js';
+import { restaurante, categorias, productos, noImgHtml } from '../core/menu.js';
 import { esc, escUrl } from '../core/html.js';
+import { planDe } from '../core/planes.js';
+import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
 
 // ── TEMA: VIDEO ───────────────────────────────────────────────
 // Carta en video. Una sola columna, un plato por fila, el video a
@@ -36,6 +38,18 @@ import { esc, escUrl } from '../core/html.js';
 // controles nativos para quien quiera darle play.
 const menosMovimiento = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+// ── CARRITO (opcional) ────────────────────────────────────────
+// El carrito no es una plantilla aparte: es un interruptor. La maquinaria
+// vive en core/carrito.js y este tema solo decide si la enciende, dónde
+// pone el botón de agregar y cuál usa para abrir el pedido.
+//
+// Hacen falta las dos condiciones. El plan dice si el negocio puede
+// tenerlo; el atributo, si lo quiere. Un restaurante con plan de sobra
+// puede querer su carta sin pedidos.
+function conCarrito() {
+	return !!(planDe(restaurante).carrito && restaurante?.atributos?.carrito);
+}
+
 export function buildNav() {
 	const nav = document.getElementById('navScroll');
 	if (!nav) return;
@@ -56,6 +70,14 @@ export function buildNav() {
 		nav.appendChild(btn);
 		primero = false;
 	});
+
+	if (!conCarrito()) return;
+	activarCarrito();
+	// Este tema no tiene cabecera fija donde colgar el botón del carrito, así
+	// que usa el flotante. Enseñarlo es cosa del tema y no de la maquinaria:
+	// cada uno lo lleva en un sitio distinto.
+	const fab = document.getElementById('cartFab');
+	if (fab) fab.style.display = 'block';
 }
 
 // El video y su portada los deja el worker en atributos cuando termina
@@ -91,6 +113,7 @@ export function buildMenu() {
 
 	const lista = document.createElement('div');
 	lista.className = 'vid-lista';
+	const hayCarrito = conCarrito();
 
 	categorias.forEach(cat => {
 		const prods = productos.filter(p => p.categoria_id === cat.id);
@@ -115,6 +138,11 @@ export function buildMenu() {
 						${p.descripcion_avanzada || p.descripcion
 							? `<p class="vid-desc">${esc(p.descripcion_avanzada || p.descripcion)}</p>`
 							: ''}
+						${hayCarrito ? `<div class="vid-accion">
+							<button class="vid-add" data-plato="${esc(p.id)}">${
+								tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
+							}</button>
+						</div>` : ''}
 					</div>
 				</article>
 			`).join('')}
@@ -125,6 +153,36 @@ export function buildMenu() {
 
 	main.appendChild(lista);
 	activarVideos();
+	if (hayCarrito) activarBotonesAgregar();
+}
+
+// ── AGREGAR AL CARRITO ────────────────────────────────────────
+// Un solo escuchador para toda la lista en vez de uno por plato: con
+// treinta platos son treinta escuchadores que hay que crear y que el
+// navegador tiene que mantener, y el comportamiento es idéntico.
+function activarBotonesAgregar() {
+	const lista = document.querySelector('.vid-lista');
+	if (!lista) return;
+
+	lista.addEventListener('click', e => {
+		const btn = e.target.closest('.vid-add');
+		if (!btn) return;
+
+		const p = productos.find(x => x.id === btn.dataset.plato);
+		if (!p) return;
+
+		// Con toppings se abre el modal para elegirlos; sin ellos entra
+		// directo. Lo decide el plato, no el restaurante: en una misma carta
+		// la hamburguesa se personaliza y la gaseosa no.
+		if (tienePersonalizacion(p)) return openCustomModal(p.id);
+
+		agregarSimple(p);
+		// Una confirmación que se ve sin sacar nada por encima: el propio
+		// botón dice que sí y vuelve a su sitio.
+		const antes = btn.textContent;
+		btn.textContent = '✓ Agregado';
+		setTimeout(() => { btn.textContent = antes; }, 900);
+	});
 }
 
 // ── ARRANQUE Y PARADA DE LOS VIDEOS ───────────────────────────
