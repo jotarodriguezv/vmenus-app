@@ -1,5 +1,6 @@
-import { restaurante, categorias, productos, noImgHtml } from '../core/menu.js';
-import { esc, escUrl } from '../core/html.js';
+import { restaurante, categorias, productos } from '../core/menu.js';
+import { esc } from '../core/html.js';
+import { mediaDe, activarVideos } from '../core/reproduccion.js';
 import { planDe } from '../core/planes.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
@@ -33,11 +34,6 @@ import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } 
 //    cover, no contain: si algún día entra un archivo con otra
 //    proporción se recorta, pero la carta no se rompe con franjas
 //    negras a los lados.
-
-// Si el visitante pidió menos movimiento en su sistema, no le
-// arrancamos seis videos en la cara: se queda la portada y los
-// controles nativos para quien quiera darle play.
-const menosMovimiento = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 // ── CARRITO (opcional) ────────────────────────────────────────
 // El carrito no es una plantilla aparte: es un interruptor. La maquinaria
@@ -82,32 +78,6 @@ export function buildNav() {
 	// cada uno lo lleva en un sitio distinto.
 	const fab = document.getElementById('cartFab');
 	if (fab) fab.style.display = 'block';
-}
-
-// El video y su portada los deja el worker en atributos cuando termina
-// de procesar, como un objeto { url, portada, duracion } — no como dos
-// campos sueltos. La ruta del master no está aquí a propósito: ese
-// archivo es interno y la carta pública lee atributos entero.
-//
-// Mientras no haya video, el plato cae a su imagen normal, así que la
-// carta se puede montar y ver antes de subir un solo video.
-function mediaDe(p) {
-	const v       = p.atributos?.video;
-	const video   = v?.url;
-	const portada = v?.portada || p.imagen_url;
-
-	if (video) {
-		return `<video class="vid-video"
-			data-src="${escUrl(video)}"
-			${portada ? `poster="${escUrl(portada)}"` : ''}
-			muted loop playsinline preload="none"
-			${menosMovimiento ? 'controls' : ''}></video>`;
-	}
-	if (p.imagen_url) {
-		return `<img class="vid-img" src="${escUrl(p.imagen_url)}"
-			alt="${esc(p.nombre)}" loading="lazy">`;
-	}
-	return noImgHtml();
 }
 
 export function buildMenu() {
@@ -186,82 +156,6 @@ function activarBotonesAgregar() {
 		const antes = btn.textContent;
 		btn.textContent = '✓ Agregado';
 		setTimeout(() => { btn.textContent = antes; }, 900);
-	});
-}
-
-// ── ARRANQUE Y PARADA DE LOS VIDEOS ───────────────────────────
-// play() devuelve una promesa. Si se llama a pause() antes de que se
-// resuelva, el navegador aborta la reproducción y el video se queda
-// quieto con la portada puesta. Guardamos la promesa en el propio
-// elemento para no pisarnos: no se arranca dos veces y no se pausa
-// hasta que el arranque haya terminado.
-function reproducir(v) {
-	if (v._pendiente) return;
-	v._pendiente = v.play()
-		.catch(() => {})              // autoplay bloqueado: se queda la portada
-		.finally(() => { v._pendiente = null; });
-}
-
-async function pausar(v) {
-	if (v._pendiente) await v._pendiente;
-	v.pause();
-}
-
-function activarVideos() {
-	const videos = document.querySelectorAll('.vid-video');
-	if (!videos.length) return;
-
-	// Descarga: se le pone el src cuando el plato está a un par de
-	// pantallas de distancia, no antes.
-	const ioCarga = new IntersectionObserver(entradas => {
-		entradas.forEach(e => {
-			if (!e.isIntersecting) return;
-			const v = e.target;
-			if (!v.src && v.dataset.src) v.src = v.dataset.src;
-			ioCarga.unobserve(v);
-		});
-	}, { rootMargin: '200% 0px' });
-
-	videos.forEach(v => ioCarga.observe(v));
-
-	if (menosMovimiento) return;
-
-	// Reproducción: uno solo a la vez, el que más se vea.
-	//
-	// En una pantalla de móvil caben dos tarjetas a medias, y dejando que se
-	// muevan las dos hay dos decodificaciones de 720p simultáneas mientras el
-	// dedo arrastra. Un teléfono de gama media se atasca ahí — y la gama media
-	// es la mitad de quienes van a mirar la carta sentados en la mesa.
-	//
-	// Hacen falta varios umbrales y no uno: con threshold único el navegador
-	// solo avisa al cruzarlo, y aquí hay que saber cuál de los dos se ve más
-	// en cada momento, no si se ven.
-	const visibles = new Map();
-
-	const ioPlay = new IntersectionObserver(entradas => {
-		entradas.forEach(e => {
-			if (e.isIntersecting) visibles.set(e.target, e.intersectionRatio);
-			else visibles.delete(e.target);
-		});
-
-		let elegido = null, mejor = 0;
-		for (const [v, cuanto] of visibles) {
-			if (cuanto > mejor) { mejor = cuanto; elegido = v; }
-		}
-
-		videos.forEach(v => {
-			if (v !== elegido) return pausar(v);
-			if (!v.src && v.dataset.src) v.src = v.dataset.src;
-			reproducir(v);
-		});
-	}, { threshold: [0, 0.25, 0.5, 0.75, 1] });
-
-	videos.forEach(v => ioPlay.observe(v));
-
-	// Con la pestaña en segundo plano no tiene sentido gastar batería
-	// ni datos moviendo videos que nadie está viendo.
-	document.addEventListener('visibilitychange', () => {
-		if (document.hidden) videos.forEach(pausar);
 	});
 }
 
