@@ -1,6 +1,7 @@
 import { trackClic } from './analytics.js';
 import { esc, escUrl } from './html.js';
 import { fotosDe, construirCarrusel } from './carrusel.js';
+import { montarChips, ocultarNoCoinciden } from './filtros.js';
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────
 export let restaurante = null;
@@ -65,6 +66,7 @@ export function buildMenu() {
 			prods.forEach(p => {
 				const item = document.createElement('div');
 				item.className = 'list-item';
+				item.dataset.plato = p.id;
 				item.onclick = () => openModal(cat.id, prods.indexOf(p));
 				item.innerHTML = `
 				<span class="list-name">
@@ -87,6 +89,7 @@ export function buildMenu() {
 				if (!p.imagen_url) {
 					const row = document.createElement('div');
 					row.className = 'product-noimg';
+					row.dataset.plato = p.id;
 					row.onclick = () => openModal(cat.id, idx);
 					row.innerHTML = `
 					<div class="card-name">${esc(p.nombre)}</div>
@@ -97,6 +100,7 @@ export function buildMenu() {
 				}
 				const card = document.createElement('div');
 				card.className = 'product-card has-img';
+				card.dataset.plato = p.id;
 				card.onclick = () => openModal(cat.id, idx);
 				card.innerHTML = `
 				<div class="card-img-wrap">
@@ -114,6 +118,16 @@ export function buildMenu() {
 			}
 			main.appendChild(section);
 		});
+
+	// Los filtros no son de un modelo: si el restaurante configuró alguno, se
+	// pintan aquí igual que en video. Este buildMenu lo comparten topnav y
+	// sidebar, así que con una llamada quedan los dos.
+	//
+	// Se esconde en vez de repintar, y aquí hay un motivo extra: estas
+	// tarjetas abren su modal por POSICIÓN dentro de la categoría
+	// (openModal(cat.id, idx)). Si se quitaran del DOM, los índices bailarían
+	// y cada tarjeta abriría el plato equivocado.
+	montarChips(() => ocultarNoCoinciden('.list-item, .product-card, .product-noimg'));
 	}
 
 	// ── MODAL ─────────────────────────────────────────────────────
