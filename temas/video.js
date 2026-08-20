@@ -1,7 +1,7 @@
 import { restaurante, categorias, productos, noImgHtml } from '../core/menu.js';
 import { esc, escUrl } from '../core/html.js';
 import { planDe } from '../core/planes.js';
-import { filtrosEnUso, pasaFiltros } from '../core/filtros.js';
+import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
 
 // ── TEMA: VIDEO ───────────────────────────────────────────────
@@ -51,52 +51,6 @@ function conCarrito() {
 	return !!(planDe(restaurante).carrito && restaurante?.atributos?.carrito);
 }
 
-// ── FILTROS (opcional) ────────────────────────────────────────
-// Se encienden solos: si el restaurante configuró filtros y algún plato los
-// cumple, aparecen. No hay interruptor porque no hay nada que decidir —
-// configurarlos ya es quererlos, y si no hay ninguno no se ve nada.
-const filtrosActivos = new Set();
-
-function pintarFiltros() {
-	const fila = document.getElementById('navFiltros');
-	if (!fila) return;
-	fila.innerHTML = '';
-
-	const disponibles = filtrosEnUso();
-	if (!disponibles.length) return;   // :empty en el CSS lo hace desaparecer
-
-	disponibles.forEach(f => {
-		const chip = document.createElement('button');
-		chip.className = 'filtro-chip' + (filtrosActivos.has(f.id) ? ' activo' : '');
-		chip.textContent = `${f.emoji || ''} ${f.label}`.trim();
-		chip.onclick = () => {
-			if (filtrosActivos.has(f.id)) filtrosActivos.delete(f.id);
-			else filtrosActivos.add(f.id);
-			chip.classList.toggle('activo');
-			aplicarFiltros();
-		};
-		fila.appendChild(chip);
-	});
-}
-
-// Se esconden platos en vez de repintar la carta. Repintar recrearía los
-// <video> y los observadores, y el que estuviera sonando volvería a empezar
-// desde el principio con solo tocar un filtro.
-function aplicarFiltros() {
-	document.querySelectorAll('.vid-lista .category-section').forEach(seccion => {
-		let visibles = 0;
-		seccion.querySelectorAll('.vid-plato').forEach(art => {
-			const p = productos.find(x => x.id === art.dataset.plato);
-			const pasa = !p || pasaFiltros(p, filtrosActivos);
-			art.style.display = pasa ? '' : 'none';
-			if (pasa) visibles++;
-		});
-		// Una categoría sin nada que enseñar es un título suelto en mitad de
-		// la carta: se va con sus platos.
-		seccion.style.display = visibles ? '' : 'none';
-	});
-}
-
 export function buildNav() {
 	const nav = document.getElementById('navScroll');
 	if (!nav) return;
@@ -118,7 +72,8 @@ export function buildNav() {
 		primero = false;
 	});
 
-	pintarFiltros();
+	// Los chips los pinta core/filtros.js; aquí solo se dice qué esconder.
+	montarChips(() => ocultarNoCoinciden('.vid-plato'));
 
 	if (!conCarrito()) return;
 	activarCarrito();
