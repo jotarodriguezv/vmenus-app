@@ -11,8 +11,25 @@ import { buildNav as buildSidebarNav } from './sidebar.js';
 import { trackClic } from '../core/analytics.js';
 import { esc, escUrl } from '../core/html.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
+import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
 
 // ── NAV (reutiliza el sidebar + enciende el carrito) ───────────
+// Aquí el carrito se enciende SIN preguntar, y es a propósito. En el modelo
+// de video es un interruptor —planDe().carrito más atributos.carrito— porque
+// allí es opcional: quitarlo deja una carta perfectamente buena.
+//
+// En este no. Toda la interacción de este modelo es el carrito: tocar una
+// tarjeta suma el plato al pedido, no abre su ficha, porque no hay ficha.
+// Apagárselo no daría una carta sin pedidos, daría una carta donde tocar un
+// plato no hace nada.
+//
+// Tampoco se consulta el plan, por la misma razón por la que el panel avisa
+// pero no impide usar un modelo fuera de plan: bajar de plan no le rompe la
+// carta a un restaurante que está vendiendo. El cambio lo hace una persona a
+// sabiendas, eligiendo otro modelo.
+//
+// Si alguien viene a "arreglar" esta diferencia, que sepa que apagaría
+// carritos en producción.
 export function buildNav() {
 	buildSidebarNav();
 	activarCarrito();
@@ -48,6 +65,7 @@ export function buildMenu() {
 			if (!p.imagen_url) {
 				const row = document.createElement('div');
 				row.className = 'product-noimg';
+				row.dataset.plato = p.id;
 				row.innerHTML = `
 				<div>
 					<div class="card-name">${esc(p.nombre)}</div>
@@ -76,6 +94,7 @@ export function buildMenu() {
 
 			const card = document.createElement('div');
 			card.className = 'product-card has-img';
+			card.dataset.plato = p.id;
 			card.innerHTML = `
 			<div class="card-img-wrap">
 				<img class="card-img" src="${escUrl(p.imagen_url)}" alt="${esc(p.nombre)}" loading="lazy" onerror="this.parentNode.innerHTML=window.vmNoImg()">
@@ -107,4 +126,6 @@ export function buildMenu() {
 		section.appendChild(grid);
 		main.appendChild(section);
 	});
+
+	montarChips(() => ocultarNoCoinciden('.product-card, .product-noimg'));
 }
