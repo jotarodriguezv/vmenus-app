@@ -51,7 +51,15 @@ export const filtrosActivos = new Set();
 // reservado bajo las categorías. Los de menú lateral no tienen ninguna barra
 // donde meterlos, así que se les pone una fila propia justo encima del
 // contenido.
-function contenedorDeChips() {
+//
+// Un tema puede pasar el suyo y saltarse las dos opciones. Lo hace 'vertical',
+// que no tiene barra ninguna: sus chips van flotando sobre el video. Se
+// resuelve así, con un argumento, y no con una lista de temas aquí dentro,
+// porque esta lista crecería con cada modelo nuevo y este archivo no tiene por
+// qué enterarse de que existen.
+function contenedorDeChips(propio) {
+	if (propio) return propio;
+
 	const nav = document.getElementById('navSticky');
 	if (nav && nav.style.display !== 'none') return document.getElementById('navFiltros');
 
@@ -72,8 +80,8 @@ function contenedorDeChips() {
 // 'alCambiar' lo pone cada tema, porque cada uno sabe qué elementos suyos hay
 // que esconder. Aquí no se sabe si un plato es un .vid-plato o un
 // .product-card, ni hace falta.
-export function montarChips(alCambiar) {
-	const fila = contenedorDeChips();
+export function montarChips(alCambiar, host) {
+	const fila = contenedorDeChips(host);
 	if (!fila) return;
 	fila.innerHTML = '';
 
