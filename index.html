@@ -1062,6 +1062,41 @@
 				flex-shrink: 0;
 			}
 
+			/* ── Filtros (segunda fila de la nav) ─────────────────── */
+			/* Sin chips dentro el contenedor no existe: nada de una franja
+			   vacía bajo las categorías en las cartas que no filtran. */
+			.nav-filtros:empty { display: none; }
+			.nav-filtros {
+				display: flex;
+				gap: 8px;
+				overflow-x: auto;
+				padding: 8px 12px;
+				border-top: 1px solid var(--border);
+				scrollbar-width: none;
+			}
+			.nav-filtros::-webkit-scrollbar { display: none; }
+
+			.filtro-chip {
+				flex-shrink: 0;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				min-height: 34px;
+				padding: 6px 14px;
+				border: 1px solid var(--border);
+				border-radius: 999px;
+				background: transparent;
+				color: var(--text-muted);
+				font-family: var(--font-cuerpo, inherit);
+				font-size: 12px;
+				cursor: pointer;
+				white-space: nowrap;
+			}
+			.filtro-chip.activo {
+				border-color: var(--primary);
+				color: var(--primary);
+			}
+
 			.vid-desc {
 				margin-top: 7px;
 				font-size: 13.5px;
@@ -1143,6 +1178,9 @@
 		<!-- Nav horizontal sticky (topnav) -->
 		<nav class="nav-sticky" id="navSticky" style="display:none">
 			<div class="nav-scroll" id="navScroll"></div>
+			<!-- Segunda fila, debajo de las categorías. La rellena el tema que
+			     tenga filtros encendidos; vacía no ocupa nada. -->
+			<div class="nav-filtros" id="navFiltros"></div>
 		</nav>
 
 		<!--
