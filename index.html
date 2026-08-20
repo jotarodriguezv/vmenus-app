@@ -1076,6 +1076,18 @@
 			}
 			.nav-filtros::-webkit-scrollbar { display: none; }
 
+			/* Los modelos de menú lateral no tienen barra fija donde meter los
+			   chips, así que se les pone una fila propia encima del contenido.
+			   No es pegajosa: al no haber nada fijo arriba, quedaría flotando
+			   sobre la carta sin nada que la sujete. */
+			.nav-filtros-sueltos {
+				border-top: none;
+				border-bottom: 1px solid var(--border);
+				margin-bottom: 4px;
+				position: relative;
+				z-index: 1;
+			}
+
 			.filtro-chip {
 				flex-shrink: 0;
 				display: inline-flex;
