@@ -129,20 +129,26 @@ async function init() {
 		showLoading(false);
 
 		// ── 5. TEMA DE NAV ────────────────────────────────────────
-		const tema = restaurante.atributos?.nav || 'topnav'; // 'topnav' | 'sidebar' | 'carrito' | 'explorar' | 'video'
+		const tema = restaurante.atributos?.nav || 'topnav'; // 'topnav' | 'sidebar' | 'carrito' | 'explorar' | 'video' | 'vertical'
 		// Mostrar/ocultar bloques HTML según el tema
 		window.activarTema?.(tema, restaurante);
 		const temaModule = await import(`../temas/${tema}.js`);
 		temaModule.buildNav();
 
 		// ── 6. MENÚ ───────────────────────────────────────────────
-		// carrito, explorar y video tienen su propio render (no usan el buildMenu compartido)
-		if (tema === 'carrito' || tema === 'explorar' || tema === 'video') temaModule.buildMenu();
+		// Se pregunta por lo que el tema exporta, no por cómo se llama. Aquí
+		// había una lista de nombres ('carrito', 'explorar', 'video'...) que
+		// había que ampliar cada vez que nacía un modelo: quien se olvidaba
+		// veía su carta pintada por el render compartido, con las clases de
+		// otro modelo y sin el aspecto que acababa de escribir.
+		if (temaModule.buildMenu) temaModule.buildMenu();
 		else buildMenu();
 
-		// Scroll spy para los temas de nav horizontal, después de que el DOM esté listo
-		if ((tema === 'topnav' || tema === 'video') && temaModule.initScrollSpy) {
-  			requestAnimationFrame(() => temaModule.initScrollSpy());
+		// Igual con el scroll spy: lo tiene el tema que lo necesita, y los
+		// que no lo exportan sencillamente no lo tienen. Va después del
+		// render porque observa elementos que acaba de pintar.
+		if (temaModule.initScrollSpy) {
+			requestAnimationFrame(() => temaModule.initScrollSpy());
 		}
 
 		// ── 7. FEATURES OPCIONALES ────────────────────────────────
