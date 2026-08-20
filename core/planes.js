@@ -50,11 +50,18 @@ export const PLANES = {
 	// La carta en video va en su propio plan porque su coste no se parece
 	// al de los demás: cada plato es un archivo que hay que almacenar,
 	// convertir y servir muchas veces. 'videos' es lo que abre la subida
-	// en el panel; el modelo 'video' es lo que la carta sabe pintar. Las
-	// dos cosas van juntas y solo aquí.
+	// en el panel; los modelos 'video' y 'vertical' son las dos formas que
+	// la carta sabe pintar. Las tres cosas van juntas y solo aquí.
+	//
+	// 'video' es apaisado, una columna de tarjetas 16:9. 'vertical' es a
+	// pantalla completa, 9:16, un plato por deslizamiento. El mismo plan da
+	// los dos porque el coste es el mismo; lo que cambia es el encuadre con
+	// el que se graba, y eso lo decide el restaurante. Ojo: el formato de
+	// corte se deriva de este modelo en el servidor, así que cambiarlo no
+	// re-corta los videos ya procesados — hay que volver a subirlos.
 	video: {
 		nombre: 'Video',
-		modelos: ['topnav', 'sidebar', 'explorar', 'carrito', 'video'],
+		modelos: ['topnav', 'sidebar', 'explorar', 'carrito', 'video', 'vertical'],
 		marca: false,
 		qr_disenador: true,
 		estadisticas: true,
