@@ -40,10 +40,27 @@ describe('capacidades por plan', () => {
 		assert.equal(conPlan('video').videos, true);
 	});
 
-	test('el modelo de video solo lo lista el plan de video', () => {
+	test('los modelos de video solo los lista el plan de video', () => {
+		// Son dos encuadres de lo mismo: 'video' apaisado y 'vertical' a
+		// pantalla completa. Los dos sirven archivos de video, así que los dos
+		// cuestan almacenamiento y conversión, y ninguno puede aparecer en un
+		// plan que no los paga. Al añadir un tercer encuadre va aquí.
+		const deVideo = ['video', 'vertical'];
 		for (const p of ['vitrina', 'pedidos', 'completo'])
-			assert.equal(conPlan(p).modelos.includes('video'), false, `${p} no debería`);
-		assert.ok(conPlan('video').modelos.includes('video'));
+			for (const m of deVideo)
+				assert.equal(conPlan(p).modelos.includes(m), false, `${p} no debería listar "${m}"`);
+		for (const m of deVideo)
+			assert.ok(conPlan('video').modelos.includes(m), `el plan de video debería listar "${m}"`);
+	});
+
+	test('el plan que trae modelos de video es el que abre la subida', () => {
+		// Un plan que listara 'vertical' sin 'videos: true' daría una carta
+		// que solo sabe pintar video a un restaurante que no puede subirlo:
+		// pantallas negras con el nombre del plato encima.
+		const deVideo = ['video', 'vertical'];
+		for (const [nombre, plan] of Object.entries(PLANES))
+			if (plan.modelos.some(m => deVideo.includes(m)))
+				assert.equal(plan.videos, true, `${nombre} lista un modelo de video pero no abre la subida`);
 	});
 
 	test('todos los planes declaran todas las capacidades', () => {
