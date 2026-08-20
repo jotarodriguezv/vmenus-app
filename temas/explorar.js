@@ -15,6 +15,7 @@ import { restaurante, categorias, productos } from '../core/menu.js';
 import { trackClic } from '../core/analytics.js';
 import { esc } from '../core/html.js';
 import { fotosDe, construirCarrusel } from '../core/carrusel.js';
+import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
 
 // ── ESTADO DEL TEMA ───────────────────────────────────────────
 let viewMode = 'list';        // 'list' | 'grid'
@@ -30,20 +31,6 @@ const BADGES = {
 	nuevo:   { label: 'Nuevo', emoji: '✨' },
 };
 
-// Mapa id→{label,emoji} de los filtros que el restaurante activó.
-function filtrosMap() {
-	const map = {};
-	(restaurante?.atributos?.filtros_disponibles || []).forEach(f => { map[f.id] = f; });
-	return map;
-}
-
-// Filtros que realmente aparecen en al menos un producto disponible.
-function filtrosEnUso() {
-	const map = filtrosMap();
-	const usados = new Set();
-	productos.forEach(p => (p.atributos?.filtros || []).forEach(id => { if (map[id]) usados.add(id); }));
-	return [...usados].map(id => map[id]);
-}
 
 // ── SVG ICONS (inline, sin librerías) ─────────────────────────
 const IC = {
@@ -251,11 +238,7 @@ function renderDishes() {
 				(p.descripcion || '').toLowerCase().includes(term);
 			if (!hay) return false;
 		}
-		if (activeFilters.size) {
-			const pf = new Set(p.atributos?.filtros || []);
-			for (const f of activeFilters) if (!pf.has(f)) return false; // AND
-		}
-		return true;
+		return pasaFiltros(p, activeFilters);
 	};
 
 	const visibles = productos.filter(pasa);
