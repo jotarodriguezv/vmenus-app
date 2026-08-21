@@ -1448,6 +1448,51 @@
 				.ver-pista::after { animation: none; }
 			}
 
+			/* ── Barra social ─────────────────────────────────────── */
+			/* En los demás modelos va centrada abajo, flotando sobre el final
+			   de la carta, y ahí no estorba porque debajo solo hay pie.
+			   Aquí abajo está la ficha del plato —nombre, precio y el botón de
+			   agregar— así que la barra le caía encima y la tapaba: tiene más
+			   z-index. Se ve raro y además esconde el precio.
+
+			   Se pasa al lateral derecho, en columna, que es donde la busca
+			   quien esté acostumbrado a las aplicaciones que este modelo imita.
+			   Sin fondo de píldora ni etiquetas: sobre video a pantalla completa
+			   una caja opaca pesa mucho, y el icono solo se entiende igual. */
+			body.reels .social-bar {
+				left: auto;
+				right: 12px;
+				transform: none;
+				/* Por encima del carrito flotante, que ocupa la esquina. */
+				bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+				flex-direction: column;
+				gap: 10px;
+				z-index: 55;
+				background: none;
+				-webkit-backdrop-filter: none;
+				backdrop-filter: none;
+				border: none;
+				padding: 0;
+			}
+
+			body.reels .social-btn {
+				padding: 0;
+				width: 42px; height: 42px;
+				border-radius: 50%;
+				justify-content: center;
+				background: rgba(0,0,0,.42);
+				-webkit-backdrop-filter: blur(10px);
+				backdrop-filter: blur(10px);
+				color: #fff;
+			}
+			body.reels .social-btn span { display: none; }
+			body.reels .social-btn svg { width: 21px; height: 21px; }
+			body.reels .social-btn:active { background: var(--primary); color: var(--dark); }
+
+			/* La regla compartida sube el botón de subir cuando hay barra
+			   social, pero en este modelo ese botón no existe. */
+			body.reels .scroll-top { display: none; }
+
 			.ver-vacio {
 				height: 100dvh;
 				display: flex;
@@ -1482,10 +1527,11 @@
 				.ver-chrome { width: var(--ver-ancho); left: 50%; right: auto; transform: translateX(-50%); }
 				.ver-reels { background: #000; }
 
-				/* El carrito flotante se cuelga del borde de la columna, no
-				   del de la ventana: a 1440 px se quedaba a media pantalla de
-				   distancia de la carta, sin relación visible con ella. */
-				body.reels .cart-fab { right: calc(50% - var(--ver-ancho) / 2 + 18px); }
+				/* El carrito flotante y la barra social se cuelgan del borde de
+				   la columna, no del de la ventana: a 1440 px se quedaban a
+				   media pantalla de la carta, sin relación visible con ella. */
+				body.reels .cart-fab   { right: calc(50% - var(--ver-ancho) / 2 + 18px); }
+				body.reels .social-bar { right: calc(50% - var(--ver-ancho) / 2 + 12px); }
 			}
 		</style>
 	</head>
