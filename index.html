@@ -1410,6 +1410,105 @@
 				color: var(--dark);
 			}
 
+			/* ══════════════════════════════════════════════════════════
+			   ESTILOS DEL CARRETE
+			   atributos.estilo = 'clasico' | 'intenso' | 'avance'
+
+			   Tres aspectos del MISMO modelo. No hay una línea de lógica que
+			   los distinga: todo lo que cambia está aquí abajo. Por eso un
+			   estilo nuevo es un bloque de CSS y una opción en el desplegable
+			   del panel, y nunca una plantilla más que mantener.
+
+			   Los nombres describen lo que se ve. Las aplicaciones que
+			   recuerdan son de otras empresas y no pintan nada dentro de un
+			   producto que se cobra.
+			══════════════════════════════════════════════════════════ */
+
+			/* ── Barra de avance ──────────────────────────────────── */
+			/* Un segmento por plato, como el índice de una secuencia. Solo la
+			   enseña el estilo 'avance'; en los otros dos el marcado existe
+			   igual pero no se pinta, para que cambiar de estilo no obligue a
+			   repintar la carta entera. */
+			.ver-segmentos { display: none; }
+
+			body.estilo-avance .ver-segmentos {
+				display: flex;
+				gap: 3px;
+				padding: 0 14px 8px;
+			}
+			body.estilo-avance .ver-segmentos i {
+				flex: 1;
+				height: 2.5px;
+				border-radius: 2px;
+				background: rgba(255,255,255,.28);
+				transition: background .25s;
+			}
+			body.estilo-avance .ver-segmentos i.visto { background: #fff; }
+
+			/* ── INTENSO ──────────────────────────────────────────── */
+			/* A sangre y con el texto pegado abajo a la izquierda. El nombre
+			   manda sobre todo lo demás y el velo aprieta más, porque este
+			   estilo asume que el video es lo único que hay que mirar. */
+			body.estilo-intenso .ver-velo {
+				background: linear-gradient(to bottom,
+					rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 18%,
+					rgba(0,0,0,0) 34%, rgba(0,0,0,.85) 78%, rgba(0,0,0,.97) 100%);
+			}
+			body.estilo-intenso .ver-nombre {
+				font-size: 30px;
+				letter-spacing: -.5px;
+				line-height: 1.05;
+			}
+			/* Más estrecho de lo que cabría: deja aire para la columna de la
+			   derecha y evita que el nombre pase por detrás de los iconos. */
+			body.estilo-intenso .ver-info { padding-right: 96px; }
+			body.estilo-intenso .ver-desc {
+				-webkit-line-clamp: 2;
+				line-clamp: 2;
+				font-size: 13.5px;
+			}
+			body.estilo-intenso .ver-cat-btn { border-radius: 8px; }
+			body.estilo-intenso .ver-filtros .filtro-chip { border-radius: 8px; }
+			body.estilo-intenso .ver-add { border-radius: 10px; }
+
+			/* ── AVANCE ───────────────────────────────────────────── */
+			/* Más aire y menos peso. El video va con las esquinas redondeadas
+			   en vez de a sangre, el velo apenas se nota y la ficha respira.
+			   Sirve para cartas donde el plato es delicado y el video no
+			   quiere gritar. */
+			body.estilo-avance .ver-media {
+				border-radius: 18px;
+				overflow: hidden;
+			}
+			/* El velo tiene que ir por dentro del redondeo, o se le verían las
+			   esquinas cuadradas por encima del video. */
+			body.estilo-avance .ver-velo { border-radius: 18px; }
+			/* Solo con inset, sin padding en .ver-plato: la ficha y el velo
+			   también están posicionados contra él, así que un padding los
+			   movería a los tres a la vez y el margen saldría doble. */
+			body.estilo-avance .ver-media,
+			body.estilo-avance .ver-velo { inset: 6px 8px; }
+
+			body.estilo-avance .ver-velo {
+				background: linear-gradient(to bottom,
+					rgba(0,0,0,.4) 0%, rgba(0,0,0,0) 26%,
+					rgba(0,0,0,0) 50%, rgba(0,0,0,.62) 84%, rgba(0,0,0,.8) 100%);
+			}
+			body.estilo-avance .ver-info {
+				bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+				padding-left: 26px;
+			}
+			body.estilo-avance .ver-nombre { font-size: 23px; font-weight: 600; }
+			body.estilo-avance .ver-cat { letter-spacing: 3.5px; }
+			body.estilo-avance .ver-fila { margin-top: 18px; }
+			/* El :not() no es adorno. Sin él esta regla gana por especificidad a
+			   la del estado activo —lleva una clase más que .ver-cat-btn.active—
+			   y se lleva por delante el resaltado: dejaba de verse en qué
+			   categoría estás y qué filtros tienes puestos. Un estilo no puede
+			   apagar una señal de estado. */
+			body.estilo-avance .ver-cat-btn:not(.active),
+			body.estilo-avance .ver-filtros .filtro-chip:not(.activo) { background: rgba(0,0,0,.3); }
+
 			/* ── Pista de deslizar ────────────────────────────────── */
 			/* Una pantalla completa no enseña que hay más debajo: no asoma el
 			   borde del siguiente plato, que es lo que en una lista normal
