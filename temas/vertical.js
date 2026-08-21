@@ -45,6 +45,38 @@ function conCarrito() {
 	return !!(planDe(restaurante).carrito && restaurante?.atributos?.carrito);
 }
 
+// ── ESTILOS ───────────────────────────────────────────────────
+// El mismo carrete con tres aspectos. NO son tres plantillas: cambia cómo se
+// ve, no lo que se puede hacer, así que todo lo que los separa vive en el
+// CSS y aquí solo se cuelga una clase del <body>.
+//
+// Copiarlo en tres archivos habría sido la quinta vez que tropezamos con lo
+// mismo. El escapado de HTML, el carrusel, el carrito, los filtros y la
+// reproducción acabaron todos en core/ después de que un fallo se arreglara
+// en una copia y no en las otras. Un estilo nuevo son unas reglas de CSS y
+// una opción en el desplegable del panel; nunca un archivo más.
+//
+// Los nombres describen lo que se ve y no la aplicación que recuerdan, que es
+// de otra empresa y no tiene por qué aparecer dentro de este producto.
+const ESTILOS = ['clasico', 'intenso', 'avance'];
+
+function estiloDe() {
+	const e = restaurante?.atributos?.estilo;
+	return ESTILOS.includes(e) ? e : 'clasico';
+}
+
+// 'avance' es el único que enseña la barra de segmentos de arriba. Se
+// construye igual en los tres —son unos pocos <i> vacíos— y el CSS decide si
+// se ven: así el spy no tiene que preguntar por el estilo cada vez que pasa
+// un plato, y encender el estilo no obliga a repintar la carta.
+function pintarSegmentos() {
+	const barra = document.getElementById('verSegmentos');
+	if (!barra) return;
+	const cuantos = [...document.querySelectorAll('.ver-plato')]
+		.filter(el => el.style.display !== 'none').length;
+	barra.innerHTML = '<i></i>'.repeat(cuantos);
+}
+
 // Categorías que de verdad tienen algo que enseñar. Se calcula una vez y la
 // usan la barra de arriba y el carrete, para que no puedan discrepar.
 function categoriasConPlatos() {
@@ -64,6 +96,7 @@ function montarChrome() {
 		chrome.id = 'verChrome';
 		chrome.className = 'ver-chrome';
 		chrome.innerHTML = `
+			<div class="ver-segmentos" id="verSegmentos"></div>
 			<div class="ver-cats" id="verCats"></div>
 			<div class="ver-filtros nav-filtros" id="verFiltros"></div>`;
 		main.insertAdjacentElement('beforebegin', chrome);
@@ -73,6 +106,11 @@ function montarChrome() {
 
 export function buildNav() {
 	if (!montarChrome()) return;
+
+	// El estilo va en el <body> y no en un contenedor del tema porque hay
+	// piezas suyas que viven fuera: el carrito flotante y la barra social los
+	// cuelga core/ de <body>, y desde una clase de aquí dentro no se llega.
+	document.body.classList.add('estilo-' + estiloDe());
 
 	const cats = document.getElementById('verCats');
 	cats.innerHTML = '';
@@ -96,7 +134,10 @@ export function buildNav() {
 	// Los chips los pinta core/filtros.js. Aquí se le dice dónde ponerlos,
 	// porque este modelo no tiene ninguna de las dos barras que busca solo.
 	montarChips(
-		() => ocultarNoCoinciden('.ver-plato'),
+		// Al filtrar cambia cuántos platos quedan, así que la barra de avance
+		// tiene que rehacerse: si no, marcaría posiciones de una carta que ya
+		// no es la que se está viendo.
+		() => { ocultarNoCoinciden('.ver-plato'); pintarSegmentos(); },
 		document.getElementById('verFiltros')
 	);
 
@@ -155,6 +196,7 @@ export function buildMenu() {
 	});
 
 	activarVideos();
+	pintarSegmentos();
 	mostrarPista(main);
 	if (hayCarrito) activarBotonesAgregar(main);
 }
@@ -227,6 +269,20 @@ export function initScrollSpy() {
 			});
 			document.querySelector(`.ver-cat-btn[data-cat="${catId}"]`)
 				?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+
+			// Y de paso el segmento. Se cuenta entre los que se ven, no entre
+			// todos: con un filtro puesto, contar los escondidos dejaría la
+			// barra marcando una posición que no existe en pantalla.
+			//
+			// Va aquí y no en un observador propio porque es exactamente el
+			// mismo dato —qué plato se está viendo— y dos observadores para
+			// una sola pregunta se contradicen el día que cambie el umbral.
+			const visibles = [...scroller.querySelectorAll('.ver-plato')]
+				.filter(el => el.style.display !== 'none');
+			const donde = visibles.indexOf(entrada.target);
+			document.querySelectorAll('#verSegmentos i').forEach((seg, i) => {
+				seg.classList.toggle('visto', i <= donde);
+			});
 		});
 	}, { root: scroller, threshold: 0.6 });
 
