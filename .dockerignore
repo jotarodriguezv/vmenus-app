@@ -8,3 +8,15 @@ package.json
 .github
 .gitignore
 *.md
+
+# El Dockerfile y la configuración de nginx TAMBIÉN se copiaban a la raíz
+# web, así que https://<carta>/nginx.conf y /Dockerfile se servían a
+# cualquiera. nginx.conf además se copia por separado a conf.d/, que es
+# donde de verdad se usa: aquí solo estorba.
+#
+# Lo que enseñaba no es un secreto —el host del panel ya está en
+# core/analytics.js, que es JavaScript público— pero es configuración
+# interna regalada, y lo que se añada mañana a este archivo se regalaría
+# igual sin que nadie lo note.
+Dockerfile
+nginx.conf
