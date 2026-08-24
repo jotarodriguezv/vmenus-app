@@ -102,13 +102,8 @@ function openCustomModal(productId, editingCartKey = null) {
 	if (editingCartKey) {
 		const item = cart.find(i => i.cartKey === editingCartKey);
 		customQty = item ? item.cantidad : 1;
-		const desc = item?.descripcion || '';
-		const platMatch  = desc.match(/Toppings: ([^|]+)/);
-		const premMatch  = desc.match(/Premium: ([^|]+)/);
-		const salsaMatch = desc.match(/Salsas: ([^|]+)/);
-		selectedPlatino = new Set(platMatch  ? platMatch[1].trim().split(', ')  : []);
-		selectedPremium = new Set(premMatch  ? premMatch[1].trim().split(', ')  : []);
-		selectedSalsas  = new Set(salsaMatch ? salsaMatch[1].trim().split(', ') : []);
+		({ platino: selectedPlatino, premium: selectedPremium, salsas: selectedSalsas } =
+			leerSeleccion(item));
 	} else {
 		customQty = 1;
 		selectedPlatino = new Set();
@@ -182,6 +177,57 @@ export function recargoPremium(attr, marcados = selectedPremium) {
 	}, 0);
 }
 
+// ── LA SELECCIÓN, DE IDA Y VUELTA ─────────────────────────────
+// Un plato personalizado guarda en el carrito un texto legible con lo que
+// lleva ("Toppings: Queso, Doritos | Premium: Tocineta"), y ese texto es el
+// que se le manda al restaurante por WhatsApp. Hasta aquí, bien.
+//
+// El problema estaba en volver atrás: al pulsar "editar" sobre una línea del
+// carrito, la selección se reconstruía LEYENDO ese texto, partiéndolo por
+// ', '. Funciona mientras ningún topping lleve una coma en el nombre — y eso
+// no lo impide nadie. "Salsa de la casa, picante" se parte en dos nombres que
+// no existen en el catálogo, así que al abrir el modal no aparece ninguno
+// marcado; y si el cliente guarda, la línea vuelve al carrito SIN el recargo.
+//
+// Nadie ve un error: el pedido llega bien escrito y con el precio de menos.
+// Es justo el fallo que describe la cabecera de este archivo.
+//
+// Se arregla guardando la selección aparte, como listas, y usando el texto
+// solo para lo que es: leerlo. 'leerSeleccion' sigue entendiendo el texto
+// para los carritos que ya estaban guardados en el navegador de alguien
+// cuando esto cambió.
+export function describirSeleccion({ platino = [], premium = [], salsas = [] }) {
+	const partes = [];
+	if (platino.length) partes.push(`Toppings: ${platino.join(', ')}`);
+	if (premium.length) partes.push(`Premium: ${premium.join(', ')}`);
+	if (salsas.length)  partes.push(`Salsas: ${salsas.join(', ')}`);
+	return partes.join(' | ');
+}
+
+export function leerSeleccion(item) {
+	// Camino normal: lo guardado tal cual se eligió, sin interpretar nada.
+	const sel = item?.sel;
+	if (sel && typeof sel === 'object') return {
+		platino: new Set(Array.isArray(sel.platino) ? sel.platino : []),
+		premium: new Set(Array.isArray(sel.premium) ? sel.premium : []),
+		salsas:  new Set(Array.isArray(sel.salsas)  ? sel.salsas  : []),
+	};
+
+	// Carritos de antes de este cambio: solo tienen el texto. Se lee como se
+	// leía, con su límite conocido — un nombre con coma no se recupera —,
+	// porque la alternativa es perderles la línea entera.
+	const desc = item?.descripcion || '';
+	const trozo = etiqueta => {
+		const m = desc.match(new RegExp(`${etiqueta}: ([^|]+)`));
+		return m ? m[1].trim().split(', ') : [];
+	};
+	return {
+		platino: new Set(trozo('Toppings')),
+		premium: new Set(trozo('Premium')),
+		salsas:  new Set(trozo('Salsas')),
+	};
+}
+
 function updateCustomTotal() {
 	if (!customProduct) return;
 	const extras = recargoPremium({ toppings_premium: customOpciones.premium });
@@ -199,11 +245,12 @@ function addCustomToCart() {
 	const extras = recargoPremium({ toppings_premium: customOpciones.premium });
 	const precioUnit = customProduct.precio_numerico + extras;
 
-	const partes = [];
-	if (selectedPlatino.size) partes.push(`Toppings: ${[...selectedPlatino].join(', ')}`);
-	if (selectedPremium.size) partes.push(`Premium: ${[...selectedPremium].join(', ')}`);
-	if (selectedSalsas.size)  partes.push(`Salsas: ${[...selectedSalsas].join(', ')}`);
-	const descripcion = partes.join(' | ');
+	const sel = {
+		platino: [...selectedPlatino],
+		premium: [...selectedPremium],
+		salsas:  [...selectedSalsas],
+	};
+	const descripcion = describirSeleccion(sel);
 	const cartKey = `${customProduct.id}__${descripcion}`;
 
 	// Solo cuando se añade de verdad. Al editar uno que ya estaba en el
@@ -214,7 +261,10 @@ function addCustomToCart() {
 
 	const existing = cart.find(i => i.cartKey === cartKey);
 	if (existing) existing.cantidad += customQty;
-	else cart.push({ cartKey, id: customProduct.id, name: customProduct.nombre, price: precioUnit, extras, cantidad: customQty, descripcion });
+	// 'sel' viaja junto a 'descripcion': el texto es para leerlo y esto es
+	// para volver a abrirlo. Antes había solo lo primero y se usaba para las
+	// dos cosas.
+	else cart.push({ cartKey, id: customProduct.id, name: customProduct.nombre, price: precioUnit, extras, cantidad: customQty, descripcion, sel });
 
 	customEditingKey = null;
 	saveCartToStorage();
