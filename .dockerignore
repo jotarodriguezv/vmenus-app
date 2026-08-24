@@ -9,14 +9,14 @@ package.json
 .gitignore
 *.md
 
-# El Dockerfile y la configuración de nginx TAMBIÉN se copiaban a la raíz
-# web, así que https://<carta>/nginx.conf y /Dockerfile se servían a
-# cualquiera. nginx.conf además se copia por separado a conf.d/, que es
-# donde de verdad se usa: aquí solo estorba.
+# El Dockerfile sí se puede excluir: Docker no lo necesita dentro del
+# contexto, se le pasa por separado.
 #
-# Lo que enseñaba no es un secreto —el host del panel ya está en
-# core/analytics.js, que es JavaScript público— pero es configuración
-# interna regalada, y lo que se añada mañana a este archivo se regalaría
-# igual sin que nadie lo note.
+# nginx.conf NO. Excluirlo aquí lo saca del contexto de construcción ENTERO,
+# y entonces el `COPY nginx.conf /etc/nginx/conf.d/default.conf` del
+# Dockerfile se queda sin archivo que copiar y la construcción falla con
+# "/nginx.conf": not found. Se intentó y rompió el despliegue.
+#
+# Para que no se sirva en la web, se borra de la raíz DESPUÉS de copiarlo —
+# ver el `rm` del Dockerfile.
 Dockerfile
-nginx.conf
