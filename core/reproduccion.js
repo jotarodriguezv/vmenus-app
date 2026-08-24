@@ -104,30 +104,49 @@ export function activarVideos() {
 	// solo avisa al cruzarlo, y aquí hay que saber cuál de los dos se ve más
 	// en cada momento, no si se ven.
 	const visibles = new Map();
+	// Cuál se está moviendo ahora mismo. Se guarda fuera del observador porque
+	// hace falta también cuando no hay ningún cruce de umbral que mirar: al
+	// volver de segundo plano nada se ha movido, y sin recordarlo no habría
+	// forma de saber a cuál devolverle el play.
+	let enMarcha = null;
 
-	const ioPlay = new IntersectionObserver(entradas => {
-		entradas.forEach(e => {
-			if (e.isIntersecting) visibles.set(e.target, e.intersectionRatio);
-			else visibles.delete(e.target);
-		});
-
+	// Reparte el play y los pause según lo que se ve. Sale del observador para
+	// poder llamarlo también al volver a la pestaña.
+	function repartir() {
 		let elegido = null, mejor = 0;
 		for (const [v, cuanto] of visibles) {
 			if (cuanto > mejor) { mejor = cuanto; elegido = v; }
 		}
+		enMarcha = elegido;
 
 		videos.forEach(v => {
 			if (v !== elegido) return pausar(v);
 			if (!v.src && v.dataset.src) v.src = v.dataset.src;
 			reproducir(v);
 		});
+	}
+
+	const ioPlay = new IntersectionObserver(entradas => {
+		entradas.forEach(e => {
+			if (e.isIntersecting) visibles.set(e.target, e.intersectionRatio);
+			else visibles.delete(e.target);
+		});
+		repartir();
 	}, { threshold: [0, 0.25, 0.5, 0.75, 1] });
 
 	videos.forEach(v => ioPlay.observe(v));
 
 	// Con la pestaña en segundo plano no tiene sentido gastar batería
 	// ni datos moviendo videos que nadie está viendo.
+	//
+	// Y al volver hay que arrancarlos otra vez a mano. El observador solo
+	// avisa cuando algo CRUZA un umbral, y cambiar de pestaña no mueve nada:
+	// sin esto, quien volvía a la carta se encontraba el plato congelado en el
+	// fotograma donde lo dejó y no se soltaba hasta que deslizara. En el
+	// modelo vertical, que es una pantalla y un solo video, parecía la carta
+	// rota.
 	document.addEventListener('visibilitychange', () => {
 		if (document.hidden) videos.forEach(pausar);
+		else if (enMarcha) reproducir(enMarcha);
 	});
 }
