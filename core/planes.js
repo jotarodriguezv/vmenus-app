@@ -76,3 +76,27 @@ export const PLAN_POR_DEFECTO = 'pedidos';
 export function planDe(restaurante) {
 	return PLANES[restaurante?.atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
 }
+
+// ── MODELOS QUE EXISTEN ───────────────────────────────────────
+// La lista sale de los planes en vez de escribirse a mano: un modelo que no
+// esté en ningún plan no lo puede usar nadie, así que no hay dos sitios que
+// puedan discrepar.
+//
+// Hace falta porque el modelo se carga por su nombre —import('../temas/X.js')—
+// y un nombre que no corresponde a ningún archivo no da un fallo pequeño: la
+// importación lanza, el arranque entero cae en su catch y el visitante ve "No
+// se pudo cargar el menú" en vez de la carta. Una errata en el panel, o un
+// modelo retirado que quedara escrito en algún restaurante, apagaría esa carta
+// del todo.
+//
+// Cayendo al modelo por defecto se ve una carta con otro aspecto, que es
+// molesto pero se puede pedir y arreglar. Una carta que no carga no se puede
+// ni enseñar.
+export const MODELOS = [...new Set(Object.values(PLANES).flatMap(p => p.modelos))];
+
+export const MODELO_POR_DEFECTO = 'topnav';
+
+export function modeloDe(restaurante) {
+	const nav = restaurante?.atributos?.nav;
+	return MODELOS.includes(nav) ? nav : MODELO_POR_DEFECTO;
+}
