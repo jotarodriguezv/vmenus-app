@@ -16,7 +16,8 @@ import {
 } from './menu.js';
 import { trackVisita } from './analytics.js';
 import { aplicarHorarios } from './horarios.js';
-import { planDe } from './planes.js';
+import { planDe, modeloDe } from './planes.js';
+import { aplicarPreview } from './preview.js';
 
 // ── 1. SLUG DESDE LA URL ──────────────────────────────────────
 // Se aceptan las dos formas a la vez, siempre, sin que el restaurante
@@ -62,11 +63,23 @@ function leerPreviewDraft() {
 }
 const previewDraft = leerPreviewDraft();
 
+// El aviso va dentro de un shadow root cerrado, y no suelto en el <body>,
+// porque la vista previa puede traer 'css_custom': una hoja de estilos que
+// escribe quien arma la URL. Con el aviso en el documento, ese CSS podía
+// esconderlo —basta un selector por su color— y entonces la carta se veía
+// idéntica a la de verdad sin nada que dijera que no lo era.
+//
+// Un shadow root cerrado no lo alcanza el CSS de la página, así que el aviso
+// se ve siempre. Es lo único que separa una vista previa de una carta real a
+// ojos del comensal, y tiene que sobrevivir a lo que traiga el parámetro.
 function mostrarBannerPreview() {
-	const banner = document.createElement('div');
-	banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#ffb020;color:#0a0a0a;text-align:center;padding:6px 10px;font-size:12px;font-weight:700;letter-spacing:0.5px;font-family:sans-serif;';
-	banner.textContent = '👁 VISTA PREVIA — cambios sin guardar';
-	document.body.appendChild(banner);
+	const host = document.createElement('div');
+	host.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647';
+	const raiz = host.attachShadow({ mode: 'closed' });
+	raiz.innerHTML = `<div style="background:#ffb020;color:#0a0a0a;text-align:center;
+		padding:6px 10px;font-size:12px;font-weight:700;letter-spacing:0.5px;
+		font-family:sans-serif">👁 VISTA PREVIA — cambios sin guardar</div>`;
+	document.body.appendChild(host);
 }
 
 async function init() {
@@ -88,14 +101,14 @@ async function init() {
 			`slug=eq.${encodeURIComponent(slug)}&select=${COLUMNAS_PUBLICAS}`);
 		if (!restData.length) throw new Error('Restaurante no encontrado');
 
-		const restaurante = restData[0];
+		const original = restData[0];
 
-		if (previewDraft) {
-			if (previewDraft.color_primario) restaurante.color_primario = previewDraft.color_primario;
-			if (previewDraft.color_secundario) restaurante.color_secundario = previewDraft.color_secundario;
-			restaurante.atributos = { ...(restaurante.atributos || {}), ...(previewDraft.atributos || {}) };
-			mostrarBannerPreview();
-		}
+		// aplicarPreview solo deja pasar apariencia. Lo que dice a dónde va un
+		// pedido o un clic —el WhatsApp, los métodos de pago, las redes— sale
+		// de la base de datos también aquí: ese JSON lo escribe quien arma la
+		// URL, y cualquiera puede armar una. Ver core/preview.js.
+		const restaurante = previewDraft ? aplicarPreview(original, previewDraft) : original;
+		if (previewDraft) mostrarBannerPreview();
 
 		setRestaurante(restaurante);
 
@@ -129,7 +142,10 @@ async function init() {
 		showLoading(false);
 
 		// ── 5. TEMA DE NAV ────────────────────────────────────────
-		const tema = restaurante.atributos?.nav || 'topnav'; // 'topnav' | 'sidebar' | 'carrito' | 'explorar' | 'video' | 'vertical'
+		// Validado contra los modelos que existen de verdad: el nombre se usa
+		// para importar un archivo, y uno que no exista tira el arranque
+		// entero al catch de abajo. Ver modeloDe() en core/planes.js.
+		const tema = modeloDe(restaurante);
 		// Mostrar/ocultar bloques HTML según el tema
 		window.activarTema?.(tema, restaurante);
 		const temaModule = await import(`../temas/${tema}.js`);
