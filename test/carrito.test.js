@@ -15,7 +15,8 @@ globalThis.localStorage = {
 globalThis.document = { getElementById: () => null };
 
 const { setRestaurante, setProductos } = await import('../core/menu.js');
-const { revalidarCarrito, recargoPremium, loadCartFromStorage, opcionesDe } = await import('../core/carrito.js');
+const { revalidarCarrito, recargoPremium, loadCartFromStorage, opcionesDe,
+        describirSeleccion, leerSeleccion } = await import('../core/carrito.js');
 
 const P = (id, nombre, precio) => ({ id, nombre, precio_numerico: precio, categoria_id: 'c1' });
 const CLAVE = 'pruebas_cart';
@@ -251,5 +252,84 @@ describe('opcionesDe · qué toppings ofrece cada plato', () => {
 		conCatalogo();
 		const o = opcionesDe({ atributos: { personalizacion: { platino: [], premium: [], salsas: [] } } });
 		assert.deepEqual([o.platino, o.premium, o.salsas], [[], [], []]);
+	});
+});
+
+// ── EDITAR UNA LÍNEA DEL CARRITO ──────────────────────────────
+// Al pulsar "editar" sobre un plato personalizado hay que volver a marcar en
+// el modal lo que el cliente había elegido. Antes eso se reconstruía leyendo
+// el texto de la línea y partiéndolo por ', ', y ahí es donde se perdía
+// dinero: un topping con coma en el nombre se partía en dos que no existen,
+// el modal abría sin nada marcado y, al guardar, la línea volvía al carrito
+// sin el recargo. Sin ningún error a la vista.
+describe('describirSeleccion · el texto que lee el restaurante', () => {
+	test('arma las tres secciones separadas por barra', () => {
+		assert.equal(
+			describirSeleccion({ platino: ['Queso', 'Doritos'], premium: ['Tocineta'], salsas: ['BBQ'] }),
+			'Toppings: Queso, Doritos | Premium: Tocineta | Salsas: BBQ');
+	});
+
+	test('lo que no se eligió no deja sección vacía', () => {
+		assert.equal(describirSeleccion({ premium: ['Tocineta'] }), 'Premium: Tocineta');
+		assert.equal(describirSeleccion({}), '');
+	});
+});
+
+describe('leerSeleccion · volver a abrir lo que se eligió', () => {
+	test('un topping con coma en el nombre sobrevive a la ida y vuelta', () => {
+		// El caso que costaba dinero. Hoy ningún restaurante tiene una coma en
+		// sus toppings, pero nada lo impide: "Salsa de la casa, picante" es un
+		// nombre perfectamente normal para una carta.
+		const sel = { platino: [], premium: ['Salsa de la casa, picante'], salsas: [] };
+		const item = { sel, descripcion: describirSeleccion(sel) };
+
+		const leido = leerSeleccion(item);
+		assert.deepEqual([...leido.premium], ['Salsa de la casa, picante'],
+			'el nombre tiene que volver entero, no partido por la coma');
+	});
+
+	test('la ida y vuelta es exacta para una selección normal', () => {
+		const sel = { platino: ['Queso', 'Doritos'], premium: ['Tocineta'], salsas: ['BBQ', 'Ajo'] };
+		const leido = leerSeleccion({ sel, descripcion: describirSeleccion(sel) });
+		assert.deepEqual([...leido.platino], sel.platino);
+		assert.deepEqual([...leido.premium], sel.premium);
+		assert.deepEqual([...leido.salsas], sel.salsas);
+	});
+
+	test('un carrito guardado antes de este cambio se sigue entendiendo', () => {
+		// Vive en el navegador del cliente y puede reaparecer mañana: no lleva
+		// 'sel', solo el texto. Se lee como se leía siempre.
+		const viejo = { descripcion: 'Toppings: Queso, Doritos | Premium: Tocineta | Salsas: BBQ' };
+		const leido = leerSeleccion(viejo);
+		assert.deepEqual([...leido.platino], ['Queso', 'Doritos']);
+		assert.deepEqual([...leido.premium], ['Tocineta']);
+		assert.deepEqual([...leido.salsas], ['BBQ']);
+	});
+
+	test('una línea sin personalizar no marca nada', () => {
+		for (const item of [{ descripcion: '' }, {}, null]) {
+			const leido = leerSeleccion(item);
+			assert.equal(leido.platino.size, 0);
+			assert.equal(leido.premium.size, 0);
+			assert.equal(leido.salsas.size, 0);
+		}
+	});
+
+	test('un "sel" corrupto no revienta el modal', () => {
+		// Lo que hay en localStorage lo puede tocar cualquiera.
+		const leido = leerSeleccion({ sel: { platino: 'Queso', premium: null } });
+		assert.equal(leido.platino.size, 0);
+		assert.equal(leido.premium.size, 0);
+	});
+
+	test('el recargo se recupera al reabrir, que es lo que se perdía', () => {
+		// La prueba de arriba dice que el nombre vuelve; esta dice que eso se
+		// traduce en pesos. Con el nombre partido, recargoPremium no
+		// encontraba nada y el plato volvía al carrito al precio base.
+		const catalogo = { toppings_premium: [{ nombre: 'Salsa de la casa, picante', precio: 4000 }] };
+		const sel = { premium: ['Salsa de la casa, picante'] };
+		const leido = leerSeleccion({ sel, descripcion: describirSeleccion(sel) });
+
+		assert.equal(recargoPremium(catalogo, leido.premium), 4000);
 	});
 });
