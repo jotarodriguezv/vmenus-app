@@ -2,7 +2,7 @@
 // comensal y qué puede cobrar el restaurante, así que conviene fijarla.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { PLANES, PLAN_POR_DEFECTO, planDe } from '../core/planes.js';
+import { PLANES, PLAN_POR_DEFECTO, planDe, MODELOS, MODELO_POR_DEFECTO, modeloDe } from '../core/planes.js';
 
 const conPlan = plan => planDe({ atributos: { plan } });
 
@@ -76,5 +76,44 @@ describe('capacidades por plan', () => {
 	test('cada plan dice qué modelos permite', () => {
 		for (const [nombre, plan] of Object.entries(PLANES))
 			assert.ok(Array.isArray(plan.modelos) && plan.modelos.length, `${nombre} sin modelos`);
+	});
+});
+
+// ── MODELOS ───────────────────────────────────────────────────
+// El nombre del modelo se usa para importar un archivo. Uno que no exista no
+// da un fallo pequeño: tumba el arranque entero y el visitante ve "No se pudo
+// cargar el menú" en vez de la carta.
+describe('modeloDe · qué plantilla se carga', () => {
+	test('la lista sale de los planes y no de una copia a mano', () => {
+		// Si se escribiera aparte, un modelo nuevo entraría en un plan y no en
+		// la lista, y su carta caería al de por defecto sin que nadie supiera
+		// por qué.
+		for (const p of Object.values(PLANES))
+			for (const m of p.modelos)
+				assert.ok(MODELOS.includes(m), `${m} está en un plan pero no en MODELOS`);
+	});
+
+	test('un modelo válido se respeta', () => {
+		assert.equal(modeloDe({ atributos: { nav: 'vertical' } }), 'vertical');
+		assert.equal(modeloDe({ atributos: { nav: 'video' } }), 'video');
+	});
+
+	test('una errata en el panel no apaga la carta', () => {
+		// Antes 'vertikal' llegaba a import('../temas/vertikal.js'), que lanza,
+		// y el catch del arranque dejaba la carta en un mensaje de error.
+		assert.equal(modeloDe({ atributos: { nav: 'vertikal' } }), MODELO_POR_DEFECTO);
+		assert.equal(modeloDe({ atributos: { nav: '' } }), MODELO_POR_DEFECTO);
+	});
+
+	test('un restaurante sin modelo elegido usa el de por defecto', () => {
+		assert.equal(modeloDe({ atributos: {} }), MODELO_POR_DEFECTO);
+		assert.equal(modeloDe({}), MODELO_POR_DEFECTO);
+		assert.equal(modeloDe(null), MODELO_POR_DEFECTO);
+	});
+
+	test('no se puede pedir un archivo de fuera de temas/', () => {
+		// El valor acaba en una ruta de import; que solo pueda ser uno de los
+		// conocidos es lo que lo hace inofensivo.
+		assert.equal(modeloDe({ atributos: { nav: '../core/supabase' } }), MODELO_POR_DEFECTO);
 	});
 });
