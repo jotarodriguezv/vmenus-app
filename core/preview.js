@@ -34,7 +34,18 @@ export const CLAVES_APARIENCIA = [
 	// Tipografía
 	'fuente_titulo', 'fuente_cuerpo',
 	// Modelo de carta y su aspecto
-	'nav', 'estilo', 'plan',
+	//
+	// 'plan' estaba aquí y no debía: no es apariencia, es lo que se paga. Con
+	// ?preview={"atributos":{"plan":"completo"}} desaparecía el crédito "Hecho
+	// con VMenus" de una carta que sí lo lleva, y con {"plan":"vitrina"} se
+	// apagaba aplicarHorarios() y salían categorías que estaban ocultas fuera
+	// de su franja. Pasa la propia pregunta de arriba por la respuesta
+	// equivocada: no es "que se vea distinto", es marca blanca regalada a
+	// quien sepa escribir una URL.
+	//
+	// Para probar el modelo de carta ya está 'nav', que sí es apariencia y no
+	// depende del plan para pintarse. Un cambio de plan se ve guardándolo.
+	'nav', 'estilo',
 	// Bloques que se enseñan o se esconden
 	'subtitulo', 'mostrar_hero', 'portada_activa', 'carrito', 'social_bar',
 	'filtros_disponibles',
