@@ -32,6 +32,19 @@ describe('aplicarPreview · lo que un enlace preparado NO puede cambiar', () => 
 		assert.equal(r.atributos.whatsapp_pedidos, '573001112233');
 	});
 
+	test('no puede cambiarse el plan', () => {
+		// 'plan' estuvo en la lista de apariencia y no es apariencia: es lo
+		// que se paga. Con plan:'completo' desaparecía el crédito "Hecho con
+		// VMenus" de una carta que sí lo lleva —marca blanca regalada a quien
+		// sepa escribir una URL— y con plan:'vitrina' se apagaban los
+		// horarios, así que salían categorías que estaban ocultas fuera de su
+		// franja.
+		const r = aplicarPreview(bonzas(), { atributos: { plan: 'completo' } });
+		assert.equal(r.atributos.plan, undefined);
+		assert.ok(!CLAVES_APARIENCIA.includes('plan'),
+			'el plan no es apariencia: decide qué incluye la carta, no cómo se ve');
+	});
+
 	test('no puede cambiar los métodos de pago ni las redes', () => {
 		const r = aplicarPreview(bonzas(), {
 			atributos: {
