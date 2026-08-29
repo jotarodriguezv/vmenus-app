@@ -22,6 +22,31 @@ const bonzas = () => ({
 });
 
 describe('aplicarPreview · lo que un enlace preparado NO puede cambiar', () => {
+	test('no puede inyectar CSS con css_custom', () => {
+		// Una hoja de estilos arbitraria no es "que se vea distinto": con
+		// `content:` escribe TEXTO en la carta. Un enlace preparado desde fuera
+		// enseñaba la carta real —dominio, logo, platos y precios de verdad—
+		// con un teléfono de pedidos falso encima, y el mismo CSS tumbaba el
+		// aviso de vista previa que era la única defensa.
+		const r = aplicarPreview(bonzas(), {
+			atributos: { css_custom: 'div{display:none!important}body::before{content:"Pide al 300..."}' },
+		});
+		assert.equal(r.atributos.css_custom, undefined, 'no puede colarse');
+	});
+
+	test('tampoco puede pisar el CSS que el restaurante sí guardó', () => {
+		const resto = bonzas();
+		resto.atributos.css_custom = '.card{border-radius:12px}';
+		const r = aplicarPreview(resto, { atributos: { css_custom: 'div{display:none!important}' } });
+		assert.equal(r.atributos.css_custom, '.card{border-radius:12px}', 'manda lo guardado');
+	});
+
+	test('css_custom no está en la lista de apariencia', () => {
+		// La prueba de arriba comprueba el efecto; esta, la causa. Volver a
+		// añadirlo a la lista reabre el agujero entero.
+		assert.ok(!CLAVES_APARIENCIA.includes('css_custom'));
+	});
+
 	test('no puede desviar el WhatsApp de pedidos', () => {
 		// El ataque concreto: se reparte el enlace de la carta de verdad, con
 		// su logo y sus precios, y los pedidos llegan a otro teléfono. El
