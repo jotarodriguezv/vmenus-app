@@ -309,14 +309,11 @@ function addCustomToCart() {
 	const extras = recargoPremium(customOpciones.premium);
 	const precioUnit = customProduct.precio_numerico + extras;
 
-	// Lo elegido, como objetos del catálogo: de ahí salen a la vez los
-	// identificadores que se guardan y los nombres que se escriben. Sacarlos
-	// del mismo sitio es lo que evita que la línea diga una cosa y cobre otra.
-	const elegidos = {
-		platino: customOpciones.platino.filter(t => selectedPlatino.has(t.id)),
-		premium: customOpciones.premium.filter(t => selectedPremium.has(t.id)),
-		salsas:  customOpciones.salsas.filter(t => selectedSalsas.has(t.id)),
-	};
+	// Lo elegido, como objetos del catálogo. Mismo ayudante que usa la
+	// revalidación, para que dar de alta una línea y recalcularla después no
+	// puedan divergir.
+	const elegidos = elegidosDe(customOpciones,
+		{ platino: selectedPlatino, premium: selectedPremium, salsas: selectedSalsas });
 	const sel = {
 		platino: elegidos.platino.map(t => t.id),
 		premium: elegidos.premium.map(t => t.id),
@@ -388,16 +385,73 @@ export function revalidarCarrito(guardado) {
 		// No está en el menú de ahora: agotado, borrado o fuera de horario.
 		if (!p) { retirados.push(item.name); continue; }
 
-		const extras = Number(item.extras) || 0;
+		// El recargo se RECALCULA contra el catálogo de hoy; antes se cogía de
+		// lo guardado (`Number(item.extras) || 0`) y ahí se colaba el mismo fallo
+		// que motivó subir el catálogo al restaurante: el precio base se
+		// refrescaba y el de los toppings no. Tocineta pasaba de $4.000 a $6.000
+		// y un carrito de ayer seguía cobrando $4.000, con el pedido llegándole
+		// al restaurante por el total viejo.
+		//
+		// Se puede hacer desde que la selección se guarda por identificador: 'sel'
+		// dice qué toppings lleva la línea, y el precio sale del catálogo.
+		//
+		// Solo se recalcula si la línea trae de dónde: 'sel' o, en carritos de
+		// antes de que existiera, el texto. Sin ninguna de las dos no hay base
+		// para decir que el recargo es cero —no saber no es saber que no—, y
+		// ponerlo a cero le cobraría de menos al restaurante. En ese caso se
+		// conserva lo guardado, que es lo único que se sabe.
+		const personalizada = !!(item.sel || item.descripcion);
+		const opciones = personalizada ? opcionesDe(p) : null;
+		const elegidos = personalizada ? elegidosDe(opciones, leerSeleccion(item, opciones)) : null;
+		const extras = personalizada
+			? recargoPremium(opciones.premium, new Set(elegidos.premium.map(t => t.id)))
+			: (Number(item.extras) || 0);
 		const precioHoy = p.precio_numerico + extras;
+
 		if (precioHoy !== item.price) {
 			reprecio.push({ nombre: p.nombre, antes: item.price, ahora: precioHoy });
 			item.price = precioHoy;
 		}
+		item.extras = extras;
 		item.name = p.nombre;   // el nombre también pudo cambiar en el panel
-		vivos.push(item);
+
+		// La selección y su texto se reescriben con el catálogo de hoy. Renombrar
+		// un topping es una operación admitida desde que hay identificadores, así
+		// que un carrito dormido no puede mandarle al restaurante por WhatsApp un
+		// nombre que ya nadie usa. Un topping borrado se cae aquí, y como el
+		// recargo se recalculó, el precio ya no lo cobra.
+		if (personalizada) {
+			item.sel = {
+				platino: elegidos.platino.map(t => t.id),
+				premium: elegidos.premium.map(t => t.id),
+				salsas:  elegidos.salsas.map(t => t.id),
+			};
+			item.descripcion = describirSeleccion(elegidos);
+			// La clave lleva la descripción dentro, así que hay que rehacerla o dos
+			// líneas distintas dejarían de distinguirse al sumar cantidades.
+			item.cartKey = `${item.id}__${item.descripcion}`;
+		}
+
+		// Si al reescribir dos líneas quedaron iguales —dos toppings que se
+		// fundieron en uno, o uno borrado que las igualó— se juntan en vez de
+		// dejar dos filas idénticas que el cliente no sabe distinguir.
+		const gemela = vivos.find(v => v.cartKey === item.cartKey);
+		if (gemela) gemela.cantidad += item.cantidad;
+		else vivos.push(item);
 	}
 	return { vivos, retirados, reprecio };
+}
+
+// Los objetos del catálogo que corresponden a una selección de identificadores.
+// Lo usan el alta en el carrito y la revalidación, y de ahí salen a la vez los
+// identificadores que se guardan y los nombres que se escriben: sacarlos del
+// mismo sitio es lo que evita que la línea diga una cosa y cobre otra.
+function elegidosDe(opciones, sets) {
+	return {
+		platino: opciones.platino.filter(t => sets.platino.has(t.id)),
+		premium: opciones.premium.filter(t => sets.premium.has(t.id)),
+		salsas:  opciones.salsas.filter(t => sets.salsas.has(t.id)),
+	};
 }
 
 function avisarCambiosCarrito({ retirados, reprecio }) {
