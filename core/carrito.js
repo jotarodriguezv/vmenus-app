@@ -16,7 +16,7 @@
 // Aquí se toca dinero. Un fallo no rompe la página: hace que al restaurante
 // le llegue un pedido con el precio equivocado.
 
-import { restaurante, productos } from './menu.js';
+import { restaurante, productos, soloDigitos } from './menu.js';
 import { trackAgregarCarrito } from './analytics.js';
 import { esc, escUrl } from './html.js';
 
@@ -668,7 +668,9 @@ function sendWhatsAppOrder(event) {
 	event.preventDefault();
 	// wa.me solo acepta dígitos: un número escrito como "+57 300 123 4567"
 	// genera un enlace que no abre nada y falla justo al final del pedido.
-	const whatsapp = String(restaurante?.atributos?.whatsapp_pedidos ?? '').replace(/\D/g, '');
+	// El mismo ayudante que usa la barra social, para que no se arregle en un
+	// sitio y se quede roto en el otro — que es lo que había pasado.
+	const whatsapp = soloDigitos(restaurante?.atributos?.whatsapp_pedidos);
 	if (!whatsapp) {
 		alert('Este restaurante no tiene configurado un número de WhatsApp para pedidos.');
 		return;
