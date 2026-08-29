@@ -18,6 +18,7 @@ import { trackVisita } from './analytics.js';
 import { aplicarHorarios } from './horarios.js';
 import { planDe, modeloDe } from './planes.js';
 import { aplicarPreview } from './preview.js';
+import { blindarAnfitrion } from './aviso.js';
 
 // ── 1. SLUG DESDE LA URL ──────────────────────────────────────
 // Se aceptan las dos formas a la vez, siempre, sin que el restaurante
@@ -63,18 +64,11 @@ function leerPreviewDraft() {
 }
 const previewDraft = leerPreviewDraft();
 
-// El aviso va dentro de un shadow root cerrado, y no suelto en el <body>,
-// porque la vista previa puede traer 'css_custom': una hoja de estilos que
-// escribe quien arma la URL. Con el aviso en el documento, ese CSS podía
-// esconderlo —basta un selector por su color— y entonces la carta se veía
-// idéntica a la de verdad sin nada que dijera que no lo era.
-//
-// Un shadow root cerrado no lo alcanza el CSS de la página, así que el aviso
-// se ve siempre. Es lo único que separa una vista previa de una carta real a
-// ojos del comensal, y tiene que sobrevivir a lo que traiga el parámetro.
+// El aviso amarillo, con sus reglas, vive en core/aviso.js: es lo único que
+// separa una vista previa de una carta real a ojos del comensal, así que
+// tiene pruebas propias.
 function mostrarBannerPreview() {
-	const host = document.createElement('div');
-	host.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647';
+	const host = blindarAnfitrion(document.createElement('div'));
 	const raiz = host.attachShadow({ mode: 'closed' });
 	raiz.innerHTML = `<div style="background:#ffb020;color:#0a0a0a;text-align:center;
 		padding:6px 10px;font-size:12px;font-weight:700;letter-spacing:0.5px;
