@@ -50,7 +50,23 @@ export const CLAVES_APARIENCIA = [
 	'subtitulo', 'mostrar_hero', 'portada_activa', 'carrito', 'social_bar',
 	'filtros_disponibles',
 	// Ajustes que solo cambian cómo se presenta lo que ya hay
-	'zona_horaria', 'orden_productos', 'url_modo', 'css_custom',
+	//
+	// 'css_custom' estaba aquí y no debía, por el mismo motivo que 'plan'. Una
+	// hoja de estilos arbitraria no es "que se vea distinto": con `content:`
+	// escribe TEXTO en la carta, así que un enlace preparado desde fuera podía
+	// enseñar la carta real —dominio, logo, platos y precios de verdad— con un
+	// teléfono de pedidos falso encima. El aviso de vista previa era la única
+	// defensa, y el CSS también lo tumbaba: `div{display:none!important}` le
+	// ganaba a los estilos en línea del anfitrión del aviso.
+	//
+	// El aviso ya está blindado (ver BLINDAJE_AVISO en loader.js), pero eso
+	// convierte el ataque en "carta real con texto falso Y un cartel amarillo
+	// que dice VISTA PREVIA", no en nada. Las dos capas, entonces: aquí se
+	// cierra la puerta y allí se atranca.
+	//
+	// Lo que se pierde es previsualizar el CSS sin guardar. Es un precio real y
+	// pequeño: lo usa un restaurante, y el CSS se ve guardando.
+	'zona_horaria', 'orden_productos', 'url_modo',
 ];
 
 // Devuelve una copia del restaurante con lo que la vista previa puede
