@@ -16,7 +16,7 @@ globalThis.document = { getElementById: () => null };
 
 const { setRestaurante, setProductos } = await import('../core/menu.js');
 const { revalidarCarrito, recargoPremium, loadCartFromStorage, opcionesDe,
-        describirSeleccion, leerSeleccion } = await import('../core/carrito.js');
+        describirSeleccion, leerSeleccion, catalogoDe } = await import('../core/carrito.js');
 
 const P = (id, nombre, precio) => ({ id, nombre, precio_numerico: precio, categoria_id: 'c1' });
 const CLAVE = 'pruebas_cart';
@@ -90,36 +90,44 @@ describe('revalidarCarrito', () => {
 });
 
 describe('recargoPremium', () => {
-	const catalogo = { toppings_premium: [
-		{ nombre: 'Tocineta', precio: 4000 },
-		{ nombre: 'Queso fundido', precio: 4000 },
-	] };
+	// Recibe la lista premium ya normalizada por catalogoDe: es la forma en
+	// que le llega desde el modal, y así la prueba no inventa una tercera.
+	const premium = catalogoDe({ toppings_premium: [
+		{ id: 't_toc', nombre: 'Tocineta', precio: 4000 },
+		{ id: 't_qf',  nombre: 'Queso fundido', precio: 4000 },
+	] }).premium;
 
 	test('suma lo marcado', () => {
-		assert.equal(recargoPremium(catalogo, new Set()), 0);
-		assert.equal(recargoPremium(catalogo, new Set(['Tocineta'])), 4000);
-		assert.equal(recargoPremium(catalogo, new Set(['Tocineta', 'Queso fundido'])), 8000);
+		assert.equal(recargoPremium(premium, new Set()), 0);
+		assert.equal(recargoPremium(premium, new Set(['t_toc'])), 4000);
+		assert.equal(recargoPremium(premium, new Set(['t_toc', 't_qf'])), 8000);
 	});
 
-	test('un catálogo con el nombre repetido NO cobra dos veces', () => {
+	test('un carrito guardado con nombres se sigue cobrando bien', () => {
+		// El carrito del cliente puede ser de antes de la migración. Cobrarle
+		// de menos por eso sería peor que cualquier otra cosa que pase aquí.
+		assert.equal(recargoPremium(premium, new Set(['Tocineta'])), 4000);
+	});
+
+	test('un catálogo con el elemento repetido NO cobra dos veces', () => {
 		// El panel ya impide crear duplicados, pero lo guardado de antes no
 		// debe cobrarle de más al cliente.
-		const conDuplicado = { toppings_premium: [
-			{ nombre: 'Tocineta', precio: 4000 },
-			{ nombre: 'Queso fundido', precio: 4000 },
-			{ nombre: 'Tocineta', precio: 4000 },
-		] };
-		assert.equal(recargoPremium(conDuplicado, new Set(['Tocineta'])), 4000, 'marcado una vez, cobrado una vez');
+		const conDuplicado = catalogoDe({ toppings_premium: [
+			{ id: 't_toc', nombre: 'Tocineta', precio: 4000 },
+			{ id: 't_qf',  nombre: 'Queso fundido', precio: 4000 },
+			{ id: 't_toc', nombre: 'Tocineta', precio: 4000 },
+		] }).premium;
+		assert.equal(recargoPremium(conDuplicado, new Set(['t_toc'])), 4000, 'marcado una vez, cobrado una vez');
 	});
 
 	test('un precio que no es número no convierte el total en NaN', () => {
-		const malo = { toppings_premium: [{ nombre: 'X', precio: 'abc' }] };
-		assert.equal(recargoPremium(malo, new Set(['X'])), 0);
+		const malo = catalogoDe({ toppings_premium: [{ id: 't_x', nombre: 'X', precio: 'abc' }] }).premium;
+		assert.equal(recargoPremium(malo, new Set(['t_x'])), 0);
 	});
 
-	test('producto sin toppings o sin atributos', () => {
-		assert.equal(recargoPremium({}, new Set(['X'])), 0);
-		assert.equal(recargoPremium(null, new Set(['X'])), 0);
+	test('sin lista premium no suma nada', () => {
+		assert.equal(recargoPremium([], new Set(['t_x'])), 0);
+		assert.equal(recargoPremium(null, new Set(['t_x'])), 0);
 	});
 });
 
@@ -182,15 +190,65 @@ describe('loadCartFromStorage · caducidad a las 24 horas', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// ── EL CATÁLOGO Y SUS TRES ÉPOCAS ─────────────────────────────
+// El catálogo de toppings se ha guardado de tres formas: cadenas sueltas
+// (platino y salsas), objeto con precio (premium) y, desde la migración a
+// identificadores, objeto con id. catalogoDe las traduce todas a una sola,
+// para que el resto del archivo no tenga que preguntar de qué época es cada
+// dato.
+describe('catalogoDe · las tres formas dan lo mismo', () => {
+	test('una cadena suelta usa su nombre como identificador', () => {
+		// Es la pieza que sostiene la migración: sin ella, un plato guardado
+		// con nombres y un catálogo ya migrado no se encontrarían nunca.
+		const c = catalogoDe({ toppings_platino: ['Queso'], salsas: ['BBQ'] });
+		assert.deepEqual(c.platino, [{ id: 'Queso', nombre: 'Queso' }]);
+		assert.deepEqual(c.salsas,  [{ id: 'BBQ', nombre: 'BBQ' }]);
+	});
+
+	test('un premium sin identificador también cae de pie', () => {
+		const c = catalogoDe({ toppings_premium: [{ nombre: 'Tocineta', precio: 4000 }] });
+		assert.deepEqual(c.premium, [{ id: 'Tocineta', nombre: 'Tocineta', precio: 4000 }]);
+	});
+
+	test('con identificador, manda el identificador', () => {
+		const c = catalogoDe({
+			toppings_platino: [{ id: 'top_1', nombre: 'Queso' }],
+			toppings_premium: [{ id: 'top_2', nombre: 'Tocineta', precio: 4000 }],
+			salsas:           [{ id: 'top_3', nombre: 'BBQ' }],
+		});
+		assert.deepEqual(c.platino.map(t => t.id), ['top_1']);
+		assert.deepEqual(c.premium.map(t => t.id), ['top_2']);
+		assert.deepEqual(c.salsas.map(t => t.id),  ['top_3']);
+	});
+
+	test('un precio que no es número no envenena el catálogo', () => {
+		const c = catalogoDe({ toppings_premium: [{ nombre: 'X', precio: 'abc' }] });
+		assert.equal(c.premium[0].precio, 0);
+	});
+
+	test('la basura se cae en vez de pintarse', () => {
+		// atributos es JSON libre: lo que entre raro no puede acabar como un
+		// chip vacío en el modal del cliente.
+		const c = catalogoDe({ toppings_platino: ['', null, '  ', 'Queso'], salsas: 'no soy lista' });
+		assert.deepEqual(c.platino.map(t => t.nombre), ['Queso']);
+		assert.deepEqual(c.salsas, []);
+	});
+
+	test('un restaurante sin catálogo da las tres listas vacías', () => {
+		assert.deepEqual(catalogoDe({}),   { platino: [], premium: [], salsas: [] });
+		assert.deepEqual(catalogoDe(null), { platino: [], premium: [], salsas: [] });
+	});
+});
+
 describe('opcionesDe · qué toppings ofrece cada plato', () => {
 	// El catálogo vive en el restaurante y el plato solo dice cuáles ofrece.
 	// Antes cada plato llevaba una copia con los precios dentro, y eso hacía
 	// que un plato nuevo naciera sin nada y que cambiar un precio en el
 	// catálogo no cambiara lo que pagaba el cliente.
 	const CATALOGO = {
-		toppings_platino: ['Cebolla', 'Tomate', 'Lechuga'],
-		toppings_premium: [{ nombre: 'Tocineta', precio: 4000 }, { nombre: 'Doble queso', precio: 3000 }],
-		salsas: ['BBQ', 'Piña', 'Rosada'],
+		toppings_platino: [{ id: 't_ceb', nombre: 'Cebolla' }, { id: 't_tom', nombre: 'Tomate' }, { id: 't_lec', nombre: 'Lechuga' }],
+		toppings_premium: [{ id: 't_toc', nombre: 'Tocineta', precio: 4000 }, { id: 't_dq', nombre: 'Doble queso', precio: 3000 }],
+		salsas:           [{ id: 't_bbq', nombre: 'BBQ' }, { id: 't_pin', nombre: 'Piña' }, { id: 't_ros', nombre: 'Rosada' }],
 	};
 	const conCatalogo = (extra = {}) =>
 		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: { ...CATALOGO, ...extra } });
@@ -199,8 +257,8 @@ describe('opcionesDe · qué toppings ofrece cada plato', () => {
 		// Es el fallo que motivó el cambio: el restaurante sube un precio en
 		// el panel, el panel dice que guardó, y el cliente seguía pagando el
 		// de antes porque el plato llevaba su propia copia.
-		conCatalogo({ toppings_premium: [{ nombre: 'Tocineta', precio: 9000 }] });
-		const o = opcionesDe({ atributos: { personalizacion: { premium: ['Tocineta'] } } });
+		conCatalogo({ toppings_premium: [{ id: 't_toc', nombre: 'Tocineta', precio: 9000 }] });
+		const o = opcionesDe({ atributos: { personalizacion: { premium: ['t_toc'] } } });
 		assert.equal(o.premium[0].precio, 9000, 'manda el catálogo de hoy');
 	});
 
@@ -209,19 +267,54 @@ describe('opcionesDe · qué toppings ofrece cada plato', () => {
 		// no la excepción.
 		conCatalogo();
 		const o = opcionesDe({ atributos: { personalizacion: {
-			platino: ['Cebolla'], premium: ['Doble queso'], salsas: ['BBQ', 'Rosada'],
+			platino: ['t_ceb'], premium: ['t_dq'], salsas: ['t_bbq', 't_ros'],
 		} } });
-		assert.deepEqual(o.platino, ['Cebolla']);
+		assert.deepEqual(o.platino.map(t => t.nombre), ['Cebolla']);
 		assert.deepEqual(o.premium.map(t => t.nombre), ['Doble queso']);
-		assert.deepEqual(o.salsas, ['BBQ', 'Rosada']);
+		assert.deepEqual(o.salsas.map(t => t.nombre),  ['BBQ', 'Rosada']);
+	});
+
+	test('RENOMBRAR un topping ya no desengancha el plato', () => {
+		// El motivo entero de que exista el identificador. Antes el plato
+		// guardaba "Cebolla"; el restaurante lo llamaba "Cebolla caramelizada"
+		// desde el panel y el plato se quedaba apuntando a un nombre que ya no
+		// existía: chip desmarcado, sin cobro, y sin ningún aviso.
+		conCatalogo({ toppings_platino: [{ id: 't_ceb', nombre: 'Cebolla caramelizada' }] });
+		const o = opcionesDe({ atributos: { personalizacion: { platino: ['t_ceb'] } } });
+		assert.deepEqual(o.platino.map(t => t.nombre), ['Cebolla caramelizada'],
+			'el plato sigue enganchado y ahora dice el nombre nuevo');
+	});
+
+	test('un plato guardado con nombres encuentra el catálogo ya migrado', () => {
+		// La ventana de la migración: el catálogo tiene identificadores y el
+		// plato todavía no. Tienen que seguir encontrándose, o la migración
+		// habría que hacerla a la vez en la base, el panel y cada móvil.
+		conCatalogo();
+		const o = opcionesDe({ atributos: { personalizacion: {
+			platino: ['Cebolla'], premium: ['Tocineta'], salsas: ['BBQ'],
+		} } });
+		assert.deepEqual(o.platino.map(t => t.id), ['t_ceb']);
+		assert.deepEqual(o.premium.map(t => t.id), ['t_toc']);
+		assert.deepEqual(o.salsas.map(t => t.id),  ['t_bbq']);
+	});
+
+	test('y al revés: un catálogo sin migrar con un plato ya migrado', () => {
+		// Solo puede pasar si alguien guarda un plato antes de correr la
+		// migración del catálogo. Como el identificador cae en el nombre, sale
+		// bien igual.
+		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: {
+			toppings_platino: ['Cebolla', 'Tomate'],
+		} });
+		const o = opcionesDe({ atributos: { personalizacion: { platino: ['Cebolla'] } } });
+		assert.deepEqual(o.platino.map(t => t.nombre), ['Cebolla']);
 	});
 
 	test('lo que se borra del catálogo desaparece solo', () => {
 		// El plato sigue nombrando 'Piña' pero el restaurante ya la quitó. No
 		// puede aparecer en el modal: no tiene precio ni existe.
-		conCatalogo({ salsas: ['BBQ'] });
-		const o = opcionesDe({ atributos: { personalizacion: { salsas: ['BBQ', 'Piña'] } } });
-		assert.deepEqual(o.salsas, ['BBQ']);
+		conCatalogo({ salsas: [{ id: 't_bbq', nombre: 'BBQ' }] });
+		const o = opcionesDe({ atributos: { personalizacion: { salsas: ['t_bbq', 't_pin'] } } });
+		assert.deepEqual(o.salsas.map(t => t.nombre), ['BBQ']);
 	});
 
 	test('un plato sin personalización no ofrece nada', () => {
@@ -241,9 +334,9 @@ describe('opcionesDe · qué toppings ofrece cada plato', () => {
 			toppings_premium: [{ nombre: 'Trufa', precio: 12000 }],
 			salsas: ['Ajo'],
 		} });
-		assert.deepEqual(o.platino, ['Cebolla caramelizada']);
+		assert.deepEqual(o.platino.map(t => t.nombre), ['Cebolla caramelizada']);
 		assert.equal(o.premium[0].precio, 12000);
-		assert.deepEqual(o.salsas, ['Ajo']);
+		assert.deepEqual(o.salsas.map(t => t.nombre), ['Ajo']);
 	});
 
 	test('una selección vacía es "no ofrece", no "ofrece todo"', () => {
@@ -263,52 +356,86 @@ describe('opcionesDe · qué toppings ofrece cada plato', () => {
 // el modal abría sin nada marcado y, al guardar, la línea volvía al carrito
 // sin el recargo. Sin ningún error a la vista.
 describe('describirSeleccion · el texto que lee el restaurante', () => {
+	const obj = (...nombres) => nombres.map(n => ({ id: 't_' + n, nombre: n }));
+
 	test('arma las tres secciones separadas por barra', () => {
 		assert.equal(
-			describirSeleccion({ platino: ['Queso', 'Doritos'], premium: ['Tocineta'], salsas: ['BBQ'] }),
+			describirSeleccion({ platino: obj('Queso', 'Doritos'), premium: obj('Tocineta'), salsas: obj('BBQ') }),
 			'Toppings: Queso, Doritos | Premium: Tocineta | Salsas: BBQ');
 	});
 
+	test('escribe el NOMBRE, nunca el identificador', () => {
+		// El texto se lo lee una persona por WhatsApp. Mandar lo que se guarda
+		// tal cual le pediría al restaurante "un perro con top_9f21c4a3".
+		const texto = describirSeleccion({ premium: [{ id: 'top_9f21c4a3', nombre: 'Tocineta' }] });
+		assert.equal(texto, 'Premium: Tocineta');
+		assert.ok(!texto.includes('top_'), 'no puede escaparse un identificador al pedido');
+	});
+
 	test('lo que no se eligió no deja sección vacía', () => {
-		assert.equal(describirSeleccion({ premium: ['Tocineta'] }), 'Premium: Tocineta');
+		assert.equal(describirSeleccion({ premium: obj('Tocineta') }), 'Premium: Tocineta');
 		assert.equal(describirSeleccion({}), '');
 	});
 });
 
 describe('leerSeleccion · volver a abrir lo que se eligió', () => {
+	const CAT = {
+		platino: [{ id: 't_que', nombre: 'Queso' }, { id: 't_dor', nombre: 'Doritos' }],
+		premium: [{ id: 't_toc', nombre: 'Tocineta', precio: 4000 }],
+		salsas:  [{ id: 't_bbq', nombre: 'BBQ' }, { id: 't_ajo', nombre: 'Ajo' }],
+	};
+
+	test('la ida y vuelta es exacta para una selección normal', () => {
+		const sel = { platino: ['t_que', 't_dor'], premium: ['t_toc'], salsas: ['t_bbq', 't_ajo'] };
+		const leido = leerSeleccion({ sel }, CAT);
+		assert.deepEqual([...leido.platino], sel.platino);
+		assert.deepEqual([...leido.premium], sel.premium);
+		assert.deepEqual([...leido.salsas],  sel.salsas);
+	});
+
+	test('un carrito guardado con NOMBRES se traduce a identificadores', () => {
+		// Vive en el móvil del cliente y puede reaparecer mañana, ya con el
+		// catálogo migrado. Perderlo sería quitarle toppings a un pedido a
+		// medias sin decir nada.
+		const leido = leerSeleccion({ sel: { platino: ['Queso'], premium: ['Tocineta'] } }, CAT);
+		assert.deepEqual([...leido.platino], ['t_que']);
+		assert.deepEqual([...leido.premium], ['t_toc']);
+	});
+
 	test('un topping con coma en el nombre sobrevive a la ida y vuelta', () => {
 		// El caso que costaba dinero. Hoy ningún restaurante tiene una coma en
 		// sus toppings, pero nada lo impide: "Salsa de la casa, picante" es un
 		// nombre perfectamente normal para una carta.
-		const sel = { platino: [], premium: ['Salsa de la casa, picante'], salsas: [] };
-		const item = { sel, descripcion: describirSeleccion(sel) };
+		const cat = { platino: [], salsas: [],
+			premium: [{ id: 't_sal', nombre: 'Salsa de la casa, picante', precio: 4000 }] };
+		const elegidos = { platino: [], premium: cat.premium, salsas: [] };
+		const item = { sel: { premium: ['t_sal'] }, descripcion: describirSeleccion(elegidos) };
 
-		const leido = leerSeleccion(item);
-		assert.deepEqual([...leido.premium], ['Salsa de la casa, picante'],
-			'el nombre tiene que volver entero, no partido por la coma');
+		const leido = leerSeleccion(item, cat);
+		assert.deepEqual([...leido.premium], ['t_sal'],
+			'el topping tiene que volver entero, no partido por la coma');
 	});
 
-	test('la ida y vuelta es exacta para una selección normal', () => {
-		const sel = { platino: ['Queso', 'Doritos'], premium: ['Tocineta'], salsas: ['BBQ', 'Ajo'] };
-		const leido = leerSeleccion({ sel, descripcion: describirSeleccion(sel) });
-		assert.deepEqual([...leido.platino], sel.platino);
-		assert.deepEqual([...leido.premium], sel.premium);
-		assert.deepEqual([...leido.salsas], sel.salsas);
-	});
-
-	test('un carrito guardado antes de este cambio se sigue entendiendo', () => {
-		// Vive en el navegador del cliente y puede reaparecer mañana: no lleva
-		// 'sel', solo el texto. Se lee como se leía siempre.
+	test('un carrito guardado antes de que existiera "sel" se sigue entendiendo', () => {
+		// No lleva selección, solo el texto. Se lee como se leía siempre y se
+		// traduce al catálogo de hoy.
 		const viejo = { descripcion: 'Toppings: Queso, Doritos | Premium: Tocineta | Salsas: BBQ' };
-		const leido = leerSeleccion(viejo);
-		assert.deepEqual([...leido.platino], ['Queso', 'Doritos']);
-		assert.deepEqual([...leido.premium], ['Tocineta']);
-		assert.deepEqual([...leido.salsas], ['BBQ']);
+		const leido = leerSeleccion(viejo, CAT);
+		assert.deepEqual([...leido.platino], ['t_que', 't_dor']);
+		assert.deepEqual([...leido.premium], ['t_toc']);
+		assert.deepEqual([...leido.salsas],  ['t_bbq']);
+	});
+
+	test('lo que ya no está en el catálogo se cae', () => {
+		// Un topping que el restaurante borró no se puede ni cobrar ni
+		// preparar: reabrir la línea no puede resucitarlo.
+		const leido = leerSeleccion({ sel: { platino: ['t_que', 't_borrado'] } }, CAT);
+		assert.deepEqual([...leido.platino], ['t_que']);
 	});
 
 	test('una línea sin personalizar no marca nada', () => {
 		for (const item of [{ descripcion: '' }, {}, null]) {
-			const leido = leerSeleccion(item);
+			const leido = leerSeleccion(item, CAT);
 			assert.equal(leido.platino.size, 0);
 			assert.equal(leido.premium.size, 0);
 			assert.equal(leido.salsas.size, 0);
@@ -317,19 +444,26 @@ describe('leerSeleccion · volver a abrir lo que se eligió', () => {
 
 	test('un "sel" corrupto no revienta el modal', () => {
 		// Lo que hay en localStorage lo puede tocar cualquiera.
-		const leido = leerSeleccion({ sel: { platino: 'Queso', premium: null } });
+		const leido = leerSeleccion({ sel: { platino: 'Queso', premium: null } }, CAT);
 		assert.equal(leido.platino.size, 0);
 		assert.equal(leido.premium.size, 0);
 	});
 
+	test('sin catálogo no marca nada, en vez de romperse', () => {
+		const leido = leerSeleccion({ sel: { platino: ['t_que'] } });
+		assert.equal(leido.platino.size, 0);
+	});
+
 	test('el recargo se recupera al reabrir, que es lo que se perdía', () => {
-		// La prueba de arriba dice que el nombre vuelve; esta dice que eso se
+		// La prueba de arriba dice que el topping vuelve; esta dice que eso se
 		// traduce en pesos. Con el nombre partido, recargoPremium no
 		// encontraba nada y el plato volvía al carrito al precio base.
-		const catalogo = { toppings_premium: [{ nombre: 'Salsa de la casa, picante', precio: 4000 }] };
-		const sel = { premium: ['Salsa de la casa, picante'] };
-		const leido = leerSeleccion({ sel, descripcion: describirSeleccion(sel) });
+		const cat = { platino: [], salsas: [],
+			premium: [{ id: 't_sal', nombre: 'Salsa de la casa, picante', precio: 4000 }] };
+		const item = { sel: { premium: ['t_sal'] },
+			descripcion: describirSeleccion({ premium: cat.premium }) };
+		const leido = leerSeleccion(item, cat);
 
-		assert.equal(recargoPremium(catalogo, leido.premium), 4000);
+		assert.equal(recargoPremium(cat.premium, leido.premium), 4000);
 	});
 });
