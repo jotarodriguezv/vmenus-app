@@ -54,29 +54,65 @@ let selectedSalsas  = new Set();
 //     cliente. La copia del plato seguía diciendo el precio viejo, el panel
 //     decía que había guardado, y nadie se enteraba.
 //
-// Guardando solo los nombres, el precio sale siempre del catálogo y un
-// topping borrado desaparece solo de los platos que lo ofrecían. El panel
-// no deja renombrar —solo añadir y borrar—, así que el nombre sirve de
-// identidad.
-function opcionesDe(p) {
-	const a = p?.atributos || {};
-	const sel = a.personalizacion;
+// Guardando una referencia al catálogo, el precio sale siempre de él y un
+// topping borrado desaparece solo de los platos que lo ofrecían.
+//
+// Esa referencia era el NOMBRE, y ahí quedaba la última esquina del mismo
+// problema: renombrar un topping en el panel dejaba a los platos apuntando a
+// algo que ya no existe. El chip salía desmarcado, el carrito no sabía
+// cobrarlo, y nada avisaba. Por eso cada elemento del catálogo lleva ahora un
+// identificador propio, que no cambia aunque cambie el nombre.
 
-	// Platos de antes de este cambio: llevan su copia. Se siguen leyendo
-	// para no romperlos, y quedan migrados en cuanto se guarden desde el
-	// panel con la selección nueva.
-	if (!sel) return {
-		platino: a.toppings_platino || [],
-		premium: a.toppings_premium || [],
-		salsas:  a.salsas || [],
-	};
+// ── EL CATÁLOGO, EN UNA SOLA FORMA ────────────────────────────
+// El catálogo se ha guardado de tres maneras distintas a lo largo del
+// tiempo: platino y salsas como cadenas sueltas, premium como objeto con
+// precio, y ahora los tres como objeto con identificador. Aquí se traducen
+// todas a la misma, para que el resto del archivo no tenga que preguntar de
+// qué época es cada dato.
+//
+// La clave está en 'it.id || nombre': un elemento sin identificador usa su
+// nombre como tal. Eso es lo que hace que un plato guardado con nombres y un
+// catálogo ya migrado se sigan encontrando, y al revés — sin lo cual la
+// migración tendría que ser simultánea en la base, el panel, las cartas y el
+// carrito que alguien tenga abierto en el móvil, que es imposible.
+export function catalogoDe(attr) {
+	const norm = (lista, conPrecio) => (Array.isArray(lista) ? lista : []).map(it => {
+		const obj = (it && typeof it === 'object') ? it : { nombre: it };
+		const nombre = String(obj.nombre ?? '').trim();
+		if (!nombre) return null;
+		const base = { id: String(obj.id || nombre), nombre };
+		return conPrecio ? { ...base, precio: Number(obj.precio) || 0 } : base;
+	}).filter(Boolean);
 
-	const cat = restaurante?.atributos || {};
-	const premiumSel = new Set(sel.premium || []);
 	return {
-		platino: (cat.toppings_platino || []).filter(t => (sel.platino || []).includes(t)),
-		premium: (cat.toppings_premium || []).filter(t => premiumSel.has(t.nombre)),
-		salsas:  (cat.salsas || []).filter(s => (sel.salsas || []).includes(s)),
+		platino: norm(attr?.toppings_platino, false),
+		premium: norm(attr?.toppings_premium, true),
+		salsas:  norm(attr?.salsas, false),
+	};
+}
+
+// ¿Está este elemento del catálogo entre los marcados? Acepta identificador
+// o nombre a propósito: los platos y los carritos guardados antes de la
+// migración solo tienen el nombre, y descartarlos sería quitarle toppings a
+// un pedido a medias sin decir nada.
+function marcadoPor(seleccion) {
+	const s = new Set((Array.isArray(seleccion) ? seleccion : []).map(String));
+	return t => s.has(t.id) || s.has(t.nombre);
+}
+
+function opcionesDe(p) {
+	const sel = p?.atributos?.personalizacion;
+
+	// Platos de antes de que el catálogo subiera al restaurante: llevan su
+	// propia copia dentro. No queda ninguno en la base, pero leerla cuesta una
+	// línea y no leerla les quitaría los toppings sin avisar.
+	if (!sel) return catalogoDe(p?.atributos);
+
+	const cat = catalogoDe(restaurante?.atributos);
+	return {
+		platino: cat.platino.filter(marcadoPor(sel.platino)),
+		premium: cat.premium.filter(marcadoPor(sel.premium)),
+		salsas:  cat.salsas.filter(marcadoPor(sel.salsas)),
 	};
 }
 
@@ -99,11 +135,16 @@ function openCustomModal(productId, editingCartKey = null) {
 	customProduct = p;
 	customEditingKey = editingCartKey;
 
+	// El catálogo del plato se calcula ANTES de leer la selección guardada, y
+	// no al revés como estaba: leerla es traducir nombres a identificadores, y
+	// para eso hace falta saber contra qué se traduce.
+	customOpciones = opcionesDe(p);
+
 	if (editingCartKey) {
 		const item = cart.find(i => i.cartKey === editingCartKey);
 		customQty = item ? item.cantidad : 1;
 		({ platino: selectedPlatino, premium: selectedPremium, salsas: selectedSalsas } =
-			leerSeleccion(item));
+			leerSeleccion(item, customOpciones));
 	} else {
 		customQty = 1;
 		selectedPlatino = new Set();
@@ -111,19 +152,21 @@ function openCustomModal(productId, editingCartKey = null) {
 		selectedSalsas  = new Set();
 	}
 
-	customOpciones = opcionesDe(p);
 	document.getElementById('customName').textContent = p.nombre;
 	document.getElementById('customBasePrice').textContent = `Precio base: ${p.precio}`;
 	updateCustomQtyUI();
 	document.getElementById('btnAgregarCarrito').textContent = editingCartKey ? '✏ GUARDAR CAMBIOS' : '🛒 AGREGAR AL CARRITO';
 
-	fillChipSection('secToppingsPlatino', 'listToppingsPlatino', customOpciones.platino, t => t, selectedPlatino,
-		t => toggleInSet(selectedPlatino, t));
+	// Los tres grupos se marcan por identificador. El nombre solo se pinta.
+	fillChipSection('secToppingsPlatino', 'listToppingsPlatino', customOpciones.platino,
+		t => t.nombre, selectedPlatino,
+		t => toggleInSet(selectedPlatino, t.id), t => t.id);
 	fillChipSection('secToppingsPremium', 'listToppingsPremium', customOpciones.premium,
 		t => `${t.nombre} (+$${t.precio.toLocaleString('es-CO')})`, selectedPremium,
-		t => toggleInSet(selectedPremium, t.nombre), t => t.nombre);
-	fillChipSection('secSalsas', 'listSalsas', customOpciones.salsas, s => s, selectedSalsas,
-		s => toggleInSet(selectedSalsas, s));
+		t => toggleInSet(selectedPremium, t.id), t => t.id);
+	fillChipSection('secSalsas', 'listSalsas', customOpciones.salsas,
+		s => s.nombre, selectedSalsas,
+		s => toggleInSet(selectedSalsas, s.id), s => s.id);
 
 	updateCustomTotal();
 
@@ -162,17 +205,21 @@ function updateCustomQtyUI() {
 // dos sitios que lo usan —el total del modal y el alta en el carrito— porque
 // si divergen, al cliente se le enseña un precio y se le cobra otro.
 //
-// Se suma una sola vez por nombre: si el catálogo del restaurante trae dos
-// entradas con el mismo nombre, casarían las dos y el cliente pagaría el
-// recargo doble habiéndolo marcado una vez. El panel ya impide crear
-// duplicados, pero los que pudieran estar guardados no deben cobrar de más.
-// 'marcados' se puede pasar en las pruebas; en producción son los toppings
-// que el cliente tiene seleccionados ahora mismo en el modal.
-export function recargoPremium(attr, marcados = selectedPremium) {
+// Se suma una sola vez por elemento: si el catálogo trae dos entradas con el
+// mismo identificador, casarían las dos y el cliente pagaría el recargo doble
+// habiéndolo marcado una vez. El panel ya impide crear duplicados, pero los
+// que pudieran estar guardados no deben cobrar de más.
+//
+// Recibe la lista premium ya normalizada por catalogoDe, no los atributos
+// crudos: así hay un solo sitio en el archivo que sabe de qué forma vienen
+// los datos. 'marcados' se puede pasar en las pruebas; en producción son los
+// toppings que el cliente tiene seleccionados ahora mismo en el modal.
+export function recargoPremium(premium, marcados = selectedPremium) {
 	const yaSumados = new Set();
-	return (attr?.toppings_premium || []).reduce((sum, t) => {
-		if (!marcados.has(t.nombre) || yaSumados.has(t.nombre)) return sum;
-		yaSumados.add(t.nombre);
+	const esta = marcadoPor([...(marcados || [])]);
+	return (Array.isArray(premium) ? premium : []).reduce((sum, t) => {
+		if (!esta(t) || yaSumados.has(t.id)) return sum;
+		yaSumados.add(t.id);
 		return sum + (Number(t.precio) || 0);
 	}, 0);
 }
@@ -190,47 +237,64 @@ export function recargoPremium(attr, marcados = selectedPremium) {
 // marcado; y si el cliente guarda, la línea vuelve al carrito SIN el recargo.
 //
 // Nadie ve un error: el pedido llega bien escrito y con el precio de menos.
-// Es justo el fallo que describe la cabecera de este archivo.
 //
 // Se arregla guardando la selección aparte, como listas, y usando el texto
 // solo para lo que es: leerlo. 'leerSeleccion' sigue entendiendo el texto
 // para los carritos que ya estaban guardados en el navegador de alguien
 // cuando esto cambió.
+//
+// El texto se arma con los NOMBRES de lo elegido, no con lo que se guarda:
+// desde que la selección son identificadores, mandar lo guardado tal cual le
+// enviaría al restaurante un pedido de "top_9f21c4a3, top_be0517dd".
 export function describirSeleccion({ platino = [], premium = [], salsas = [] }) {
+	const nombres = lista => (lista || []).map(t => (t && typeof t === 'object') ? t.nombre : t);
 	const partes = [];
-	if (platino.length) partes.push(`Toppings: ${platino.join(', ')}`);
-	if (premium.length) partes.push(`Premium: ${premium.join(', ')}`);
-	if (salsas.length)  partes.push(`Salsas: ${salsas.join(', ')}`);
+	if (platino.length) partes.push(`Toppings: ${nombres(platino).join(', ')}`);
+	if (premium.length) partes.push(`Premium: ${nombres(premium).join(', ')}`);
+	if (salsas.length)  partes.push(`Salsas: ${nombres(salsas).join(', ')}`);
 	return partes.join(' | ');
 }
 
-export function leerSeleccion(item) {
+// Devuelve conjuntos de IDENTIFICADORES, siempre, venga de donde venga lo
+// guardado. Es el único sitio del archivo que traduce, y por eso recibe el
+// catálogo del plato: un carrito guardado ayer trae nombres, uno de hoy trae
+// identificadores, y el resto del código no debería tener que distinguirlos.
+//
+// Lo que ya no está en el catálogo se cae aquí. Es lo correcto: un topping
+// que el restaurante borró no se puede ni cobrar ni preparar.
+export function leerSeleccion(item, opciones = null) {
+	const cat = opciones || { platino: [], premium: [], salsas: [] };
+	const aIds = (guardado, disponibles) => {
+		const esta = marcadoPor(guardado);
+		return new Set((disponibles || []).filter(esta).map(t => t.id));
+	};
+
 	// Camino normal: lo guardado tal cual se eligió, sin interpretar nada.
 	const sel = item?.sel;
 	if (sel && typeof sel === 'object') return {
-		platino: new Set(Array.isArray(sel.platino) ? sel.platino : []),
-		premium: new Set(Array.isArray(sel.premium) ? sel.premium : []),
-		salsas:  new Set(Array.isArray(sel.salsas)  ? sel.salsas  : []),
+		platino: aIds(sel.platino, cat.platino),
+		premium: aIds(sel.premium, cat.premium),
+		salsas:  aIds(sel.salsas,  cat.salsas),
 	};
 
-	// Carritos de antes de este cambio: solo tienen el texto. Se lee como se
-	// leía, con su límite conocido — un nombre con coma no se recupera —,
-	// porque la alternativa es perderles la línea entera.
+	// Carritos de antes de que se guardara la selección aparte: solo tienen el
+	// texto. Se lee como se leía, con su límite conocido —un nombre con coma no
+	// se recupera—, porque la alternativa es perderles la línea entera.
 	const desc = item?.descripcion || '';
 	const trozo = etiqueta => {
 		const m = desc.match(new RegExp(`${etiqueta}: ([^|]+)`));
 		return m ? m[1].trim().split(', ') : [];
 	};
 	return {
-		platino: new Set(trozo('Toppings')),
-		premium: new Set(trozo('Premium')),
-		salsas:  new Set(trozo('Salsas')),
+		platino: aIds(trozo('Toppings'), cat.platino),
+		premium: aIds(trozo('Premium'),  cat.premium),
+		salsas:  aIds(trozo('Salsas'),   cat.salsas),
 	};
 }
 
 function updateCustomTotal() {
 	if (!customProduct) return;
-	const extras = recargoPremium({ toppings_premium: customOpciones.premium });
+	const extras = recargoPremium(customOpciones.premium);
 	const total = (customProduct.precio_numerico + extras) * customQty;
 	document.getElementById('customTotal').textContent = '$' + total.toLocaleString('es-CO');
 }
@@ -242,15 +306,23 @@ function closeCustomModal() {
 
 function addCustomToCart() {
 	if (!customProduct) return;
-	const extras = recargoPremium({ toppings_premium: customOpciones.premium });
+	const extras = recargoPremium(customOpciones.premium);
 	const precioUnit = customProduct.precio_numerico + extras;
 
-	const sel = {
-		platino: [...selectedPlatino],
-		premium: [...selectedPremium],
-		salsas:  [...selectedSalsas],
+	// Lo elegido, como objetos del catálogo: de ahí salen a la vez los
+	// identificadores que se guardan y los nombres que se escriben. Sacarlos
+	// del mismo sitio es lo que evita que la línea diga una cosa y cobre otra.
+	const elegidos = {
+		platino: customOpciones.platino.filter(t => selectedPlatino.has(t.id)),
+		premium: customOpciones.premium.filter(t => selectedPremium.has(t.id)),
+		salsas:  customOpciones.salsas.filter(t => selectedSalsas.has(t.id)),
 	};
-	const descripcion = describirSeleccion(sel);
+	const sel = {
+		platino: elegidos.platino.map(t => t.id),
+		premium: elegidos.premium.map(t => t.id),
+		salsas:  elegidos.salsas.map(t => t.id),
+	};
+	const descripcion = describirSeleccion(elegidos);
 	const cartKey = `${customProduct.id}__${descripcion}`;
 
 	// Solo cuando se añade de verdad. Al editar uno que ya estaba en el
@@ -430,8 +502,13 @@ function updateCartUI() {
 		itemsDiv.innerHTML = '';
 		cart.forEach(item => {
 			const prod = productos.find(p => p.id === item.id);
-			const attr = prod?.atributos || {};
-			const tieneOpc = !!(attr.toppings_platino?.length || attr.toppings_premium?.length || attr.salsas?.length);
+			// El botón "Editar" de la línea. Preguntaba por la COPIA del
+			// catálogo dentro del plato —toppings_platino y compañía—, que
+			// desapareció cuando el catálogo subió al restaurante: desde
+			// entonces esto era falso para todos los platos de todas las cartas
+			// y el botón no salía nunca. La maquinaria de reabrir una línea
+			// estaba entera y no había forma de llegar a ella.
+			const tieneOpc = prod ? tienePersonalizacion(prod) : false;
 
 			const div = document.createElement('div');
 			div.className = 'cart-item';
