@@ -14,7 +14,7 @@ globalThis.localStorage = {
 // Devolver null en todo hace que updateCartUI y el aviso salgan sin tocar nada.
 globalThis.document = { getElementById: () => null };
 
-const { setRestaurante, setProductos } = await import('../core/menu.js');
+const { setRestaurante, setProductos, soloDigitos } = await import('../core/menu.js');
 const { revalidarCarrito, recargoPremium, loadCartFromStorage, opcionesDe,
         describirSeleccion, leerSeleccion, catalogoDe } = await import('../core/carrito.js');
 
@@ -28,6 +28,27 @@ beforeEach(() => {
 	almacen.clear();
 	setRestaurante({ id: 'r1', slug: 'pruebas', atributos: {} });
 	setProductos([]);
+});
+
+describe('soloDigitos · wa.me no acepta otra cosa', () => {
+	// Un número escrito como lo teclea cualquiera arma un enlace que no abre
+	// ningún chat, y el fallo no se ve desde el panel: el enlace existe, se
+	// pulsa, y WhatsApp contesta que el número no es válido.
+	//
+	// El checkout ya lo limpiaba desde que costó un pedido; la barra social no,
+	// y montaba el wa.me en crudo. Ahora comparten el ayudante.
+	test('quita lo que no es dígito', () => {
+		assert.equal(soloDigitos('+57 300 123 4567'), '573001234567');
+		assert.equal(soloDigitos('(57) 300-123-4567'), '573001234567');
+		assert.equal(soloDigitos('573001234567'), '573001234567', 'uno limpio no se toca');
+	});
+
+	test('lo vacío o ausente da cadena vacía, no "null"', () => {
+		// Si devolviera la cadena "null" o "undefined", la barra social pintaría
+		// un botón de WhatsApp que lleva a ninguna parte.
+		for (const v of ['', null, undefined, '   ', '+- ()'])
+			assert.equal(soloDigitos(v), '', `con ${JSON.stringify(v)}`);
+	});
 });
 
 describe('revalidarCarrito', () => {
