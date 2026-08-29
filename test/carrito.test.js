@@ -42,12 +42,99 @@ describe('revalidarCarrito', () => {
 		assert.deepEqual(r.reprecio, [{ nombre: 'HAMBURGUESA', antes: 20000, ahora: 25000 }]);
 	});
 
-	test('el recargo de los toppings sobrevive al recálculo', () => {
-		// Si solo se tomara el precio base, una hamburguesa con tocineta
-		// perdería el recargo y el restaurante cobraría de menos.
+	// ── EL RECARGO SE RECALCULA CONTRA EL CATÁLOGO DE HOY ─────
+	// Antes se cogía de lo guardado, y ahí se colaba el mismo fallo que motivó
+	// subir el catálogo al restaurante: el precio base se refrescaba y el de
+	// los toppings no.
+	const CAT_TOPPINGS = {
+		toppings_platino: [{ id: 't_que', nombre: 'Queso' }],
+		toppings_premium: [{ id: 't_toc', nombre: 'Tocineta', precio: 4000 }],
+		salsas: [],
+	};
+	const conToppings = (extra = {}) =>
+		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: { ...CAT_TOPPINGS, ...extra } });
+	const platoConToppings = () => ({
+		...P('h', 'HAMBURGUESA', 25000),
+		atributos: { personalizacion: { platino: ['t_que'], premium: ['t_toc'], salsas: [] } },
+	});
+	const lineaPersonalizada = () => ({
+		cartKey: 'h__Toppings: Queso | Premium: Tocineta', id: 'h', name: 'HAMBURGUESA',
+		price: 29000, extras: 4000, cantidad: 1,
+		descripcion: 'Toppings: Queso | Premium: Tocineta',
+		sel: { platino: ['t_que'], premium: ['t_toc'], salsas: [] },
+	});
+
+	test('subir el precio de un topping se cobra al carrito dormido', () => {
+		// El caso que costaba dinero: el restaurante sube Tocineta de 4.000 a
+		// 6.000 y el carrito de ayer seguía cobrando 4.000. Al restaurante le
+		// llegaba el pedido con el total viejo.
+		conToppings({ toppings_premium: [{ id: 't_toc', nombre: 'Tocineta', precio: 6000 }] });
+		setProductos([platoConToppings()]);
+
+		const r = revalidarCarrito([lineaPersonalizada()]);
+		assert.equal(r.vivos[0].extras, 6000, 'el recargo sale del catálogo de hoy');
+		assert.equal(r.vivos[0].price, 31000, '25.000 de base + 6.000 de topping');
+		assert.deepEqual(r.reprecio, [{ nombre: 'HAMBURGUESA', antes: 29000, ahora: 31000 }],
+			'y se le dice al cliente');
+	});
+
+	test('un topping borrado deja de cobrarse', () => {
+		conToppings({ toppings_premium: [] });
+		setProductos([platoConToppings()]);
+
+		const r = revalidarCarrito([lineaPersonalizada()]);
+		assert.equal(r.vivos[0].extras, 0);
+		assert.equal(r.vivos[0].price, 25000, 'solo la base');
+		assert.ok(!r.vivos[0].descripcion.includes('Tocineta'), 'ni aparece en el texto');
+	});
+
+	test('renombrar un topping actualiza lo que se le manda al restaurante', () => {
+		// Renombrar es una operación admitida desde que hay identificadores,
+		// así que un carrito dormido no puede mandar por WhatsApp un nombre
+		// que ya nadie usa.
+		conToppings({ toppings_premium: [{ id: 't_toc', nombre: 'Tocineta ahumada', precio: 4000 }] });
+		setProductos([platoConToppings()]);
+
+		const r = revalidarCarrito([lineaPersonalizada()]);
+		assert.match(r.vivos[0].descripcion, /Tocineta ahumada/);
+		assert.equal(r.vivos[0].price, 29000, 'el precio no cambia: es el mismo topping');
+		assert.deepEqual(r.reprecio, [], 'y no se avisa de un cambio de precio que no hubo');
+	});
+
+	test('un carrito viejo, guardado con NOMBRES, se recalcula igual', () => {
+		// Vive en el móvil del cliente y no conoce los identificadores.
+		conToppings({ toppings_premium: [{ id: 't_toc', nombre: 'Tocineta', precio: 6000 }] });
+		setProductos([platoConToppings()]);
+
+		const viejo = { ...lineaPersonalizada(), sel: undefined,
+			descripcion: 'Toppings: Queso | Premium: Tocineta' };
+		const r = revalidarCarrito([viejo]);
+		assert.equal(r.vivos[0].price, 31000);
+	});
+
+	test('dos líneas que quedan iguales al recalcular se juntan', () => {
+		// Si un topping desaparece y con él la diferencia entre dos líneas,
+		// dejar dos filas idénticas es algo que el cliente no sabe distinguir.
+		conToppings({ toppings_premium: [] });
+		setProductos([platoConToppings()]);
+
+		const conTocineta = lineaPersonalizada();
+		const sinTocineta = { ...lineaPersonalizada(), cartKey: 'h__Toppings: Queso',
+			descripcion: 'Toppings: Queso', extras: 0, price: 25000,
+			sel: { platino: ['t_que'], premium: [], salsas: [] } };
+
+		const r = revalidarCarrito([conTocineta, sinTocineta]);
+		assert.equal(r.vivos.length, 1, 'una sola línea');
+		assert.equal(r.vivos[0].cantidad, 2, 'con las dos cantidades sumadas');
+	});
+
+	test('una línea sin personalizar NO pierde su recargo guardado', () => {
+		// No saber no es saber que no: sin 'sel' ni texto no hay de dónde
+		// recalcular, y poner el recargo a cero le cobraría de menos al
+		// restaurante. Se conserva lo único que se sabe.
 		setProductos([P('h', 'HAMBURGUESA', 25000)]);
 		const r = revalidarCarrito([{ id: 'h', name: 'HAMBURGUESA', price: 23000, extras: 3000, cantidad: 1 }]);
-		assert.equal(r.vivos[0].price, 28000, '25.000 de base + 3.000 de topping');
+		assert.equal(r.vivos[0].price, 28000);
 	});
 
 	test('un precio a la baja también se refleja', () => {
