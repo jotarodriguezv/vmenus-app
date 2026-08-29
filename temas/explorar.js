@@ -13,7 +13,7 @@
 
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { trackClic } from '../core/analytics.js';
-import { esc } from '../core/html.js';
+import { esc, escUrl } from '../core/html.js';
 import { fotosDe, construirCarrusel } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
 
@@ -43,6 +43,13 @@ const IC = {
 
 // esc() vivía aquí; se movió a core/html.js para que los otros temas lo
 // compartan en vez de quedarse sin escapar, que es lo que había pasado.
+//
+// Las URLs van por escUrl(), no por esc(). Este archivo era el único que usaba
+// esc() para los src de imagen; menu.js, carrito.js y reproduccion.js ya
+// usaban escUrl. No era explotable —un javascript: no corre en un <img src>—
+// pero es justo la forma que tiene esto de romperse: una copia que se queda
+// atrás. Y escUrl además convierte lo que no es una URL en algo inofensivo, en
+// vez de dejar un src raro que el navegador intenta pedir.
 
 // ── SUSTITUTO CUANDO LA IMAGEN NO CARGA ───────────────────────
 // El emoji de la categoría lo escribe el restaurante desde el panel, y aquí
@@ -167,10 +174,10 @@ export function buildMenu() {
 	const portadaOn = !!(at.portada_activa && at.portada_url);
 	cover.className = 'exp-cover' + (portadaOn ? '' : ' exp-cover-compact');
 	const bg = portadaOn
-		? `<img class="exp-cover-img" src="${esc(at.portada_url)}" alt="" onerror="this.style.display='none'">`
+		? `<img class="exp-cover-img" src="${escUrl(at.portada_url)}" alt="" onerror="this.style.display='none'">`
 		: '';
 	const logo = restaurante.logo_url
-		? `<div class="exp-cover-logo"><img src="${esc(restaurante.logo_url)}" alt="" onerror="this.parentNode.style.display='none'"></div>`
+		? `<div class="exp-cover-logo"><img src="${escUrl(restaurante.logo_url)}" alt="" onerror="this.parentNode.style.display='none'"></div>`
 		: '';
 	const sub = at.subtitulo ? `<p class="exp-cover-subtitle">${esc(at.subtitulo)}</p>` : '';
 	cover.innerHTML = `
@@ -269,7 +276,7 @@ function renderDishes() {
 		if (imgCab) {
 			header.className = 'exp-cat-header';
 			header.innerHTML = `
-				<img class="exp-cat-header-img" src="${esc(imgCab)}" alt="" onerror="this.style.display='none'">
+				<img class="exp-cat-header-img" src="${escUrl(imgCab)}" alt="" onerror="this.style.display='none'">
 				<div class="exp-cat-header-overlay"></div>
 				<div class="exp-cat-header-label"><span>${label}</span></div>`;
 		} else {
@@ -312,7 +319,7 @@ function itemLista(p, cat, map) {
 	let thumb = '';
 	if (!sinFoto) {
 		thumb = p.imagen_url
-			? `<div class="exp-thumb"><img src="${esc(p.imagen_url)}" alt="" loading="lazy"></div>`
+			? `<div class="exp-thumb"><img src="${escUrl(p.imagen_url)}" alt="" loading="lazy"></div>`
 			: `<div class="exp-thumb"><div class="exp-thumb-ph">${esc(cat.emoji || '🍽')}</div></div>`;
 	}
 	div.innerHTML = `
@@ -338,7 +345,7 @@ function itemCard(p, cat, map) {
 	let img = '';
 	if (!sinFoto) {
 		img = p.imagen_url
-			? `<img class="exp-card-img" src="${esc(p.imagen_url)}" alt="" loading="lazy">`
+			? `<img class="exp-card-img" src="${escUrl(p.imagen_url)}" alt="" loading="lazy">`
 			: `<div class="exp-card-ph">${esc(cat.emoji || '🍽')}</div>`;
 	}
 	// Un solo badge arriba (prioridad popular > chef > nuevo)
@@ -389,7 +396,7 @@ function openExpModal(p, cat, map) {
 		img = fotos.length > 1
 			? '<div id="expModalFotos"></div>'
 			: (fotos.length === 1
-				? `<img class="exp-modal-img" src="${esc(fotos[0])}" alt="">`
+				? `<img class="exp-modal-img" src="${escUrl(fotos[0])}" alt="">`
 				: `<div class="exp-modal-ph">${esc(cat.emoji || '🍽')}</div>`);
 	}
 	const ids = (p.atributos?.filtros || []).filter(id => map[id]);
