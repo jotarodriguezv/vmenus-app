@@ -216,6 +216,17 @@ function registrar(texto) {
 	if (window.console && console.warn) console.warn('[carta TV] ' + texto);
 }
 
+/* Si el restaurante no tiene 'tv' en sus atributos, la cartelera no existe
+   para él: la página queda en reposo con su logo. Es lo que hace la
+   funcionalidad de pago — quien no la tiene contratada no puede guardar esa
+   clave, porque el servidor la filtra por plan, y sin la clave no hay pantalla.
+   El defecto es NO activa a propósito: si fuera al revés, /{slug}/tv
+   funcionaría gratis para todos los restaurantes de la plataforma. */
+function tvActiva() {
+	var a = (datos && datos.restaurante && datos.restaurante.atributos) || {};
+	return !!(a.tv && a.tv.activa !== false);
+}
+
 function config() {
 	var a = (datos && datos.restaurante && datos.restaurante.atributos) || {};
 	var t = a.tv || {};
@@ -329,6 +340,7 @@ function barajar(lista, ultimoPrevio) {
 }
 
 function construirSlides() {
+	if (!tvActiva()) { slides = []; return; }
 	var c = config();
 	var platos = platosElegidos();
 	var ultimo = (slides.length && slides[slides.length - 1].platos)
@@ -427,7 +439,7 @@ function avanzar() {
 	   en la transición, nunca a media animación. */
 	if (new Date().getTime() - arranque > REINICIO_MS) { window.location.reload(); return; }
 
-	if (!slides.length) { mostrarReposo(true); return; }
+	if (!tvActiva() || !slides.length) { mostrarReposo(true); return; }
 	mostrarReposo(false);
 
 	indice = (indice + 1) % slides.length;
