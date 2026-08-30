@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carta</title>
+<style>
+	/* ── CARTELERA DIGITAL ─────────────────────────────────────
+	   CSS conservador a propósito: flexbox (2013) y nada de grid,
+	   aspect-ratio ni color-mix. El porqué, en el comentario del guion. */
+	* { box-sizing: border-box; margin: 0; padding: 0; }
+	html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; }
+	body { font-family: Helvetica, Arial, sans-serif; color: #fff; }
+
+	/* El marco existe para poder girarlo entero en modo vertical. */
+	#marco { position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+	         transform-origin: top left; }
+
+	/* Modo vertical: el televisor está girado físicamente, pero el navegador
+	   sigue reportando el viewport apaisado — la rotación es del soporte, no
+	   del sistema. Así que se gira el contenido y se intercambian medidas.
+	   El orden importa: 'rotate' se aplica primero y 'translateX' después,
+	   en el espacio sin girar, que es lo que lo devuelve a la pantalla. */
+	body.vertical #marco { width: 100vh; height: 100vw;
+	                       transform: translateX(100vw) rotate(90deg); }
+
+	#slides { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+	.slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+	         display: flex; align-items: center; justify-content: center;
+	         opacity: 0; transition: opacity 900ms ease-in-out; padding: 3vmin; }
+	.slide.visible { opacity: 1; }
+
+	/* Los platos del slide. En vertical se apilan. */
+	.fila { display: flex; width: 100%; height: 100%; }
+	body.vertical .fila { flex-direction: column; }
+
+	.plato { flex: 1 1 0; display: flex; flex-direction: column;
+	         margin: 1.2vmin; min-width: 0; min-height: 0; }
+	.foto { flex: 1 1 auto; width: 100%; min-height: 0;
+	        background: #16151f center center no-repeat; background-size: cover;
+	        border-radius: 1.4vmin; }
+	.texto { flex: 0 0 auto; padding: 1.6vmin 0.4vmin 0; text-align: center; }
+	.nombre { font-weight: 700; line-height: 1.15; letter-spacing: 0.02em;
+	          overflow: hidden; }
+	.precio { margin-top: 0.6vmin; font-weight: 700; color: #ffd521; }
+
+	/* La promoción ocupa el slide entero: esas piezas se diseñan para verse
+	   solas y en una rejilla pequeña pierden todo el sentido. */
+	.promo { width: 100%; height: 100%; background: center center no-repeat;
+	         background-size: contain; }
+
+	/* Cuando no hay nada que enseñar. Nunca una pantalla en blanco. */
+	#reposo { position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+	          display: none; flex-direction: column; align-items: center;
+	          justify-content: center; text-align: center; }
+	#reposo.visible { display: flex; }
+	#reposoLogo { max-width: 34vmin; max-height: 34vmin; margin-bottom: 3vmin; }
+	#reposoNombre { font-size: 5vmin; font-weight: 700; letter-spacing: 0.08em; }
+
+	/* Marca de agua discreta del negocio, arriba. Cambia de esquina en cada
+	   slide para no quemar el panel: un OLED marca lo que no se mueve.
+	   Lleva fondo propio porque va POR ENCIMA de las fotos: sin él, un logo
+	   claro sobre un plato claro no se lee, y con las fotos de verdad —no las
+	   de la prueba— eso pasa la mitad de las veces. */
+	#marca { position: absolute; top: 2.4vmin; left: 2.4vmin; height: 6vmin;
+	         padding: 0.9vmin 1.3vmin; border-radius: 1vmin;
+	         background: rgba(10, 10, 15, 0.62);
+	         opacity: 0.95; transition: all 900ms ease-in-out; }
+	#marca.derecha { left: auto; right: 2.4vmin; }
+
+	/* Aviso de que se está sirviendo lo último conocido, sin conexión. */
+	#sinRed { position: absolute; bottom: 2vmin; right: 2vmin; display: none;
+	          font-size: 1.8vmin; opacity: 0.45; }
+	#sinRed.visible { display: block; }
+</style>
+</head>
+<body>
+	<div id="marco">
+		<div id="slides"></div>
+		<div id="reposo"><img id="reposoLogo" alt=""><div id="reposoNombre"></div></div>
+		<img id="marca" alt="">
+		<div id="sinRed">sin conexión</div>
+	</div>
+
+<script>
+/* ── CARTELERA DIGITAL PARA TELEVISORES ─────────────────────────────────
+ *
+ * ESTE ARCHIVO NO COMPARTE NADA CON core/ NI CON temas/, Y ES A PROPÓSITO.
+ *
+ * Todo el código del menú usa módulos ES y encadenamiento opcional, que
+ * aparece 104 veces y es sintaxis de 2020. Un televisor de 2018 con
+ * Tizen 4 o webOS 4 no la degrada: lanza un error de sintaxis al leer el
+ * archivo y no ejecuta nada. La pantalla se queda negra.
+ *
+ * Y ahí está la diferencia con el resto del sistema: un fallo en el menú lo
+ * ve una persona que recarga; este lo ve la sala entera de un restaurante
+ * durante todo un servicio, y quien podría arreglarlo está a cientos de
+ * kilómetros sin poder abrir una consola.
+ *
+ * Por eso aquí se escribe ES5: var y function, XMLHttpRequest, concatenación
+ * en vez de plantillas, y el DOM construido con createElement + textContent.
+ * Eso último no es solo compatibilidad: al no construir HTML a partir de
+ * datos, no hay nada que escapar y el problema de inyección no existe.
+ *
+ * Duplicar código nos ha costado dos incidentes en este repositorio, así que
+ * lo poco que se repite —la URL de Supabase y su clave pública— va marcado
+ * abajo con de dónde sale.
+ *
+ * AL EDITAR: test/tv.test.js escanea este archivo EN CRUDO, comentarios
+ * incluidos. No es descuido — la primera versión despojaba comentarios y
+ * cadenas antes de mirar, y una expresión regular con dos barras seguidas
+ * disparaba el borrador de comentarios de línea y se llevaba por delante el
+ * 94 % del código: la prueba pasaba por vacía, no por correcta. Un guardián
+ * que no puede fallar vale más que uno que sabe de sintaxis. El precio es que
+ * los comentarios tampoco pueden citar la sintaxis prohibida.
+ * ------------------------------------------------------------------ */
+
+(function () {
+'use strict';
+
+/* Espejo de core/supabase.js. Si cambian allí, cambian aquí. */
+var SUPABASE_URL = 'https://tllpmdhkdlqoqpnqmuwn.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_PqQsGWYjDAu8oq9ABB1hnQ_658qW8RB';
+
+/* Espejo de SUBDOMINIOS_RESERVADOS en core/loader.js. */
+var SUBDOMINIOS_RESERVADOS = ['menu', 'www', 'admin', 'app', 'api'];
+
+var SONDEO_MS   = 5 * 60 * 1000;   /* cada cuánto se pregunta por cambios */
+var REINICIO_MS = 18 * 60 * 60 * 1000; /* red de seguridad, ver abajo */
+var CLAVE_CACHE = 'vmenus_tv_';
+
+var POR_DEFECTO = {
+	activa: true, orientacion: 'horizontal', por_slide: 2,
+	segundos: 8, modo: 'todos', categoria_id: null, productos: [], aleatorio: false
+};
+
+var arranque = new Date().getTime();
+var slug = leerSlug();
+var datos = null;      /* { restaurante, categorias, productos } */
+var slides = [];       /* lista de listas de platos, o {promo:true} */
+var indice = -1;
+var temporizador = null;
+var nodoActual = null;
+var marcaDerecha = false;
+
+/* ── UTILIDADES ──────────────────────────────────────────────────── */
+
+function leerSlug() {
+	var host = window.location.hostname;
+	var partes = host.split('.');
+	var trozos = window.location.pathname.split('/');
+	var limpios = [];
+	for (var i = 0; i < trozos.length; i++) if (trozos[i]) limpios.push(trozos[i]);
+	/* La ruta puede ser /bonzas/tv o solo /tv si el slug va en el subdominio. */
+	var porRuta = (limpios.length && limpios[0] !== 'tv') ? limpios[0] : '';
+	if (/^\d+\.\d+\.\d+\.\d+$/.test(host) || partes.length < 3) return porRuta;
+	var esReservado = false;
+	for (var j = 0; j < SUBDOMINIOS_RESERVADOS.length; j++)
+		if (SUBDOMINIOS_RESERVADOS[j] === partes[0]) esReservado = true;
+	return esReservado ? porRuta : partes[0];
+}
+
+/* Solo http(s). No es que un javascript: corra dentro de un background-image,
+   pero una URL rara ahí deja al navegador pidiendo algo que no existe. */
+function urlSegura(u) {
+	var s = String(u == null ? '' : u);
+	return /^https?:\/\//i.test(s) ? s : '';
+}
+
+function pedir(recurso, alTerminar) {
+	var x = new XMLHttpRequest();
+	x.open('GET', SUPABASE_URL + '/rest/v1/' + recurso, true);
+	x.setRequestHeader('apikey', SUPABASE_KEY);
+	x.setRequestHeader('Authorization', 'Bearer ' + SUPABASE_KEY);
+	x.timeout = 20000;
+	x.onreadystatechange = function () {
+		if (x.readyState !== 4) return;
+		if (x.status < 200 || x.status >= 300) { alTerminar(null); return; }
+		var v = null;
+		try { v = JSON.parse(x.responseText); } catch (e) { v = null; }
+		alTerminar(v);
+	};
+	x.onerror = function () { alTerminar(null); };
+	x.ontimeout = function () { alTerminar(null); };
+	x.send();
+}
+
+function config() {
+	var a = (datos && datos.restaurante && datos.restaurante.atributos) || {};
+	var t = a.tv || {};
+	var c = {};
+	for (var k in POR_DEFECTO) if (POR_DEFECTO.hasOwnProperty(k)) {
+		c[k] = (t[k] === undefined || t[k] === null) ? POR_DEFECTO[k] : t[k];
+	}
+	/* Rangos. Con 1 segundo la pantalla parpadea y marea; con una hora parece
+	   congelada. Y un 'por_slide' de 9 deja los platos del tamaño de un sello. */
+	c.segundos = Math.min(60, Math.max(4, parseInt(c.segundos, 10) || 8));
+	c.por_slide = Math.min(4, Math.max(1, parseInt(c.por_slide, 10) || 1));
+	if (c.orientacion !== 'vertical') c.orientacion = 'horizontal';
+	return c;
+}
+
+/* ── QUÉ PLATOS ENTRAN ───────────────────────────────────────────── */
+
+/* Espejo reducido de core/horarios.js: una categoría puede mostrarse solo
+   dentro de una franja, y la hora es la del RESTAURANTE, no la del televisor.
+   Ante cualquier configuración incompleta se muestra: es preferible enseñar
+   de más que dejar la pantalla vacía por un dato mal escrito. */
+function categoriaVisible(cat) {
+	var h = cat && cat.atributos && cat.atributos.horario;
+	if (!h || !h.activo) return true;
+	var desde = aMinutos(h.desde), hasta = aMinutos(h.hasta);
+	if (desde === null || hasta === null || desde === hasta) return true;
+
+	var zona = (datos.restaurante.atributos && datos.restaurante.atributos.zona_horaria) || 'America/Bogota';
+	var ahora = ahoraEn(zona);
+	if (ahora === null) return true;
+
+	var dias = (h.dias && h.dias.length) ? h.dias : [0,1,2,3,4,5,6];
+	function tieneDia(d) { for (var i=0;i<dias.length;i++) if (dias[i] === d) return true; return false; }
+
+	if (desde < hasta) return tieneDia(ahora.dia) && ahora.minutos >= desde && ahora.minutos < hasta;
+	/* Franja que cruza la medianoche: la madrugada es la noche de ayer. */
+	if (ahora.minutos >= desde) return tieneDia(ahora.dia);
+	if (ahora.minutos < hasta)  return tieneDia((ahora.dia + 6) % 7);
+	return false;
+}
+
+function aMinutos(hhmm) {
+	var m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm == null ? '' : hhmm));
+	if (!m) return null;
+	var h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+	if (h > 23 || mi > 59) return null;
+	return h * 60 + mi;
+}
+
+var DIAS = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+
+function ahoraEn(zona) {
+	/* Intl.DateTimeFormat con timeZone existe desde 2015, pero en un televisor
+	   viejo puede faltar o no traer la base de husos. Si no está, se devuelve
+	   null y el horario se ignora — que es el lado seguro. */
+	if (!window.Intl || !Intl.DateTimeFormat) return null;
+	try {
+		var f = new Intl.DateTimeFormat('en-US', {
+			timeZone: zona, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
+		});
+		var p = f.formatToParts ? f.formatToParts(new Date()) : null;
+		if (!p) return null;
+		var v = {};
+		for (var i = 0; i < p.length; i++) v[p[i].type] = p[i].value;
+		var hora = parseInt(v.hour, 10) % 24;
+		if (DIAS[v.weekday] === undefined || isNaN(hora)) return null;
+		return { dia: DIAS[v.weekday], minutos: hora * 60 + parseInt(v.minute, 10) };
+	} catch (e) { return null; }
+}
+
+function platosElegidos() {
+	var c = config();
+	var visibles = {};
+	for (var i = 0; i < datos.categorias.length; i++) {
+		if (categoriaVisible(datos.categorias[i])) visibles[datos.categorias[i].id] = true;
+	}
+
+	var salida = [];
+	for (var j = 0; j < datos.productos.length; j++) {
+		var p = datos.productos[j];
+		if (!p.disponible) continue;
+		/* Sin foto no hay slide: esto es un medio visual y un hueco gris se ve
+		   peor que un plato de menos. */
+		if (!urlSegura(p.imagen_url)) continue;
+		if (!visibles[p.categoria_id]) continue;
+		if (c.modo === 'categoria') {
+			if (!c.categoria_id || p.categoria_id !== c.categoria_id) continue;
+		} else if (c.modo === 'manual') {
+			var dentro = false;
+			for (var k = 0; k < c.productos.length; k++) if (c.productos[k] === p.id) dentro = true;
+			if (!dentro) continue;
+		}
+		salida.push(p);
+	}
+	return salida;
+}
+
+/* Baraja y, si el primero del ciclo nuevo es el último del anterior, lo cambia
+   de sitio. Sin eso, el punto de vuelta es justo donde se nota la repetición. */
+function barajar(lista, ultimoPrevio) {
+	var a = lista.slice(0);
+	for (var i = a.length - 1; i > 0; i--) {
+		var j = Math.floor(Math.random() * (i + 1));
+		var t = a[i]; a[i] = a[j]; a[j] = t;
+	}
+	if (a.length > 1 && ultimoPrevio && a[0].id === ultimoPrevio.id) {
+		var otro = 1 + Math.floor(Math.random() * (a.length - 1));
+		var s = a[0]; a[0] = a[otro]; a[otro] = s;
+	}
+	return a;
+}
+
+function construirSlides() {
+	var c = config();
+	var platos = platosElegidos();
+	var ultimo = (slides.length && slides[slides.length - 1].platos)
+		? slides[slides.length - 1].platos[slides[slides.length - 1].platos.length - 1] : null;
+	if (c.aleatorio) platos = barajar(platos, ultimo);
+
+	var nuevos = [];
+	for (var i = 0; i < platos.length; i += c.por_slide) {
+		nuevos.push({ platos: platos.slice(i, i + c.por_slide) });
+	}
+
+	/* La promoción se intercala al margen de 'por_slide'. */
+	var r = datos.restaurante;
+	var promo = urlSegura(r.promo_imagen_url);
+	var cada = parseInt(r.promo_cada, 10);
+	if (r.promo_activa && r.promo_en_tv && promo && nuevos.length) {
+		if (!cada || cada < 1) cada = 4;
+		var con = [];
+		for (var n = 0; n < nuevos.length; n++) {
+			con.push(nuevos[n]);
+			if ((n + 1) % cada === 0) con.push({ promo: promo });
+		}
+		nuevos = con;
+	}
+	slides = nuevos;
+}
+
+/* ── PINTAR ──────────────────────────────────────────────────────── */
+
+function nuevoNodo(tag, clase) {
+	var e = document.createElement(tag);
+	if (clase) e.className = clase;
+	return e;
+}
+
+function pintarSlide(s) {
+	var c = config();
+	var div = nuevoNodo('div', 'slide');
+
+	if (s.promo) {
+		var pr = nuevoNodo('div', 'promo');
+		pr.style.backgroundImage = 'url("' + s.promo.replace(/"/g, '%22') + '")';
+		div.appendChild(pr);
+		return div;
+	}
+
+	var fila = nuevoNodo('div', 'fila');
+	/* Cuanto menos cabe en el slide, más grande puede ir la letra. */
+	var tamNombre = [0, 4.6, 3.6, 2.9, 2.4][s.platos.length] || 2.4;
+	for (var i = 0; i < s.platos.length; i++) {
+		var p = s.platos[i];
+		var plato = nuevoNodo('div', 'plato');
+
+		var foto = nuevoNodo('div', 'foto');
+		foto.style.backgroundImage = 'url("' + urlSegura(p.imagen_url).replace(/"/g, '%22') + '")';
+		plato.appendChild(foto);
+
+		var texto = nuevoNodo('div', 'texto');
+		var nom = nuevoNodo('div', 'nombre');
+		nom.style.fontSize = tamNombre + 'vmin';
+		/* Con textContent, no escribiendo marcado: el nombre lo pone el restaurante
+		   y aquí no hay nada que escapar porque no hay HTML que construir. */
+		nom.textContent = p.nombre || '';
+		texto.appendChild(nom);
+
+		var pre = nuevoNodo('div', 'precio');
+		pre.style.fontSize = (tamNombre * 0.92) + 'vmin';
+		pre.textContent = p.precio || '';
+		texto.appendChild(pre);
+
+		plato.appendChild(texto);
+		fila.appendChild(plato);
+	}
+	div.appendChild(fila);
+	return div;
+}
+
+function mostrarReposo(activo) {
+	var r = document.getElementById('reposo');
+	if (activo) {
+		var logo = urlSegura(datos && datos.restaurante && datos.restaurante.logo_url);
+		var img = document.getElementById('reposoLogo');
+		if (logo) { img.src = logo; img.style.display = ''; } else { img.style.display = 'none'; }
+		document.getElementById('reposoNombre').textContent =
+			(datos && datos.restaurante && datos.restaurante.nombre) || '';
+		r.className = 'visible';
+	} else {
+		r.className = '';
+	}
+}
+
+function avanzar() {
+	/* Red de seguridad. El televisor se apaga al cerrar el local, así que la
+	   página vive una jornada — pero un computador conectado por HDMI puede
+	   quedarse encendido días, y ahí es donde se acumulan las fugas. Recargar
+	   en la transición, nunca a media animación. */
+	if (new Date().getTime() - arranque > REINICIO_MS) { window.location.reload(); return; }
+
+	if (!slides.length) { mostrarReposo(true); return; }
+	mostrarReposo(false);
+
+	indice = (indice + 1) % slides.length;
+	var cont = document.getElementById('slides');
+	var nodo = pintarSlide(slides[indice]);
+	cont.appendChild(nodo);
+
+	/* Un fotograma de margen para que el navegador registre opacidad 0 antes
+	   de subirla; sin esto la transición no ocurre y el cambio es brusco. */
+	setTimeout(function () { nodo.className = 'slide visible'; }, 30);
+
+	var viejo = nodoActual;
+	nodoActual = nodo;
+	if (viejo) {
+		viejo.className = 'slide';
+		setTimeout(function () {
+			if (viejo.parentNode) viejo.parentNode.removeChild(viejo);
+		}, 1200);
+	}
+
+	/* La marca cambia de esquina en cada slide: un panel OLED marca lo que se
+	   queda quieto, y esto va a estar meses en la misma pantalla. */
+	marcaDerecha = !marcaDerecha;
+	document.getElementById('marca').className = marcaDerecha ? 'derecha' : '';
+}
+
+function reprogramar() {
+	if (temporizador) clearInterval(temporizador);
+	temporizador = setInterval(avanzar, config().segundos * 1000);
+}
+
+function aplicar(primeraVez) {
+	document.body.className = config().orientacion === 'vertical' ? 'vertical' : '';
+	var logo = urlSegura(datos.restaurante.logo_url);
+	var marca = document.getElementById('marca');
+	if (logo) { marca.src = logo; marca.style.display = ''; } else { marca.style.display = 'none'; }
+	document.title = datos.restaurante.nombre || 'Carta';
+
+	construirSlides();
+	if (primeraVez) { indice = -1; avanzar(); }
+	reprogramar();
+}
+
+/* ── DATOS ───────────────────────────────────────────────────────── */
+
+function guardarCache() {
+	try { localStorage.setItem(CLAVE_CACHE + slug, JSON.stringify(datos)); } catch (e) {}
+}
+
+function leerCache() {
+	try {
+		var s = localStorage.getItem(CLAVE_CACHE + slug);
+		return s ? JSON.parse(s) : null;
+	} catch (e) { return null; }
+}
+
+function sinRed(activo) {
+	document.getElementById('sinRed').className = activo ? 'visible' : '';
+}
+
+/* Trae restaurante, categorías y productos. Si algo falla se conserva lo que
+   ya había: una pantalla que sigue enseñando la carta de hace diez minutos es
+   infinitamente mejor que una pantalla en blanco en la pared de un local. */
+function cargar(alTerminar) {
+	pedir('restaurantes?slug=eq.' + encodeURIComponent(slug) + '&activo=is.true&select=' +
+		'id,nombre,slug,logo_url,atributos,promo_activa,promo_imagen_url,promo_nombre,promo_precio,promo_en_tv,promo_cada',
+		function (rs) {
+			if (!rs || !rs.length) { alTerminar(false); return; }
+			var r = rs[0];
+			pedir('categorias?restaurante_id=eq.' + r.id + '&select=id,nombre,atributos', function (cats) {
+				if (!cats) { alTerminar(false); return; }
+				pedir('productos?restaurante_id=eq.' + r.id + '&disponible=is.true' +
+					'&select=id,nombre,precio,imagen_url,categoria_id,disponible&order=orden.asc',
+					function (prods) {
+						if (!prods) { alTerminar(false); return; }
+						datos = { restaurante: r, categorias: cats, productos: prods };
+						guardarCache();
+						alTerminar(true);
+					});
+			});
+		});
+}
+
+function sondear() {
+	var antes = JSON.stringify(datos);
+	cargar(function (ok) {
+		sinRed(!ok);
+		if (!ok) return;
+		/* Solo se reconstruye si algo cambió de verdad: rehacer los slides en
+		   cada sondeo reiniciaría el ciclo cada cinco minutos y el cliente
+		   vería siempre los mismos primeros platos. */
+		if (JSON.stringify(datos) !== antes) aplicar(false);
+	});
+}
+
+/* ── ARRANQUE ────────────────────────────────────────────────────── */
+
+if (!slug) {
+	mostrarReposo(true);
+} else {
+	/* Se pinta primero lo último conocido, para que un arranque sin internet
+	   —el local abre y el router todavía no levantó— enseñe algo igualmente. */
+	var cache = leerCache();
+	if (cache) { datos = cache; aplicar(true); sinRed(true); }
+
+	cargar(function (ok) {
+		sinRed(!ok);
+		if (ok) aplicar(!cache);
+		else if (!cache) mostrarReposo(true);
+	});
+
+	setInterval(sondear, SONDEO_MS);
+
+	/* Si el televisor recupera la red, no esperar al siguiente sondeo. */
+	if (window.addEventListener) window.addEventListener('online', sondear, false);
+}
+
+})();
+</script>
+</body>
+</html>
