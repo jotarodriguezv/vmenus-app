@@ -36,13 +36,43 @@
 
 	.plato { flex: 1 1 0; display: flex; flex-direction: column;
 	         margin: 1.2vmin; min-width: 0; min-height: 0; }
-	.foto { flex: 1 1 auto; width: 100%; min-height: 0;
-	        background: #16151f center center no-repeat; background-size: cover;
-	        border-radius: 1.4vmin; }
+	/* La foto va dentro de un marco que recorta, para que pueda crecer despacio
+	   sin salirse ni empujar al vecino. */
+	.marco-foto { flex: 1 1 auto; width: 100%; min-height: 0; overflow: hidden;
+	              border-radius: 1.4vmin; background: #16151f; }
+	.foto { width: 100%; height: 100%;
+	        background: center center no-repeat; background-size: cover; }
 	.texto { flex: 0 0 auto; padding: 1.6vmin 0.4vmin 0; text-align: center; }
 	.nombre { font-weight: 700; line-height: 1.15; letter-spacing: 0.02em;
 	          overflow: hidden; }
 	.precio { margin-top: 0.6vmin; font-weight: 700; color: #ffd521; }
+
+	/* ── ANIMACIÓN ─────────────────────────────────────────────
+	   Solo 'transform' y 'opacity': son las dos que el navegador puede pasarle
+	   a la GPU. Cualquier otra —blur, box-shadow, width— obliga a repintar en
+	   cada fotograma, y en el navegador de un televisor barato eso se ve a
+	   tirones. La animación es para que la carta respire, no para lucirse.
+
+	   Solo cuando el slide está visible: si no, los platos que ya salieron
+	   seguirían animándose fuera de la vista gastando batería y GPU. */
+	@keyframes acercar { from { transform: scale(1); } to { transform: scale(1.07); } }
+	@keyframes subir   { from { opacity: 0; transform: translateY(1.6vmin); }
+	                     to   { opacity: 1; transform: translateY(0); } }
+
+	body.animada .slide.visible .foto {
+		animation: acercar linear both;
+		animation-duration: inherit;
+	}
+	body.animada .slide.visible .texto {
+		animation: subir 700ms ease-out both;
+	}
+	/* El precio entra un pelín después que el nombre. Es lo que hace que se
+	   lea en ese orden en vez de todo de golpe. */
+	body.animada .slide.visible .precio {
+		animation: subir 700ms ease-out both;
+		animation-delay: 160ms;
+	}
+	body.animada .slide.visible .promo { animation: subir 700ms ease-out both; }
 
 	/* La promoción ocupa el slide entero: esas piezas se diseñan para verse
 	   solas y en una rejilla pequeña pierden todo el sentido. */
@@ -131,7 +161,8 @@ var CLAVE_CACHE = 'vmenus_tv_';
 
 var POR_DEFECTO = {
 	activa: true, orientacion: 'horizontal', por_slide: 2,
-	segundos: 8, modo: 'todos', categoria_id: null, productos: [], aleatorio: false
+	segundos: 8, modo: 'todos', categoria_id: null, productos: [], aleatorio: false,
+	animacion: 'suave'
 };
 
 var arranque = new Date().getTime();
@@ -239,6 +270,9 @@ function config() {
 	c.segundos = Math.min(60, Math.max(4, parseInt(c.segundos, 10) || 8));
 	c.por_slide = Math.min(4, Math.max(1, parseInt(c.por_slide, 10) || 1));
 	if (c.orientacion !== 'vertical') c.orientacion = 'horizontal';
+	/* Cualquier cosa que no sea 'ninguna' anima. Ante un valor raro es mejor
+	   quedarse con lo bonito que dejar la pantalla quieta sin motivo. */
+	if (c.animacion !== 'ninguna') c.animacion = 'suave';
 	return c;
 }
 
@@ -352,6 +386,22 @@ function construirSlides() {
 		nuevos.push({ platos: platos.slice(i, i + c.por_slide) });
 	}
 
+	/* La última pantalla no puede quedarse coja. Con 13 hamburguesas de tres en
+	   tres, la quinta enseñaba UNA sola y enorme mientras las otras cuatro iban
+	   completas: parece que se rompió algo.
+	   Se resuelve corriendo la ventana hacia atrás — la última pasa a ser los
+	   tres últimos platos —, así que se repiten los dos que ya salieron en la
+	   anterior. Repetir dos platos se nota mucho menos que una pantalla a medias,
+	   y es lo que hace cualquier cartelera.
+	   Si no hay ni para llenar una, se deja como esté: rellenar duplicando
+	   DENTRO del mismo slide sí se vería roto. */
+	if (nuevos.length > 1) {
+		var cola = nuevos[nuevos.length - 1].platos;
+		if (cola.length < c.por_slide && platos.length >= c.por_slide) {
+			nuevos[nuevos.length - 1] = { platos: platos.slice(platos.length - c.por_slide) };
+		}
+	}
+
 	/* La promoción se intercala al margen de 'por_slide'. */
 	var r = datos.restaurante;
 	var promo = urlSegura(r.promo_imagen_url);
@@ -394,11 +444,22 @@ function pintarSlide(s) {
 		var p = s.platos[i];
 		var plato = nuevoNodo('div', 'plato');
 
+		var marcoFoto = nuevoNodo('div', 'marco-foto');
 		var foto = nuevoNodo('div', 'foto');
 		foto.style.backgroundImage = 'url("' + urlSegura(p.imagen_url).replace(/"/g, '%22') + '")';
-		plato.appendChild(foto);
+		/* El acercamiento dura lo que dura el slide, así que va desde aquí y no
+		   desde el CSS: el restaurante puede poner de 4 a 60 segundos. Se le
+		   suma la transición para que no se pare en seco antes de fundirse. */
+		foto.style.animationDuration = (c.segundos + 1) + 's';
+		/* Cada plato empieza el acercamiento con un desfase pequeño. Todos a la
+		   vez se lee como un zoom de la pantalla entera; escalonados, como tres
+		   fotos que respiran. */
+		foto.style.animationDelay = (i * 220) + 'ms';
+		marcoFoto.appendChild(foto);
+		plato.appendChild(marcoFoto);
 
 		var texto = nuevoNodo('div', 'texto');
+		texto.style.animationDelay = (i * 220) + 'ms';
 		var nom = nuevoNodo('div', 'nombre');
 		nom.style.fontSize = tamNombre + 'vmin';
 		/* Con textContent, no escribiendo marcado: el nombre lo pone el restaurante
@@ -472,7 +533,10 @@ function reprogramar() {
 }
 
 function aplicar(primeraVez) {
-	document.body.className = config().orientacion === 'vertical' ? 'vertical' : '';
+	var c0 = config();
+	document.body.className =
+		(c0.orientacion === 'vertical' ? 'vertical ' : '') +
+		(c0.animacion === 'ninguna' ? '' : 'animada');
 	var logo = urlSegura(datos.restaurante.logo_url);
 	var marca = document.getElementById('marca');
 	if (logo) { marca.src = logo; marca.style.display = ''; } else { marca.style.display = 'none'; }
