@@ -42,6 +42,17 @@
 	              border-radius: 1.4vmin; background: #16151f; }
 	.foto { width: 100%; height: 100%;
 	        background: center center no-repeat; background-size: cover; }
+	/* El nombre de la categoría, encima de la foto. Sutil a propósito: está para
+	   quien no sepa qué es "Pepito", no para competir con el plato. Lleva fondo
+	   propio porque va sobre la foto, igual que la marca del negocio. */
+	.marco-foto { position: relative; }
+	.categoria { position: absolute; top: 0.9vmin; left: 0.9vmin; z-index: 2;
+	             padding: 0.5vmin 1vmin; border-radius: 0.7vmin;
+	             background: rgba(10, 10, 15, 0.6); color: #e8e8ee;
+	             font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+	             max-width: 82%; overflow: hidden; white-space: nowrap;
+	             text-overflow: ellipsis; }
+
 	.texto { flex: 0 0 auto; padding: 1.6vmin 0.4vmin 0; text-align: center; }
 	.nombre { font-weight: 700; line-height: 1.15; letter-spacing: 0.02em;
 	          overflow: hidden; }
@@ -162,7 +173,7 @@ var CLAVE_CACHE = 'vmenus_tv_';
 var POR_DEFECTO = {
 	activa: true, orientacion: 'horizontal', por_slide: 2,
 	segundos: 8, modo: 'todos', categoria_id: null, productos: [], aleatorio: false,
-	animacion: 'suave'
+	animacion: 'suave', mostrar_categoria: false
 };
 
 var arranque = new Date().getTime();
@@ -331,6 +342,16 @@ function ahoraEn(zona) {
 	} catch (e) { return null; }
 }
 
+/* El nombre de la categoría de un plato. Se busca cada vez y no se cachea: son
+   cuatro categorías y una lista de veinte, y un mapa que hay que invalidar en
+   cada sondeo cuesta más de lo que ahorra. */
+function nombreCategoria(id) {
+	for (var i = 0; i < datos.categorias.length; i++) {
+		if (datos.categorias[i].id === id) return datos.categorias[i].nombre || '';
+	}
+	return '';
+}
+
 function platosElegidos() {
 	var c = config();
 	var visibles = {};
@@ -456,6 +477,19 @@ function pintarSlide(s) {
 		   fotos que respiran. */
 		foto.style.animationDelay = (i * 220) + 'ms';
 		marcoFoto.appendChild(foto);
+
+		if (c.mostrar_categoria) {
+			var nomCat = nombreCategoria(p.categoria_id);
+			if (nomCat) {
+				var cat = nuevoNodo('div', 'categoria');
+				/* Más pequeño cuanto más se reparte la pantalla, igual que el
+				   nombre del plato: si no, con cuatro platos tapa media foto. */
+				cat.style.fontSize = (tamNombre * 0.42) + 'vmin';
+				cat.textContent = nomCat;
+				marcoFoto.appendChild(cat);
+			}
+		}
+
 		plato.appendChild(marcoFoto);
 
 		var texto = nuevoNodo('div', 'texto');
