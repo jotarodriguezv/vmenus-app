@@ -167,6 +167,12 @@ function urlSegura(u) {
 	return /^https?:\/\//i.test(s) ? s : '';
 }
 
+/* Guarda por qué falló la última petición, para que el aviso de la esquina no
+   mienta. Un 400 no es un problema de red, y decir 'sin conexión' cuando el
+   servidor contestó perfectamente manda a buscar el fallo al sitio equivocado
+   — pasó en el primer despliegue y costó un rato. */
+var ultimoFallo = '';
+
 function pedir(recurso, alTerminar) {
 	var x = new XMLHttpRequest();
 	x.open('GET', SUPABASE_URL + '/rest/v1/' + recurso, true);
@@ -175,14 +181,39 @@ function pedir(recurso, alTerminar) {
 	x.timeout = 20000;
 	x.onreadystatechange = function () {
 		if (x.readyState !== 4) return;
-		if (x.status < 200 || x.status >= 300) { alTerminar(null); return; }
+		if (x.status < 200 || x.status >= 300) {
+			/* status 0 es de verdad no llegar: sin red, DNS, CORS. Cualquier
+			   otro número es el servidor diciendo que no. */
+			ultimoFallo = x.status ? ('error ' + x.status) : 'sin conexión';
+			registrar(x.status
+				? ('Supabase respondió ' + x.status + ' a ' + recurso + ': ' + x.responseText)
+				: ('no se pudo alcanzar Supabase para ' + recurso));
+			alTerminar(null);
+			return;
+		}
 		var v = null;
 		try { v = JSON.parse(x.responseText); } catch (e) { v = null; }
+		if (v === null) { ultimoFallo = 'respuesta ilegible'; registrar('JSON ilegible en ' + recurso); }
 		alTerminar(v);
 	};
-	x.onerror = function () { alTerminar(null); };
-	x.ontimeout = function () { alTerminar(null); };
+	x.onerror = function () {
+		ultimoFallo = 'sin conexión';
+		registrar('fallo de red en ' + recurso);
+		alTerminar(null);
+	};
+	x.ontimeout = function () {
+		ultimoFallo = 'sin respuesta';
+		registrar('se agotó la espera en ' + recurso);
+		alTerminar(null);
+	};
 	x.send();
+}
+
+/* A la consola del navegador. En un televisor no se puede abrir, pero en el
+   computador o el móvil desde el que se prueba el enlace por primera vez sí,
+   y es justo entonces cuando hace falta. */
+function registrar(texto) {
+	if (window.console && console.warn) console.warn('[carta TV] ' + texto);
 }
 
 function config() {
@@ -454,15 +485,24 @@ function leerCache() {
 }
 
 function sinRed(activo) {
-	document.getElementById('sinRed').className = activo ? 'visible' : '';
+	var e = document.getElementById('sinRed');
+	e.textContent = ultimoFallo || 'sin conexión';
+	e.className = activo ? 'visible' : '';
 }
 
 /* Trae restaurante, categorías y productos. Si algo falla se conserva lo que
    ya había: una pantalla que sigue enseñando la carta de hace diez minutos es
    infinitamente mejor que una pantalla en blanco en la pared de un local. */
+/* Las columnas se piden UNA POR UNA y nunca con asterisco, igual que en
+   core/loader.js. Eso tiene una consecuencia que costó un despliegue: pedir
+   una columna que no existe no devuelve un hueco, devuelve un 400 y se cae la
+   petición entera. Aquí estaban 'promo_nombre', 'promo_precio', 'promo_en_tv'
+   y 'promo_cada' —de la fase 3, que aún no se ha hecho— y la pantalla se
+   quedaba en el aviso de sin conexión con la red perfectamente.
+   Al añadirlas en la fase 3 hay que acordarse de meterlas aquí. */
 function cargar(alTerminar) {
 	pedir('restaurantes?slug=eq.' + encodeURIComponent(slug) + '&activo=is.true&select=' +
-		'id,nombre,slug,logo_url,atributos,promo_activa,promo_imagen_url,promo_nombre,promo_precio,promo_en_tv,promo_cada',
+		'id,nombre,slug,logo_url,atributos,promo_activa,promo_imagen_url',
 		function (rs) {
 			if (!rs || !rs.length) { alTerminar(false); return; }
 			var r = rs[0];
