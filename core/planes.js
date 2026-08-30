@@ -21,6 +21,7 @@ export const PLANES = {
 		horarios: false,
 		videos: false,
 		carrito: false,
+		tv: false,
 	},
 	pedidos: {
 		nombre: 'Pedidos',
@@ -31,6 +32,7 @@ export const PLANES = {
 		horarios: true,
 		videos: false,
 		carrito: true,
+		tv: false,
 	},
 	completo: {
 		nombre: 'Completo',
@@ -41,6 +43,7 @@ export const PLANES = {
 		horarios: true,
 		videos: false,
 		carrito: true,
+		tv: true,           // la cartelera para televisores
 	},
 	// 'carrito' era solo un modelo de página; ahora es además una capacidad
 	// que otros modelos pueden encender —el de video, el primero— sin copiar
@@ -68,6 +71,7 @@ export const PLANES = {
 		horarios: true,
 		videos: true,
 		carrito: true,
+		tv: true,
 	},
 };
 
