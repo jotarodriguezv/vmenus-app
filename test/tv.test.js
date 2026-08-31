@@ -131,6 +131,173 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 	});
 });
 
+describe('tv.html · el color de la etiqueta de categoría', () => {
+	// Reutiliza el color que el restaurante ya guardó para su carta. Lo que se
+	// prueba aquí es sobre todo que nunca acabe ilegible: esto se cuelga en una
+	// pared y nadie va a volver a mirarlo.
+	const paleta = (color_categoria, color_primario) => extraer(
+		['canalHex', 'paletaCategoria'],
+		{ datos: { restaurante: { color_primario } } }
+	).paletaCategoria({ color_categoria });
+
+	const OSCURO = 'rgba(10, 10, 15, 0.62)';
+
+	test('por defecto, el oscuro que se lee sobre cualquier foto', () => {
+		assert.equal(paleta('oscuro', '#3dd68c').fondo, OSCURO);
+		assert.equal(paleta(undefined, '#3dd68c').fondo, OSCURO);
+	});
+
+	test('el claro invierte también el texto, no solo el fondo', () => {
+		// Un fondo claro con el texto claro de antes sería invisible.
+		const p = paleta('claro', '#3dd68c');
+		assert.match(p.fondo, /255, 255, 255/);
+		assert.equal(p.texto, '#14131c');
+	});
+
+	test('con la marca, el fondo es el color guardado del restaurante', () => {
+		assert.equal(paleta('marca', '#3dd68c').fondo, 'rgba(61, 214, 140, 0.9)');
+	});
+
+	test('el texto se elige por brillo percibido, no fijo', () => {
+		// Sobre verde menta o amarillo hay que escribir en negro; sobre morado
+		// o azul, en blanco. Fijar uno de los dos deja media plataforma sin leer.
+		assert.equal(paleta('marca', '#3dd68c').texto, '#14131c', 'verde claro');
+		assert.equal(paleta('marca', '#ffd521').texto, '#14131c', 'amarillo');
+		assert.equal(paleta('marca', '#a374af').texto, '#ffffff', 'morado');
+		assert.equal(paleta('marca', '#101020').texto, '#ffffff', 'casi negro');
+	});
+
+	test('sin color guardado no se inventa uno: vuelve al oscuro', () => {
+		// Hay restaurantes con la columna vacía. Antes de esto, el fondo salía
+		// como 'rgba(NaN, NaN, NaN)' y el navegador lo descartaba entero,
+		// dejando la etiqueta transparente encima de la foto.
+		assert.equal(paleta('marca', null).fondo, OSCURO);
+		assert.equal(paleta('marca', '').fondo, OSCURO);
+		assert.equal(paleta('marca', 'azul').fondo, OSCURO);
+		assert.equal(paleta('marca', '#12345').fondo, OSCURO);
+		assert.equal(paleta('marca', { r: 1 }).fondo, OSCURO);
+	});
+
+	test('acepta el hexadecimal corto', () => {
+		// El selector del panel siempre escribe seis dígitos, pero el color se
+		// puede haber puesto a mano en la base de datos.
+		assert.equal(paleta('marca', '#3d8').fondo, 'rgba(51, 221, 136, 0.9)');
+	});
+
+	test('un valor desconocido no deja la etiqueta sin color', () => {
+		const c = extraer(['config'], {
+			POR_DEFECTO: { color_categoria: 'oscuro' },
+			datos: { restaurante: { atributos: { tv: { color_categoria: 'fucsia' } } } },
+			Math,
+			parseInt,
+		}).config();
+		assert.equal(c.color_categoria, 'oscuro');
+	});
+});
+
+describe('tv.html · la etiqueta no se pelea con el logo del negocio', () => {
+	// El logo del negocio se dibuja ENCIMA de la primera foto, y la etiqueta de
+	// categoría vivía siempre en el mismo rincón de esa misma foto. Con el logo
+	// a la izquierda, uno tapaba al otro. Ahora la etiqueta se va a la esquina
+	// contraria — y el logo cambia de lado en cada pantalla, así que esto no se
+	// puede fijar: hay que recalcularlo en cada slide.
+
+	// Un DOM de juguete. Solo lo que pintarSlide() toca de verdad.
+	function domFalso() {
+		return {
+			createElement() {
+				return {
+					className: '', textContent: '', style: {}, hijos: [],
+					appendChild(h) { this.hijos.push(h); return h; },
+				};
+			},
+		};
+	}
+
+	function todos(nodo, salida = []) {
+		salida.push(nodo);
+		for (const h of nodo.hijos || []) todos(h, salida);
+		return salida;
+	}
+
+	// Pinta una pantalla de dos platos y devuelve las etiquetas de categoría.
+	function etiquetas(marcaDerecha, tv = {}) {
+		const ctx = extraer(
+			['nuevoNodo', 'canalHex', 'paletaCategoria', 'nombreCategoria',
+			 'urlSegura', 'config', 'pintarSlide'],
+			{
+				document: domFalso(),
+				marcaDerecha,
+				POR_DEFECTO: { por_slide: 2, segundos: 8, mostrar_categoria: true,
+				               color_categoria: 'oscuro' },
+				datos: {
+					restaurante: { color_primario: '#3dd68c', atributos: { tv } },
+					categorias: [{ id: 'c1', nombre: 'Hamburguesas' }],
+				},
+				Math, parseInt, String,
+			}
+		);
+		const platos = [
+			{ nombre: 'La Descarada', precio: '$28.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1' },
+			{ nombre: 'Pepito',       precio: '$24.000', imagen_url: 'https://x/2.jpg', categoria_id: 'c1' },
+		];
+		return todos(ctx.pintarSlide({ platos }))
+			.filter(n => /\bcategoria\b/.test(n.className || ''));
+	}
+
+	test('con el logo a la izquierda, las etiquetas se van a la derecha', () => {
+		const e = etiquetas(false, { mostrar_categoria: true });
+		assert.equal(e.length, 2, 'una por plato');
+		for (const n of e) {
+			assert.match(n.className, /derecha/,
+				'el logo ocupa la esquina izquierda de la primera foto');
+		}
+	});
+
+	test('con el logo a la derecha, vuelven a la izquierda', () => {
+		const e = etiquetas(true, { mostrar_categoria: true });
+		assert.equal(e.length, 2);
+		for (const n of e) assert.doesNotMatch(n.className, /derecha/);
+	});
+
+	test('todas las de una pantalla van del mismo lado', () => {
+		// Mover solo la del plato que estorba deja una etiqueta descolocada y
+		// se lee como un fallo. O todas, o ninguna.
+		const e = etiquetas(false, { mostrar_categoria: true });
+		assert.equal(new Set(e.map(n => n.className)).size, 1);
+	});
+
+	test('el lado se decide antes de pintar, no después', () => {
+		// El orden importa: si el volteo de marcaDerecha vuelve al final de
+		// avanzar(), las etiquetas se pintan con el lado de la pantalla ANTERIOR
+		// y aterrizan justo encima del logo. Es el error que se corrigió.
+		const cuerpo = GUION.slice(GUION.indexOf('function avanzar('));
+		const volteo = cuerpo.indexOf('marcaDerecha = !marcaDerecha');
+		const pintado = cuerpo.indexOf('pintarSlide(');
+		assert.notEqual(volteo, -1);
+		assert.notEqual(pintado, -1);
+		assert.ok(volteo < pintado,
+			'avanzar() debe voltear marcaDerecha antes de llamar a pintarSlide()');
+	});
+
+	test('el nombre de la categoría no se puede apagar por accidente', () => {
+		assert.equal(etiquetas(false, { mostrar_categoria: false }).length, 0);
+	});
+
+	test('la etiqueta lleva el color elegido, no el del CSS', () => {
+		const [e] = etiquetas(false, { mostrar_categoria: true, color_categoria: 'marca' });
+		assert.equal(e.style.background, 'rgba(61, 214, 140, 0.9)');
+		assert.equal(e.style.color, '#14131c');
+	});
+
+	test('nunca baja del suelo de legibilidad', () => {
+		// Con cuatro platos el nombre baja a 2,4vmin y la etiqueta, proporcional,
+		// caía por debajo de lo que se lee desde la mesa del fondo.
+		const [e] = etiquetas(false, { mostrar_categoria: true });
+		assert.ok(parseFloat(e.style.fontSize) >= 1.9, e.style.fontSize);
+	});
+});
+
 describe('tv.html · qué URL se acepta como imagen', () => {
 	const { urlSegura } = extraer(['urlSegura'], { String });
 
