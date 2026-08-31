@@ -47,11 +47,21 @@
 	   propio porque va sobre la foto, igual que la marca del negocio. */
 	.marco-foto { position: relative; }
 	.categoria { position: absolute; top: 0.9vmin; left: 0.9vmin; z-index: 2;
-	             padding: 0.5vmin 1vmin; border-radius: 0.7vmin;
-	             background: rgba(10, 10, 15, 0.6); color: #e8e8ee;
+	             padding: 0.34em 0.72em; border-radius: 0.45em;
+	             background: rgba(10, 10, 15, 0.62); color: #e8e8ee;
 	             font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
 	             max-width: 82%; overflow: hidden; white-space: nowrap;
 	             text-overflow: ellipsis; }
+	/* El relleno va en 'em' y no en vmin a propósito: así crece con la letra.
+	   Con vmin fijo, al agrandar el texto la caja quedaba estrecha y apretada. */
+
+	/* La etiqueta se va a la esquina contraria de la marca del negocio. La
+	   marca se dibuja POR ENCIMA de la primera foto, así que con el logo a la
+	   izquierda las dos se peleaban por el mismo rincón y el nombre de la
+	   categoría quedaba debajo. Como la marca cambia de lado en cada pantalla,
+	   las etiquetas la acompañan; van todas a la vez para que se lea como un
+	   espejo y no como una etiqueta descolocada. */
+	.categoria.derecha { left: auto; right: 0.9vmin; }
 
 	.texto { flex: 0 0 auto; padding: 1.6vmin 0.4vmin 0; text-align: center; }
 	.nombre { font-weight: 700; line-height: 1.15; letter-spacing: 0.02em;
@@ -173,7 +183,7 @@ var CLAVE_CACHE = 'vmenus_tv_';
 var POR_DEFECTO = {
 	activa: true, orientacion: 'horizontal', por_slide: 2,
 	segundos: 8, modo: 'todos', categoria_id: null, productos: [], aleatorio: false,
-	animacion: 'suave', mostrar_categoria: false
+	animacion: 'suave', mostrar_categoria: false, color_categoria: 'oscuro'
 };
 
 var arranque = new Date().getTime();
@@ -284,6 +294,11 @@ function config() {
 	/* Cualquier cosa que no sea 'ninguna' anima. Ante un valor raro es mejor
 	   quedarse con lo bonito que dejar la pantalla quieta sin motivo. */
 	if (c.animacion !== 'ninguna') c.animacion = 'suave';
+	/* Tres opciones y nada más. Un valor raro se queda en el oscuro, que es el
+	   que se lee sobre cualquier foto. */
+	if (c.color_categoria !== 'claro' && c.color_categoria !== 'marca') {
+		c.color_categoria = 'oscuro';
+	}
 	return c;
 }
 
@@ -447,6 +462,48 @@ function nuevoNodo(tag, clase) {
 	return e;
 }
 
+/* ── COLOR DE LA ETIQUETA DE CATEGORÍA ────────────────────────────────
+ * Tres presets, no un selector de color libre. Un selector libre deja elegir
+ * gris sobre gris o amarillo sobre blanco, y esto acaba colgado en una pared
+ * donde nadie va a volver a mirarlo. El preset 'marca' reutiliza el color que
+ * el restaurante YA guardó para su carta (color_primario), para que la
+ * cartelera se parezca al menú sin pedirle que configure el color dos veces. */
+
+/* Convierte '#3dd68c' o '#3d8' en sus tres canales. Devuelve null si no es un
+ * color hexadecimal, que es lo que llega cuando la columna está vacía. */
+function canalHex(hex) {
+	if (typeof hex !== 'string') return null;
+	var h = hex.replace('#', '');
+	if (h.length === 3) {
+		h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+	}
+	if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+	return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)];
+}
+
+function paletaCategoria(c) {
+	var OSCURO = { fondo: 'rgba(10, 10, 15, 0.62)', texto: '#e8e8ee' };
+	if (c.color_categoria === 'claro') {
+		return { fondo: 'rgba(255, 255, 255, 0.88)', texto: '#14131c' };
+	}
+	if (c.color_categoria !== 'marca') return OSCURO;
+
+	var rgb = canalHex(datos && datos.restaurante && datos.restaurante.color_primario);
+	/* Sin color guardado no hay nada que reutilizar: se vuelve al oscuro en vez
+	   de inventarse uno. */
+	if (!rgb) return OSCURO;
+
+	/* Brillo percibido, no promedio de canales: el ojo pesa el verde seis veces
+	   más que el azul. Es lo que decide si encima va texto negro o blanco, y no
+	   se puede dejar fijo — hay cartas en amarillo y cartas en morado, y una
+	   sola de las dos combinaciones sirve para cada una. */
+	var brillo = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000;
+	return {
+		fondo: 'rgba(' + rgb[0] + ', ' + rgb[1] + ', ' + rgb[2] + ', 0.9)',
+		texto: brillo > 145 ? '#14131c' : '#ffffff'
+	};
+}
+
 function pintarSlide(s) {
 	var c = config();
 	var div = nuevoNodo('div', 'slide');
@@ -461,6 +518,7 @@ function pintarSlide(s) {
 	var fila = nuevoNodo('div', 'fila');
 	/* Cuanto menos cabe en el slide, más grande puede ir la letra. */
 	var tamNombre = [0, 4.6, 3.6, 2.9, 2.4][s.platos.length] || 2.4;
+	var pal = paletaCategoria(c);
 	for (var i = 0; i < s.platos.length; i++) {
 		var p = s.platos[i];
 		var plato = nuevoNodo('div', 'plato');
@@ -481,10 +539,17 @@ function pintarSlide(s) {
 		if (c.mostrar_categoria) {
 			var nomCat = nombreCategoria(p.categoria_id);
 			if (nomCat) {
-				var cat = nuevoNodo('div', 'categoria');
-				/* Más pequeño cuanto más se reparte la pantalla, igual que el
-				   nombre del plato: si no, con cuatro platos tapa media foto. */
-				cat.style.fontSize = (tamNombre * 0.42) + 'vmin';
+				/* A la esquina contraria del logo, que se dibuja encima de la
+				   primera foto. Ver el comentario de '.categoria.derecha'. */
+				var cat = nuevoNodo('div', marcaDerecha ? 'categoria' : 'categoria derecha');
+				/* Más pequeña cuanto más se reparte la pantalla, igual que el
+				   nombre del plato: si no, con cuatro platos tapa media foto.
+				   Pero con suelo. Por debajo de 1,9vmin —unos 20 px en un
+				   televisor de 1080— deja de leerse desde la mesa del fondo, y
+				   una etiqueta que no se lee es solo un borrón sobre la foto. */
+				cat.style.fontSize = Math.max(1.9, tamNombre * 0.58) + 'vmin';
+				cat.style.background = pal.fondo;
+				cat.style.color = pal.texto;
 				cat.textContent = nomCat;
 				marcoFoto.appendChild(cat);
 			}
@@ -538,6 +603,14 @@ function avanzar() {
 	mostrarReposo(false);
 
 	indice = (indice + 1) % slides.length;
+
+	/* La marca cambia de esquina en cada slide: un panel OLED marca lo que se
+	   queda quieto, y esto va a estar meses en la misma pantalla.
+	   Se decide ANTES de pintar, no después, porque las etiquetas de categoría
+	   se colocan en la esquina contraria y necesitan saber dónde va a caer. */
+	marcaDerecha = !marcaDerecha;
+	document.getElementById('marca').className = marcaDerecha ? 'derecha' : '';
+
 	var cont = document.getElementById('slides');
 	var nodo = pintarSlide(slides[indice]);
 	cont.appendChild(nodo);
@@ -554,11 +627,6 @@ function avanzar() {
 			if (viejo.parentNode) viejo.parentNode.removeChild(viejo);
 		}, 1200);
 	}
-
-	/* La marca cambia de esquina en cada slide: un panel OLED marca lo que se
-	   queda quieto, y esto va a estar meses en la misma pantalla. */
-	marcaDerecha = !marcaDerecha;
-	document.getElementById('marca').className = marcaDerecha ? 'derecha' : '';
 }
 
 function reprogramar() {
@@ -612,7 +680,7 @@ function sinRed(activo) {
    Al añadirlas en la fase 3 hay que acordarse de meterlas aquí. */
 function cargar(alTerminar) {
 	pedir('restaurantes?slug=eq.' + encodeURIComponent(slug) + '&activo=is.true&select=' +
-		'id,nombre,slug,logo_url,atributos,promo_activa,promo_imagen_url',
+		'id,nombre,slug,logo_url,color_primario,atributos,promo_activa,promo_imagen_url',
 		function (rs) {
 			if (!rs || !rs.length) { alTerminar(false); return; }
 			var r = rs[0];
