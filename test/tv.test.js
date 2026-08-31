@@ -30,6 +30,17 @@ const GUION = HTML.slice(HTML.indexOf('<script>') + 8, HTML.indexOf('</script>')
 // prohibida. Es un precio barato por un guardián que no se puede engañar.
 const CODIGO = GUION;
 
+// La paleta neutra se saca del propio archivo y no se copia aquí: copiarla
+// dejaría las pruebas pasando con unos colores mientras la pantalla enseña
+// otros.
+const NEUTRO = (() => {
+	const i = GUION.indexOf('var NEUTRO = ');
+	assert.notEqual(i, -1, 'no se encontró NEUTRO en tv.html');
+	const ctx = vm.createContext({});
+	vm.runInContext(GUION.slice(i, GUION.indexOf('\n};', i) + 3), ctx);
+	return ctx.NEUTRO;
+})();
+
 // Saca una función suelta del guion para poder probarla. Se evalúa el código
 // que se despliega, no una copia — una copia se queda atrás sin avisar.
 function extraer(nombres, contexto = {}) {
@@ -43,6 +54,29 @@ function extraer(nombres, contexto = {}) {
 	}
 	return ctx;
 }
+
+// Un DOM de juguete. Solo lo que pintarSlide() toca de verdad.
+function domFalso() {
+	return {
+		createElement() {
+			return {
+				className: '', textContent: '', style: {}, hijos: [],
+				appendChild(h) { this.hijos.push(h); return h; },
+			};
+		},
+	};
+}
+
+function todos(nodo, salida = []) {
+	salida.push(nodo);
+	for (const h of nodo.hijos || []) todos(h, salida);
+	return salida;
+}
+
+// Las funciones que hacen falta para pintar una pantalla entera.
+const PARA_PINTAR = ['nuevoNodo', 'canalHex', 'paletaCategoria', 'nombreCategoria',
+	'urlSegura', 'config', 'aHex', 'rgba', 'aclarar', 'luminancia', 'contraste',
+	'textoSobre', 'legibleSobre', 'fondoPagina', 'acento', 'paletaPagina', 'pintarSlide'];
 
 describe('tv.html · nada de sintaxis que un televisor viejo no entienda', () => {
 	// Cada entrada estuvo a punto de colarse o se coló en el resto del código.
@@ -136,8 +170,14 @@ describe('tv.html · el color de la etiqueta de categoría', () => {
 	// prueba aquí es sobre todo que nunca acabe ilegible: esto se cuelga en una
 	// pared y nadie va a volver a mirarlo.
 	const paleta = (color_categoria, color_primario) => extraer(
-		['canalHex', 'paletaCategoria'],
-		{ datos: { restaurante: { color_primario } } }
+		['config', 'canalHex', 'rgba', 'aclarar', 'luminancia', 'contraste',
+		 'legibleSobre', 'fondoPagina', 'acento', 'paletaCategoria'],
+		{
+			NEUTRO,
+			POR_DEFECTO: { tema: 'oscuro' },
+			datos: { restaurante: { color_primario, atributos: {} } },
+			Math, parseInt,
+		}
 	).paletaCategoria({ color_categoria });
 
 	const OSCURO = 'rgba(10, 10, 15, 0.62)';
@@ -155,7 +195,29 @@ describe('tv.html · el color de la etiqueta de categoría', () => {
 	});
 
 	test('con la marca, el fondo es el color guardado del restaurante', () => {
+		// Un color que ya se lee sobre el fondo llega intacto.
 		assert.equal(paleta('marca', '#3dd68c').fondo, 'rgba(61, 214, 140, 0.9)');
+	});
+
+	test('es EL MISMO color que el precio, no el original', () => {
+		// Con el azul marino de juanmar, la etiqueta salía en su azul y el
+		// precio en otro más claro: dos azules en la misma pantalla se leen
+		// como un fallo. Los dos salen ahora del acento ya aclarado.
+		const etiqueta = paleta('marca', '#0a4380').fondo;
+		const precio = extraer(
+			['config', 'canalHex', 'aHex', 'rgba', 'aclarar', 'luminancia', 'contraste',
+			 'textoSobre', 'legibleSobre', 'fondoPagina', 'acento', 'paletaPagina'],
+			{
+				NEUTRO,
+				POR_DEFECTO: { tema: 'oscuro' },
+				datos: { restaurante: { color_primario: '#0a4380',
+				                        atributos: { tv: { tema: 'carta' } } } },
+				Math, parseInt,
+			}
+		).paletaPagina().acento;
+		const canales = precio.slice(1).match(/../g).map(h => parseInt(h, 16));
+		assert.equal(etiqueta, `rgba(${canales[0]}, ${canales[1]}, ${canales[2]}, 0.9)`);
+		assert.equal(/10, 67, 128/.test(etiqueta), false, 'y no es el original');
 	});
 
 	test('el texto se elige por brillo percibido, no fijo', () => {
@@ -164,7 +226,12 @@ describe('tv.html · el color de la etiqueta de categoría', () => {
 		assert.equal(paleta('marca', '#3dd68c').texto, '#14131c', 'verde claro');
 		assert.equal(paleta('marca', '#ffd521').texto, '#14131c', 'amarillo');
 		assert.equal(paleta('marca', '#a374af').texto, '#ffffff', 'morado');
-		assert.equal(paleta('marca', '#101020').texto, '#ffffff', 'casi negro');
+		// Un color casi negro se aclara primero para que se lea sobre el fondo.
+		// Acaba en un gris medio —rgb(122,122,131), brillo 123— así que encima
+		// sigue yendo blanco. Medido, no supuesto: la primera versión de esta
+		// prueba daba por hecho que acabaría claro y estaba equivocada.
+		assert.equal(paleta('marca', '#101020').texto, '#ffffff', 'casi negro, ya aclarado');
+		assert.equal(paleta('marca', '#101020').fondo, 'rgba(122, 122, 131, 0.9)');
 	});
 
 	test('sin color guardado no se inventa uno: vuelve al oscuro', () => {
@@ -202,34 +269,14 @@ describe('tv.html · la etiqueta no se pelea con el logo del negocio', () => {
 	// contraria — y el logo cambia de lado en cada pantalla, así que esto no se
 	// puede fijar: hay que recalcularlo en cada slide.
 
-	// Un DOM de juguete. Solo lo que pintarSlide() toca de verdad.
-	function domFalso() {
-		return {
-			createElement() {
-				return {
-					className: '', textContent: '', style: {}, hijos: [],
-					appendChild(h) { this.hijos.push(h); return h; },
-				};
-			},
-		};
-	}
-
-	function todos(nodo, salida = []) {
-		salida.push(nodo);
-		for (const h of nodo.hijos || []) todos(h, salida);
-		return salida;
-	}
-
 	// Pinta una pantalla de dos platos y devuelve las etiquetas de categoría.
 	function etiquetas(marcaDerecha, tv = {}) {
-		const ctx = extraer(
-			['nuevoNodo', 'canalHex', 'paletaCategoria', 'nombreCategoria',
-			 'urlSegura', 'config', 'pintarSlide'],
-			{
+		const ctx = extraer(PARA_PINTAR, {
 				document: domFalso(),
 				marcaDerecha,
+				NEUTRO,
 				POR_DEFECTO: { por_slide: 2, segundos: 8, mostrar_categoria: true,
-				               color_categoria: 'oscuro' },
+				               color_categoria: 'oscuro', tema: 'oscuro' },
 				datos: {
 					restaurante: { color_primario: '#3dd68c', atributos: { tv } },
 					categorias: [{ id: 'c1', nombre: 'Hamburguesas' }],
@@ -295,6 +342,266 @@ describe('tv.html · la etiqueta no se pelea con el logo del negocio', () => {
 		// caía por debajo de lo que se lee desde la mesa del fondo.
 		const [e] = etiquetas(false, { mostrar_categoria: true });
 		assert.ok(parseFloat(e.style.fontSize) >= 1.9, e.style.fontSize);
+	});
+});
+
+describe('tv.html · la página con los colores del restaurante', () => {
+	// El tema 'carta' toma los colores que el restaurante ya guardó para su
+	// menú. Lo que se prueba es que nunca acabe ilegible: esto se cuelga en una
+	// pared y nadie va a volver a mirarlo.
+	const paleta = (tema, restaurante = {}) => extraer(
+		['config', 'canalHex', 'aHex', 'rgba', 'aclarar', 'luminancia', 'contraste',
+		 'textoSobre', 'legibleSobre', 'fondoPagina', 'acento', 'paletaPagina'],
+		{
+			NEUTRO,
+			POR_DEFECTO: { tema: 'oscuro' },
+			datos: { restaurante: Object.assign({ atributos: { tv: { tema } } }, restaurante) },
+			Math, parseInt,
+		}
+	).paletaPagina();
+
+	// Razón de contraste de la WCAG, calculada aquí a mano para no comprobar
+	// el código con el propio código.
+	const ratio = (a, b) => {
+		const lum = hex => {
+			const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+				.map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+			return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+		};
+		const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+		return (x + 0.05) / (y + 0.05);
+	};
+
+	test('sin tema, la página es exactamente la de antes', () => {
+		// Nadie que no lo pida debe ver su cartelera cambiar de aspecto.
+		const p = paleta(undefined, { color_primario: '#0a4380' });
+		assert.equal(p.fondo, NEUTRO.fondo);
+		assert.equal(p.acento, NEUTRO.acento);
+		assert.equal(p.degradado, '', 'sin lavado de color');
+		assert.equal(p.borde, '', 'sin borde en las fotos');
+	});
+
+	test('con tema carta, el fondo sale de los atributos', () => {
+		// Solo malparados los tiene puestos hoy; son estos.
+		const p = paleta('carta', {
+			color_primario: '#ffd521',
+			atributos: { tv: { tema: 'carta' }, color_dark: '#0a0a0a', color_card: '#252525',
+			             color_border: '#333333' },
+		});
+		assert.equal(p.fondo, '#0a0a0a');
+		assert.equal(p.caja, '#252525');
+		assert.match(p.borde, /51, 51, 51/);
+	});
+
+	test('sin atributos de superficie caen los mismos valores que en la carta', () => {
+		// Ocho de los nueve restaurantes los tienen vacíos. Los valores por
+		// defecto son los de applyStyles() en core/loader.js; si allí cambian y
+		// aquí no, la cartelera y el menú dejan de parecerse.
+		const p = paleta('carta', { color_primario: '#ffd521' });
+		assert.equal(p.fondo, '#0a0a0f');
+		assert.equal(p.caja, '#1a1825');
+	});
+
+	test('la cadena vacía cuenta como sin configurar, igual que el nulo', () => {
+		// En la base hay cadenas vacías, no solo nulos: es lo que guarda el
+		// panel cuando se borra el campo.
+		const p = paleta('carta', {
+			color_primario: '', color_secundario: '',
+			atributos: { tv: { tema: 'carta' }, color_dark: '', color_card: '' },
+		});
+		assert.equal(p.fondo, '#0a0a0f');
+		assert.equal(p.caja, '#1a1825');
+	});
+
+	test('un color oscuro se aclara hasta que se lee', () => {
+		// juanmar tiene #0a4380 y sanjavier #3d568c. Puestos tal cual encima de
+		// un fondo casi negro, el precio no se ve desde ninguna mesa.
+		for (const crudo of ['#0a4380', '#3d568c']) {
+			const p = paleta('carta', { color_primario: crudo });
+			assert.ok(ratio(p.acento, p.fondo) >= 4.5,
+				`${crudo} salió como ${p.acento}, contraste ${ratio(p.acento, p.fondo).toFixed(2)}`);
+			assert.notEqual(p.acento, crudo, 'tuvo que aclararse');
+		}
+	});
+
+	test('un color que ya se lee no se toca', () => {
+		// Aclarar de más apaga el color: el amarillo de malparados tiene que
+		// seguir siendo su amarillo.
+		assert.equal(paleta('carta', { color_primario: '#ffd521' }).acento, '#ffd521');
+		assert.equal(paleta('carta', { color_primario: '#cdfefe' }).acento, '#cdfefe');
+	});
+
+	test('los nueve colores reales acaban legibles', () => {
+		const reales = ['#ffd521', '#cdfefe', '#b3a7ff', '#0a4380', '#ffd521',
+		                '#ffd521', '#df2086', '#3d568c', '#e5b769'];
+		for (const c of reales) {
+			const p = paleta('carta', { color_primario: c });
+			assert.ok(ratio(p.acento, p.fondo) >= 4.5, c + ' → ' + p.acento);
+		}
+	});
+
+	test('sobre un fondo claro el texto se pone oscuro', () => {
+		// Hoy los nueve fondos son oscuros, pero el panel deja cambiarlos, y
+		// blanco sobre blanco no lo salva nada.
+		const p = paleta('carta', {
+			color_primario: '#0a4380',
+			atributos: { tv: { tema: 'carta' }, color_dark: '#f5f2ea' },
+		});
+		assert.equal(p.texto, '#14131c');
+		assert.ok(ratio(p.acento, p.fondo) >= 4.5, 'y el acento también se lee');
+	});
+
+	test('el aclarado termina aunque el objetivo sea imposible', () => {
+		// Sobre blanco puro no hay forma de llegar a 4,5 aclarando. Sin tope,
+		// el bucle deja el televisor colgado en una pantalla en blanco.
+		const p = paleta('carta', {
+			color_primario: '#eeeeee',
+			atributos: { tv: { tema: 'carta' }, color_dark: '#ffffff' },
+		});
+		assert.match(p.acento, /^#[0-9a-f]{6}$/, 'devolvió un color, no se colgó');
+	});
+
+	test('el color de fondo va aparte del degradado', () => {
+		// Si el televisor no entendiera el degradado, tiene que quedarse el
+		// color liso y no una pantalla en blanco.
+		const p = paleta('carta', { color_primario: '#ffd521', color_secundario: '#f5a623' });
+		assert.match(p.fondo, /^#[0-9a-f]{6}$/);
+		assert.match(p.degradado, /linear-gradient/);
+		assert.match(p.degradado, /255, 213, 33/, 'lleva el color primario');
+		assert.match(p.degradado, /245, 166, 35/, 'y el secundario');
+	});
+
+	test('un color inservible no rompe la página', () => {
+		const p = paleta('carta', { color_primario: 'azul marino', color_secundario: null });
+		assert.equal(p.acento, '#cdfefe', 'cae en el mismo defecto que la carta');
+	});
+});
+
+describe('tv.html · la promoción a pantalla completa', () => {
+	// Fase 3. La promoción se intercala cada N pantallas y ocupa el slide
+	// entero: esas piezas se diseñan para verse solas.
+
+	const restaurante = (extra = {}) => Object.assign({
+		id: 'r1',
+		promo_activa: true,
+		promo_imagen_url: 'https://x/promo.jpg',
+		promo_en_tv: true,
+		promo_cada: 2,
+		atributos: { tv: { activa: true, por_slide: 1 } },
+	}, extra);
+
+	const productos = n => Array.apply(null, { length: n }).map((_, i) => ({
+		id: 'p' + i, nombre: 'Plato ' + i, precio: '$1', categoria_id: 'c1',
+		imagen_url: 'https://x/' + i + '.jpg', disponible: true,
+	}));
+
+	function ciclo(r, cuantos = 4) {
+		const ctx = extraer(
+			['config', 'tvActiva', 'urlSegura', 'categoriaVisible', 'platosElegidos',
+			 'barajar', 'construirSlides'],
+			{
+				POR_DEFECTO: { activa: true, por_slide: 1, segundos: 8, modo: 'todos',
+				               categoria_id: null, productos: [], aleatorio: false },
+				datos: { restaurante: r, categorias: [{ id: 'c1', nombre: 'Cat' }],
+				         productos: productos(cuantos) },
+				slides: [], Math, parseInt, String,
+			}
+		);
+		ctx.construirSlides();
+		return ctx.slides;
+	}
+
+	test('se intercala cada N pantallas', () => {
+		const s = ciclo(restaurante({ promo_cada: 2 }), 4);
+		// 4 platos de uno en uno = 4 pantallas, más una promo tras la 2.ª y la 4.ª
+		assert.equal(s.length, 6);
+		assert.ok(!s[0].promo && !s[1].promo);
+		assert.ok(s[2].promo, 'la promo entra tras la segunda');
+		assert.ok(s[5].promo, 'y tras la cuarta');
+	});
+
+	test('la promo lleva imagen, nombre y precio, no solo la imagen', () => {
+		// Cambió de ser una cadena a ser un objeto al llegar la fase 3. Si
+		// construirSlides se quedara atrás, pintarSlide reventaría al leer
+		// .imagen de una cadena.
+		const s = ciclo(restaurante({ promo_nombre: '2x1 en hamburguesas',
+		                             promo_precio: '$ 30.000' }), 2);
+		const promo = s.filter(x => x.promo)[0].promo;
+		assert.equal(promo.imagen, 'https://x/promo.jpg');
+		assert.equal(promo.nombre, '2x1 en hamburguesas');
+		assert.equal(promo.precio, '$ 30.000');
+	});
+
+	test('sin promo_en_tv no se intercala nada', () => {
+		// Es lo que separa "tengo una promo en la carta" de "quiero que salga
+		// en el televisor". Son dos decisiones distintas.
+		assert.equal(ciclo(restaurante({ promo_en_tv: false }), 4).length, 4);
+		assert.equal(ciclo(restaurante({ promo_activa: false }), 4).length, 4);
+	});
+
+	test('sin imagen no hay promo, aunque esté encendida', () => {
+		// El slide es la imagen. Un nombre y un precio sueltos a pantalla
+		// completa sobre negro no es una promoción, es un error.
+		assert.equal(ciclo(restaurante({ promo_imagen_url: null,
+		                                promo_nombre: 'Algo' }), 4).length, 4);
+		assert.equal(ciclo(restaurante({ promo_imagen_url: 'javascript:alert(1)' }), 4).length, 4);
+	});
+
+	test('un promo_cada sin sentido no rompe el ciclo', () => {
+		// Un 0 haría que la promo entrara entre todas las pantallas.
+		for (const cada of [0, -3, null, 'a']) {
+			const s = ciclo(restaurante({ promo_cada: cada }), 8);
+			assert.equal(s.length, 10, 'cae en cada 4: ' + cada);
+		}
+	});
+
+	// Pintar la pantalla de promoción, ya construida.
+	function pintarPromo(promo, tv = {}) {
+		const ctx = extraer(PARA_PINTAR, {
+			document: domFalso(),
+			marcaDerecha: false,
+			NEUTRO,
+			POR_DEFECTO: { por_slide: 1, segundos: 8, tema: 'oscuro', color_categoria: 'oscuro' },
+			datos: { restaurante: { color_primario: '#ffd521', atributos: { tv } },
+			         categorias: [] },
+			Math, parseInt, String,
+		});
+		return todos(ctx.pintarSlide({ promo }));
+	}
+
+	test('la pantalla de promoción lleva la imagen', () => {
+		const foto = pintarPromo({ imagen: 'https://x/p.jpg', nombre: '', precio: '' })
+			.filter(n => n.className === 'promo-foto')[0];
+		assert.ok(foto, 'hay un nodo para la foto');
+		assert.match(foto.style.backgroundImage, /https:\/\/x\/p\.jpg/);
+	});
+
+	test('sin nombre ni precio no se pinta la franja de texto', () => {
+		// Casi todas las piezas ya llevan el texto dibujado dentro. Repetirlo
+		// debajo, o peor, dejar una franja vacía, se ve como un fallo.
+		const n = pintarPromo({ imagen: 'https://x/p.jpg', nombre: '', precio: '' });
+		assert.equal(n.filter(x => x.className === 'promo-texto').length, 0);
+	});
+
+	test('con nombre y precio sí, y el precio lleva el acento', () => {
+		const n = pintarPromo({ imagen: 'https://x/p.jpg', nombre: '2x1', precio: '$ 30.000' },
+		                      { tema: 'carta' });
+		assert.equal(n.filter(x => x.className === 'promo-nombre')[0].textContent, '2x1');
+		const precio = n.filter(x => x.className === 'promo-precio')[0];
+		assert.equal(precio.textContent, '$ 30.000');
+		assert.equal(precio.style.color, '#ffd521', 'el color de la carta');
+	});
+
+	test('solo el precio, sin nombre, también vale', () => {
+		const n = pintarPromo({ imagen: 'https://x/p.jpg', nombre: '', precio: '$ 30.000' });
+		assert.equal(n.filter(x => x.className === 'promo-texto').length, 1);
+		assert.equal(n.filter(x => x.className === 'promo-nombre').length, 0);
+	});
+
+	test('sin platos que enseñar tampoco sale la promo sola', () => {
+		// Una pantalla que solo enseña la promoción una y otra vez es el caso
+		// de "puse la tele y no salen mis platos".
+		assert.equal(ciclo(restaurante(), 0).length, 0);
 	});
 });
 
