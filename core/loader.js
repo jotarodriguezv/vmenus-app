@@ -39,6 +39,19 @@ const COLUMNAS_PUBLICAS = [
 	'color_primario', 'color_secundario',
 	'promo_activa', 'promo_imagen_url', 'activo', 'atributos'
 ].join(',');
+// Las cuatro columnas nuevas de la promoción —promo_nombre, promo_precio,
+// promo_en_tv y promo_cada— NO están aquí a propósito, aunque el plan de la
+// fase 3 decía que sí. Hoy no las lee nadie en el menú: solo las pinta
+// tv.html, que tiene su propio select.
+//
+// Y pedir de más aquí sale carísimo. Una columna que no existe en la tabla no
+// devuelve un hueco: PostgREST contesta 400 y se cae la petición entera. Esta
+// lista alimenta TODAS las cartas públicas, así que subir el archivo antes de
+// correr el ALTER TABLE dejaría a los nueve restaurantes sin carta. En
+// tv.html el mismo error apaga una pantalla; aquí apaga la plataforma.
+//
+// Se añaden el día que el popup de la carta quiera enseñarlas, y ese día ya
+// existirán en la tabla desde hace tiempo.
 
 function leerSlug() {
 	const host   = window.location.hostname;
