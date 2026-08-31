@@ -97,8 +97,14 @@
 
 	/* La promoción ocupa el slide entero: esas piezas se diseñan para verse
 	   solas y en una rejilla pequeña pierden todo el sentido. */
-	.promo { width: 100%; height: 100%; background: center center no-repeat;
-	         background-size: contain; }
+	.promo { width: 100%; height: 100%; display: flex; flex-direction: column; }
+	.promo-foto { flex: 1 1 auto; min-height: 0; width: 100%;
+	              background: center center no-repeat; background-size: contain; }
+	/* El nombre y el precio salen SOLO si el restaurante los puso. Muchas piezas
+	   ya llevan el texto dibujado dentro, y repetirlo debajo se ve mal. */
+	.promo-texto { flex: 0 0 auto; text-align: center; padding: 1.8vmin 3vmin 0; }
+	.promo-nombre { font-weight: 700; line-height: 1.15; letter-spacing: 0.02em; }
+	.promo-precio { margin-top: 0.7vmin; font-weight: 700; }
 
 	/* Cuando no hay nada que enseñar. Nunca una pantalla en blanco. */
 	#reposo { position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -183,7 +189,8 @@ var CLAVE_CACHE = 'vmenus_tv_';
 var POR_DEFECTO = {
 	activa: true, orientacion: 'horizontal', por_slide: 2,
 	segundos: 8, modo: 'todos', categoria_id: null, productos: [], aleatorio: false,
-	animacion: 'suave', mostrar_categoria: false, color_categoria: 'oscuro'
+	animacion: 'suave', mostrar_categoria: false, color_categoria: 'oscuro',
+	tema: 'oscuro'
 };
 
 var arranque = new Date().getTime();
@@ -299,6 +306,7 @@ function config() {
 	if (c.color_categoria !== 'claro' && c.color_categoria !== 'marca') {
 		c.color_categoria = 'oscuro';
 	}
+	if (c.tema !== 'carta') c.tema = 'oscuro';
 	return c;
 }
 
@@ -440,10 +448,12 @@ function construirSlides() {
 
 	/* La promoción se intercala al margen de 'por_slide'. */
 	var r = datos.restaurante;
-	var promo = urlSegura(r.promo_imagen_url);
+	var imagenPromo = urlSegura(r.promo_imagen_url);
 	var cada = parseInt(r.promo_cada, 10);
-	if (r.promo_activa && r.promo_en_tv && promo && nuevos.length) {
+	if (r.promo_activa && r.promo_en_tv && imagenPromo && nuevos.length) {
 		if (!cada || cada < 1) cada = 4;
+		var promo = { imagen: imagenPromo,
+		              nombre: r.promo_nombre || '', precio: r.promo_precio || '' };
 		var con = [];
 		for (var n = 0; n < nuevos.length; n++) {
 			con.push(nuevos[n]);
@@ -460,6 +470,133 @@ function nuevoNodo(tag, clase) {
 	var e = document.createElement(tag);
 	if (clase) e.className = clase;
 	return e;
+}
+
+/* ── LA PALETA DE LA PÁGINA ───────────────────────────────────────────
+ * El tema 'carta' toma los colores que el restaurante YA guardó para su menú,
+ * en vez de pedirle que los configure otra vez. Es un espejo de applyStyles()
+ * en core/loader.js: los mismos campos y los mismos valores por defecto, para
+ * que la pantalla y la carta se parezcan de verdad. Si allí cambian, aquí
+ * también.
+ *
+ * Nada de esto usa variables CSS, aunque sería lo natural. Este archivo se rige
+ * por una sola regla —nada que un televisor de 2018 pueda no entender— y los
+ * estilos se ponen en cada elemento al pintarlo, que es lo que ya se hacía con
+ * los tamaños de letra. */
+
+var NEUTRO = {
+	fondo: '#0a0a0f', degradado: '', caja: '#16151f', borde: '',
+	texto: '#ffffff', acento: '#ffd521', placa: 'rgba(10, 10, 15, 0.62)'
+};
+
+function aHex(rgb) {
+	var s = '#';
+	for (var i = 0; i < 3; i++) {
+		var t = Math.max(0, Math.min(255, Math.round(rgb[i]))).toString(16);
+		s += t.length === 1 ? '0' + t : t;
+	}
+	return s;
+}
+
+function rgba(rgb, alfa) {
+	return 'rgba(' + Math.round(rgb[0]) + ', ' + Math.round(rgb[1]) + ', ' +
+	       Math.round(rgb[2]) + ', ' + alfa + ')';
+}
+
+/* Mezcla hacia el blanco. Espejo de lightenHex() en core/loader.js. */
+function aclarar(rgb, cuanto) {
+	return [rgb[0] + (255 - rgb[0]) * cuanto,
+	        rgb[1] + (255 - rgb[1]) * cuanto,
+	        rgb[2] + (255 - rgb[2]) * cuanto];
+}
+
+/* Luminancia relativa de la WCAG. Cada canal se linealiza antes de pesarlo:
+   sin eso, dos colores con números parecidos dan contrastes muy distintos. */
+function luminancia(rgb) {
+	var l = [];
+	for (var i = 0; i < 3; i++) {
+		var c = rgb[i] / 255;
+		l.push(c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+	}
+	return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
+}
+
+function contraste(a, b) {
+	var la = luminancia(a), lb = luminancia(b);
+	var alto = la > lb ? la : lb;
+	var bajo = la > lb ? lb : la;
+	return (alto + 0.05) / (bajo + 0.05);
+}
+
+/* Blanco o casi negro, el que se lea encima del fondo. Los fondos guardados hoy
+   son todos oscuros, pero el panel deja cambiarlos, y una carta clara con texto
+   blanco no se lee desde ninguna mesa. */
+function textoSobre(fondo) {
+	return contraste([255, 255, 255], fondo) >= contraste([20, 19, 28], fondo)
+		? '#ffffff' : '#14131c';
+}
+
+/* Sube el color hacia el blanco hasta que se lea sobre el fondo. Aclarar en vez
+   de sustituir mantiene el tono: el azul marino de un restaurante sigue siendo
+   su azul, solo que visible. Dos de los nueve colores guardados lo necesitan
+   —#0a4380 y #3d568c—, y sobre un fondo casi negro no se leen en absoluto. */
+function legibleSobre(rgb, fondo, minimo) {
+	var c = rgb;
+	/* Con tope: si el fondo fuera blanco no habría forma de llegar al mínimo y
+	   el bucle no terminaría nunca. */
+	for (var i = 0; i < 24 && contraste(c, fondo) < minimo; i++) c = aclarar(c, 0.08);
+	return c;
+}
+
+/* El fondo de la página, aparte, porque lo necesitan dos cálculos y uno de
+   ellos no puede pedir la paleta entera sin morderse la cola. */
+function fondoPagina() {
+	if (config().tema !== 'carta') return canalHex(NEUTRO.fondo);
+	var at = (datos && datos.restaurante && datos.restaurante.atributos) || {};
+	return canalHex(at.color_dark) || canalHex('#0a0a0f');
+}
+
+/* El color del restaurante, aclarado lo justo para que se lea sobre el fondo.
+   Lo usan el precio Y la etiqueta de categoría, y por eso vive aquí: cuando
+   cada uno calculaba el suyo, un restaurante de azul marino sacaba la etiqueta
+   en su azul original y el precio en otro más claro. Dos azules en la misma
+   pantalla se leen como un fallo, no como un sistema. */
+function acento() {
+	var prim = canalHex(datos && datos.restaurante && datos.restaurante.color_primario);
+	return prim ? legibleSobre(prim, fondoPagina(), 4.5) : null;
+}
+
+function paletaPagina() {
+	if (config().tema !== 'carta') return NEUTRO;
+
+	var r = (datos && datos.restaurante) || {};
+	var at = r.atributos || {};
+	/* Los mismos '||' que core/loader.js, y por el mismo motivo: en la base hay
+	   cadenas vacías además de nulos, y '||' trata las dos igual. Un color
+	   ilegible cae también aquí, porque canalHex devuelve nulo. */
+	var fondo = fondoPagina();
+	var caja  = canalHex(at.color_card) || canalHex('#1a1825');
+	var borde = canalHex(at.color_border) ||
+	            (canalHex(at.color_card) ? aclarar(caja, 0.30) : canalHex('#2a2640'));
+	var prim  = canalHex(r.color_primario)   || canalHex('#cdfefe');
+	var sec   = canalHex(r.color_secundario) || canalHex('#a374af');
+	var ac    = acento() || legibleSobre(prim, fondo, 4.5);
+
+	return {
+		fondo: aHex(fondo),
+		/* Un lavado muy flojo de los dos colores del restaurante en diagonal. Lo
+		   justo para que el negro deje de ser el negro de fábrica, sin competir
+		   con las fotos, que son lo que la gente mira. Se pone como imagen de
+		   fondo aparte del color: si el televisor no entendiera el degradado, se
+		   queda el color liso y no una pantalla en blanco. */
+		degradado: 'linear-gradient(135deg, ' + rgba(prim, 0.11) + ' 0%, ' +
+		           'rgba(0, 0, 0, 0) 46%, ' + rgba(sec, 0.09) + ' 100%)',
+		caja: aHex(caja),
+		borde: '0.2vmin solid ' + rgba(borde, 0.75),
+		texto: textoSobre(fondo),
+		acento: aHex(ac),
+		placa: rgba(caja, 0.72)
+	};
 }
 
 /* ── COLOR DE LA ETIQUETA DE CATEGORÍA ────────────────────────────────
@@ -488,7 +625,8 @@ function paletaCategoria(c) {
 	}
 	if (c.color_categoria !== 'marca') return OSCURO;
 
-	var rgb = canalHex(datos && datos.restaurante && datos.restaurante.color_primario);
+	/* El mismo acento que el precio, ya aclarado si hacía falta. Ver acento(). */
+	var rgb = acento();
 	/* Sin color guardado no hay nada que reutilizar: se vuelve al oscuro en vez
 	   de inventarse uno. */
 	if (!rgb) return OSCURO;
@@ -498,19 +636,44 @@ function paletaCategoria(c) {
 	   se puede dejar fijo — hay cartas en amarillo y cartas en morado, y una
 	   sola de las dos combinaciones sirve para cada una. */
 	var brillo = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000;
+	/* Por rgba() y no a mano: acento() puede devolver canales con decimales
+	   —aclarar() mezcla— y meterlos crudos en el CSS funciona pero ensucia. */
 	return {
-		fondo: 'rgba(' + rgb[0] + ', ' + rgb[1] + ', ' + rgb[2] + ', 0.9)',
+		fondo: rgba(rgb, 0.9),
 		texto: brillo > 145 ? '#14131c' : '#ffffff'
 	};
 }
 
 function pintarSlide(s) {
 	var c = config();
+	var pag = paletaPagina();
 	var div = nuevoNodo('div', 'slide');
 
 	if (s.promo) {
 		var pr = nuevoNodo('div', 'promo');
-		pr.style.backgroundImage = 'url("' + s.promo.replace(/"/g, '%22') + '")';
+		var pf = nuevoNodo('div', 'promo-foto');
+		pf.style.backgroundImage = 'url("' + s.promo.imagen.replace(/"/g, '%22') + '")';
+		pr.appendChild(pf);
+		/* Nombre y precio solo si están puestos. Una pieza que ya lleva el texto
+		   dibujado no necesita que se lo repitan debajo. */
+		if (s.promo.nombre || s.promo.precio) {
+			var pt = nuevoNodo('div', 'promo-texto');
+			if (s.promo.nombre) {
+				var pn = nuevoNodo('div', 'promo-nombre');
+				pn.style.fontSize = '5vmin';
+				pn.style.color = pag.texto;
+				pn.textContent = s.promo.nombre;
+				pt.appendChild(pn);
+			}
+			if (s.promo.precio) {
+				var pp = nuevoNodo('div', 'promo-precio');
+				pp.style.fontSize = '4.4vmin';
+				pp.style.color = pag.acento;
+				pp.textContent = s.promo.precio;
+				pt.appendChild(pp);
+			}
+			pr.appendChild(pt);
+		}
 		div.appendChild(pr);
 		return div;
 	}
@@ -524,6 +687,8 @@ function pintarSlide(s) {
 		var plato = nuevoNodo('div', 'plato');
 
 		var marcoFoto = nuevoNodo('div', 'marco-foto');
+		marcoFoto.style.background = pag.caja;
+		if (pag.borde) marcoFoto.style.border = pag.borde;
 		var foto = nuevoNodo('div', 'foto');
 		foto.style.backgroundImage = 'url("' + urlSegura(p.imagen_url).replace(/"/g, '%22') + '")';
 		/* El acercamiento dura lo que dura el slide, así que va desde aquí y no
@@ -561,6 +726,7 @@ function pintarSlide(s) {
 		texto.style.animationDelay = (i * 220) + 'ms';
 		var nom = nuevoNodo('div', 'nombre');
 		nom.style.fontSize = tamNombre + 'vmin';
+		nom.style.color = pag.texto;
 		/* Con textContent, no escribiendo marcado: el nombre lo pone el restaurante
 		   y aquí no hay nada que escapar porque no hay HTML que construir. */
 		nom.textContent = p.nombre || '';
@@ -568,6 +734,7 @@ function pintarSlide(s) {
 
 		var pre = nuevoNodo('div', 'precio');
 		pre.style.fontSize = (tamNombre * 0.92) + 'vmin';
+		pre.style.color = pag.acento;
 		pre.textContent = p.precio || '';
 		texto.appendChild(pre);
 
@@ -584,8 +751,9 @@ function mostrarReposo(activo) {
 		var logo = urlSegura(datos && datos.restaurante && datos.restaurante.logo_url);
 		var img = document.getElementById('reposoLogo');
 		if (logo) { img.src = logo; img.style.display = ''; } else { img.style.display = 'none'; }
-		document.getElementById('reposoNombre').textContent =
-			(datos && datos.restaurante && datos.restaurante.nombre) || '';
+		var titulo = document.getElementById('reposoNombre');
+		titulo.textContent = (datos && datos.restaurante && datos.restaurante.nombre) || '';
+		titulo.style.color = paletaPagina().acento;
 		r.className = 'visible';
 	} else {
 		r.className = '';
@@ -639,8 +807,18 @@ function aplicar(primeraVez) {
 	document.body.className =
 		(c0.orientacion === 'vertical' ? 'vertical ' : '') +
 		(c0.animacion === 'ninguna' ? '' : 'animada');
+	/* Los colores de la página se ponen aquí, una vez por carga y por cambio de
+	   configuración, y no en cada slide: el fondo no cambia entre pantallas. */
+	var pag = paletaPagina();
+	document.documentElement.style.backgroundColor = pag.fondo;
+	document.body.style.backgroundColor = pag.fondo;
+	document.body.style.backgroundImage = pag.degradado;
+	document.body.style.color = pag.texto;
+	document.getElementById('sinRed').style.color = pag.texto;
+
 	var logo = urlSegura(datos.restaurante.logo_url);
 	var marca = document.getElementById('marca');
+	marca.style.background = pag.placa;
 	if (logo) { marca.src = logo; marca.style.display = ''; } else { marca.style.display = 'none'; }
 	document.title = datos.restaurante.nombre || 'Carta';
 
@@ -680,7 +858,8 @@ function sinRed(activo) {
    Al añadirlas en la fase 3 hay que acordarse de meterlas aquí. */
 function cargar(alTerminar) {
 	pedir('restaurantes?slug=eq.' + encodeURIComponent(slug) + '&activo=is.true&select=' +
-		'id,nombre,slug,logo_url,color_primario,atributos,promo_activa,promo_imagen_url',
+		'id,nombre,slug,logo_url,color_primario,color_secundario,atributos,' +
+		'promo_activa,promo_imagen_url,promo_nombre,promo_precio,promo_en_tv,promo_cada',
 		function (rs) {
 			if (!rs || !rs.length) { alTerminar(false); return; }
 			var r = rs[0];
