@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Node 22 por su ejecutor de pruebas incorporado. Este repositorio es un
       # sitio estático servido por nginx: no hay dependencias que instalar, así
