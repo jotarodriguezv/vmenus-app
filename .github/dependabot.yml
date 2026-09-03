@@ -1,0 +1,19 @@
+# Avisos automáticos cuando algo se queda atrás.
+#
+# Aquí SOLO se vigilan las acciones del workflow. No hay bloque de npm a
+# propósito: este repositorio es un sitio estático sin dependencias —el
+# package.json existe únicamente para poder correr 'node --test'— así que un
+# ecosistema npm no encontraría nada que actualizar y solo añadiría ruido de
+# configuración que alguien tendría que entender más adelante.
+#
+# Lo que sí envejece es actions/checkout y actions/setup-node, y de eso no
+# avisa nadie más.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Bump"          # el historial va en inglés e imperativo
