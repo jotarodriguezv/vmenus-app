@@ -15,5 +15,8 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
-    commit-message:
-      prefix: "Bump"          # el historial va en inglés e imperativo
+    # Sin 'commit-message.prefix' a propósito. Se puso "Bump" para que el
+    # historial siguiera en inglés e imperativo, y salieron títulos como
+    # "Bump: Bump actions/checkout from 4 to 7": Dependabot ya empieza sus
+    # mensajes por "Bump", así que el prefijo los duplicaba. Su texto por
+    # defecto ya cumple la convención sin ayuda.
