@@ -464,6 +464,55 @@ function construirSlides() {
 	slides = nuevos;
 }
 
+/* ── PRECARGA DE LA SIGUIENTE PANTALLA ────────────────────────────
+   Las fotos se pedían en el momento de enseñarlas: se creaba el nodo con su
+   background-image y el navegador empezaba a descargar justo cuando ya tenía
+   que verse. Con la transición de entrada eso deja un hueco en el que la
+   pantalla enseña el marco vacío con el nombre y el precio flotando encima.
+
+   Dura poco porque las fotos se sirven con caché de un año: en cuanto pasa
+   una vuelta entera, ya están todas guardadas y no se vuelve a pedir nada. El
+   problema es CUÁNDO ocurre esa primera vuelta — al encender el televisor por
+   la mañana, y otra vez tras cada recarga de seguridad. O sea, delante de los
+   primeros clientes del día.
+
+   Se pide una pantalla por delante y no dos. Con el mínimo de 4 segundos por
+   slide hay margen de sobra para tres fotos, y pedir más a la vez las pone a
+   competir con las de la pantalla que se está viendo ahora — que es a lo que
+   hay que dar prioridad.
+
+   Se apunta lo ya pedido para no repetir: con la última pantalla corrida hacia
+   atrás y con la promoción intercalada, hay fotos que salen en dos slides. */
+var yaPedidas = {};
+
+function urlsDelSlide(s) {
+	var urls = [];
+	if (!s) return urls;
+	if (s.promo) {
+		if (s.promo.imagen) urls.push(s.promo.imagen);
+		return urls;
+	}
+	var lista = s.platos || [];
+	for (var i = 0; i < lista.length; i++) {
+		var u = urlSegura(lista[i].imagen_url);
+		if (u) urls.push(u);
+	}
+	return urls;
+}
+
+function precargar(s) {
+	var urls = urlsDelSlide(s);
+	for (var i = 0; i < urls.length; i++) {
+		if (yaPedidas[urls[i]]) continue;
+		yaPedidas[urls[i]] = true;
+		/* Sin guardar la referencia a propósito: lo único que se quiere es que
+		   el navegador la meta en su caché. El objeto se puede recoger en
+		   cuanto termine, y la foto se queda. */
+		var img = new Image();
+		img.src = urls[i];
+	}
+}
+
 /* ── PINTAR ──────────────────────────────────────────────────────── */
 
 function nuevoNodo(tag, clase) {
@@ -782,6 +831,10 @@ function avanzar() {
 	var cont = document.getElementById('slides');
 	var nodo = pintarSlide(slides[indice]);
 	cont.appendChild(nodo);
+
+	/* Después de pedir las de esta pantalla, nunca antes: las que se están
+	   viendo van primero. */
+	precargar(slides[(indice + 1) % slides.length]);
 
 	/* Un fotograma de margen para que el navegador registre opacidad 0 antes
 	   de subirla; sin esto la transición no ocurre y el cambio es brusco. */

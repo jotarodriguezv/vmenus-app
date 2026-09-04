@@ -619,6 +619,78 @@ describe('tv.html · qué URL se acepta como imagen', () => {
 	});
 });
 
+describe('tv.html · las fotos de la pantalla siguiente se piden antes', () => {
+	// Se pedían al enseñarlas: se creaba el nodo con su background-image y el
+	// navegador empezaba a descargar justo cuando ya tenía que verse. Con la
+	// transición de entrada, la pantalla enseñaba el marco vacío con el nombre
+	// y el precio flotando encima.
+	//
+	// Dura poco —las fotos llevan caché de un año, así que tras una vuelta
+	// entera ya están todas— pero esa primera vuelta es al encender el
+	// televisor por la mañana, delante de los primeros clientes del día.
+
+	const montar = () => {
+		const pedidas = [];
+		const ctx = extraer(['urlSegura', 'urlsDelSlide', 'precargar'], {
+			String,
+			Image: class { set src(u) { pedidas.push(u); } },
+		});
+		// 'yaPedidas' vive fuera de las funciones, así que no viaja con ellas.
+		ctx.yaPedidas = {};
+		return { ctx, pedidas };
+	};
+
+	const plato = n => ({ imagen_url: 'https://x.co/' + n + '.jpg' });
+
+	test('saca las fotos de los platos de un slide', () => {
+		const { ctx } = montar();
+		// join() y no deepEqual: los arrays nacen dentro del contexto de la VM,
+		// así que son de otro realm y deepEqual los ve distintos aunque digan
+		// lo mismo.
+		assert.equal(ctx.urlsDelSlide({ platos: [plato('a'), plato('b')] }).join('|'),
+			'https://x.co/a.jpg|https://x.co/b.jpg');
+	});
+
+	test('y la de una promoción, que va sola', () => {
+		const { ctx } = montar();
+		assert.equal(ctx.urlsDelSlide({ promo: { imagen: 'https://x.co/p.jpg' } }).join('|'),
+			'https://x.co/p.jpg');
+	});
+
+	test('una URL que no vale no se pide', () => {
+		// Misma puerta que al pintar: pedirla no rompería nada, pero deja el
+		// filtro en un solo sitio.
+		const { ctx } = montar();
+		assert.equal(ctx.urlsDelSlide({ platos: [{ imagen_url: 'javascript:x' }] }).length, 0);
+	});
+
+	test('un slide vacío o inexistente no revienta', () => {
+		// Pasa al final del ciclo si la lista quedó vacía entre dos sondeos.
+		const { ctx } = montar();
+		assert.equal(ctx.urlsDelSlide(null).length, 0);
+		assert.equal(ctx.urlsDelSlide({ platos: [] }).length, 0);
+	});
+
+	test('precargar las pide de verdad', () => {
+		const { ctx, pedidas } = montar();
+		ctx.precargar({ platos: [plato('a'), plato('b')] });
+		// 'pedidas' se llena desde el Image de mentira, que es de este lado, así
+		// que aquí sí vale deepEqual.
+		assert.deepEqual(pedidas, ['https://x.co/a.jpg', 'https://x.co/b.jpg']);
+	});
+
+	test('no pide dos veces la misma foto', () => {
+		// La última pantalla se corre hacia atrás para no quedar coja, así que
+		// repite platos de la anterior. Y con la promoción intercalada pasa
+		// otro tanto. Volver a pedirlas sería trabajo tirado en una pantalla
+		// que va a estar encendida todo el día.
+		const { ctx, pedidas } = montar();
+		ctx.precargar({ platos: [plato('a'), plato('b')] });
+		ctx.precargar({ platos: [plato('b'), plato('c')] });
+		assert.deepEqual(pedidas, ['https://x.co/a.jpg', 'https://x.co/b.jpg', 'https://x.co/c.jpg']);
+	});
+});
+
 describe('tv.html · el orden aleatorio no puede repetir al cerrar el ciclo', () => {
 	const { barajar } = extraer(['barajar'], { Math });
 
