@@ -619,6 +619,101 @@ describe('tv.html · qué URL se acepta como imagen', () => {
 	});
 });
 
+describe('tv.html · la tipografía que eligió el restaurante', () => {
+	// La cartelera llevaba Helvetica fija: el restaurante elegía su letra, la
+	// veía en la carta del QR y en el televisor salía otra. La misma marca
+	// contándose de dos formas dentro del mismo local.
+
+	const montar = (atributos) => {
+		const puestos = [];
+		const reglas = { textContent: '' };
+		const cuerpo = { style: {}, className: '' };
+		const ctx = extraer(['nombreDeFuenteSeguro', 'aplicarFuentes'], {
+			String, RegExp,
+			datos: { restaurante: { atributos } },
+			document: {
+				createElement: () => ({ rel: '', href: '' }),
+				getElementById: () => reglas,
+				head: { appendChild(e) { puestos.push(e); } },
+				body: cuerpo,
+			},
+		});
+		ctx.fuentesPuestas = '';
+		ctx.aplicarFuentes();
+		return { puestos, reglas, cuerpo, ctx };
+	};
+
+	test('pide a Google las dos familias elegidas', () => {
+		const { puestos } = montar({ fuente_titulo: 'Bebas Neue', fuente_cuerpo: 'Poppins' });
+		assert.equal(puestos.length, 1);
+		assert.match(puestos[0].href, /family=Bebas\+Neue/);
+		assert.match(puestos[0].href, /family=Poppins/);
+	});
+
+	test('con la letra de reserva activada', () => {
+		// Es lo que hace viable esto en un televisor: el texto se ve desde el
+		// primer momento con Helvetica y cambia cuando llega la buena. El peor
+		// caso —sin internet— es exactamente lo que se veía antes.
+		const { puestos } = montar({ fuente_titulo: 'Anton' });
+		assert.match(puestos[0].href, /display=swap/);
+	});
+
+	test('los títulos van a su regla y el cuerpo al body', () => {
+		const { reglas, cuerpo } = montar({ fuente_titulo: 'Anton', fuente_cuerpo: 'Inter' });
+		assert.match(reglas.textContent, /\.nombre[^{]*\{[^}]*Anton/);
+		assert.match(cuerpo.style.fontFamily, /Inter/);
+	});
+
+	test('y siempre con Helvetica detrás', () => {
+		// Si Google no contesta, el televisor no puede quedarse sin letra.
+		const { reglas, cuerpo } = montar({ fuente_titulo: 'Anton', fuente_cuerpo: 'Inter' });
+		assert.match(reglas.textContent, /Helvetica/);
+		assert.match(cuerpo.style.fontFamily, /Helvetica/);
+	});
+
+	test('sin fuentes elegidas no se pide nada', () => {
+		// Es el caso de siete de los nueve restaurantes: se quedan como estaban.
+		const { puestos, reglas } = montar({});
+		assert.equal(puestos.length, 0);
+		assert.equal(reglas.textContent, '');
+	});
+
+	test('no se piden dos veces si no cambió nada', () => {
+		// aplicar() corre en cada cambio de configuración y el sondeo lo llama
+		// cada cinco minutos: sin el freno, un enlace por hora.
+		const { ctx, puestos } = montar({ fuente_titulo: 'Anton' });
+		ctx.aplicarFuentes();
+		ctx.aplicarFuentes();
+		assert.equal(puestos.length, 1);
+	});
+
+	// ── UN NOMBRE DE FUENTE ACABA DENTRO DE UNA REGLA CSS ─────
+	// Y ahí un texto cualquiera se sale de su sitio y escribe reglas nuevas.
+	// Hoy solo lo pone el superadmin desde una lista cerrada, pero eso es una
+	// costumbre del panel, no una garantía del dato.
+
+	test('un nombre con sintaxis de CSS no se usa', () => {
+		const { ctx } = montar({});
+		assert.equal(ctx.nombreDeFuenteSeguro("x'; } body { background: url(malo) } .z {"), '');
+		assert.equal(ctx.nombreDeFuenteSeguro('Anton; }'), '');
+		assert.equal(ctx.nombreDeFuenteSeguro('<script>'), '');
+	});
+
+	test('y entonces la cartelera se queda con la suya', () => {
+		const { puestos, reglas } = montar({ fuente_titulo: 'malo; } body {' });
+		assert.equal(puestos.length, 0, 'ni se le pide a Google');
+		assert.equal(reglas.textContent, '');
+	});
+
+	test('los nombres de verdad sí pasan', () => {
+		const { ctx } = montar({});
+		assert.equal(ctx.nombreDeFuenteSeguro('Playfair Display'), 'Playfair Display');
+		assert.equal(ctx.nombreDeFuenteSeguro('Roboto'), 'Roboto');
+		assert.equal(ctx.nombreDeFuenteSeguro(''), '');
+		assert.equal(ctx.nombreDeFuenteSeguro(null), '');
+	});
+});
+
 describe('tv.html · las fotos de la pantalla siguiente se piden antes', () => {
 	// Se pedían al enseñarlas: se creaba el nodo con su background-image y el
 	// navegador empezaba a descargar justo cuando ya tenía que verse. Con la
