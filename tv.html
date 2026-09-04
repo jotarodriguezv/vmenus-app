@@ -63,6 +63,12 @@
 	   espejo y no como una etiqueta descolocada. */
 	.categoria.derecha { left: auto; right: 0.9vmin; }
 
+	/* Las reglas de tipografía se escriben desde el guion, cuando ya se sabe
+	   qué fuente eligió el restaurante. Va en su propia etiqueta y no en el
+	   bloque de arriba porque este archivo no usa variables CSS —son de la
+	   misma cosecha que las cosas que el guion tiene prohibidas— y sin ellas
+	   la única forma de cambiar una regla es reescribirla. */
+
 	.texto { flex: 0 0 auto; padding: 1.6vmin 0.4vmin 0; text-align: center; }
 	.nombre { font-weight: 700; line-height: 1.15; letter-spacing: 0.02em;
 	          overflow: hidden; }
@@ -130,6 +136,10 @@
 	          font-size: 1.8vmin; opacity: 0.45; }
 	#sinRed.visible { display: block; }
 </style>
+<!-- Lo rellena aplicarFuentes() cuando ya se sabe qué eligió el restaurante.
+     Vacía no pinta nada, así que si nunca llega la configuracion la cartelera
+     se queda con la tipografia del bloque de arriba. -->
+<style id="fuenteTitulos"></style>
 </head>
 <body>
 	<div id="marco">
@@ -462,6 +472,76 @@ function construirSlides() {
 		nuevos = con;
 	}
 	slides = nuevos;
+}
+
+/* ── LA TIPOGRAFÍA QUE ELIGIÓ EL RESTAURANTE ──────────────────────
+   La cartelera llevaba Helvetica fija. El restaurante elegía su letra en el
+   panel, la veía en la carta del QR, y en el televisor salía otra: la misma
+   marca contándose de dos formas en el mismo local.
+
+   El diseño lo había descartado por miedo a meter una petición de red que
+   bloqueara el pintado en una pantalla que se enciende sola cada mañana. Se
+   puede tener sin eso, con dos cuidados:
+
+   El enlace se añade DESPUÉS de que la página ya esté pintada — cuando llegan
+   los datos —, así que no retrasa el primer dibujo, que es lo que se temía.
+
+   Y se pide con la letra de reserva activada, o sea que el texto se ve desde
+   el primer momento con Helvetica y cambia cuando llega la buena. El peor
+   caso —televisor sin internet, Google que no responde— es exactamente lo que
+   se ve hoy. No hay escenario en que quede peor que antes.
+
+   ── POR QUÉ SE VALIDA EL NOMBRE ──
+   El nombre acaba dentro de una regla de estilo, y ahí un texto cualquiera se
+   sale de su sitio y escribe reglas nuevas. Hoy solo lo pone el superadmin
+   desde una lista cerrada, pero eso es una costumbre del panel, no una
+   garantía del dato. Se acepta lo que de verdad puede ser una familia de
+   Google —letras, cifras y espacios— y lo demás se ignora. Es la misma idea
+   que urlSegura() unas líneas más arriba. */
+var fuentesPuestas = '';
+
+function nombreDeFuenteSeguro(n) {
+	var s = String(n === null || n === undefined ? '' : n);
+	return /^[A-Za-z0-9 ]{1,40}$/.test(s) ? s : '';
+}
+
+function aplicarFuentes() {
+	var at = (datos.restaurante && datos.restaurante.atributos) || {};
+	var titulo = nombreDeFuenteSeguro(at.fuente_titulo);
+	var cuerpo = nombreDeFuenteSeguro(at.fuente_cuerpo);
+	if (!titulo && !cuerpo) return;
+
+	var familias = [];
+	if (titulo) familias.push(titulo);
+	if (cuerpo && cuerpo !== titulo) familias.push(cuerpo);
+
+	/* aplicar() corre en cada cambio de configuración y el sondeo lo llama cada
+	   cinco minutos. Sin esto, el televisor acumularía un enlace por hora. */
+	var clave = familias.join('|');
+	if (clave === fuentesPuestas) return;
+	fuentesPuestas = clave;
+
+	var partes = [];
+	for (var i = 0; i < familias.length; i++) {
+		partes.push('family=' + familias[i].replace(/ /g, '+') + ':wght@400;600;700');
+	}
+	var enlace = document.createElement('link');
+	enlace.rel = 'stylesheet';
+	enlace.href = 'https://fonts.googleapis.com/css2?' + partes.join('&') + '&display=swap';
+	document.head.appendChild(enlace);
+
+	var reserva = ', Helvetica, Arial, sans-serif';
+	if (cuerpo) document.body.style.fontFamily = "'" + cuerpo + "'" + reserva;
+
+	/* Los títulos, en la etiqueta de estilo vacía del encabezado. El nombre del
+	   plato, el de la promoción y el del reposo son los tres sitios donde se
+	   lee la marca; el precio y la etiqueta de categoría se quedan con la del
+	   cuerpo, que es la que se lee de un vistazo desde lejos. */
+	var reglas = document.getElementById('fuenteTitulos');
+	if (titulo && reglas) {
+		reglas.textContent = '.nombre, .promo-nombre, #reposoNombre { font-family: ' +
+			"'" + titulo + "'" + reserva + '; }';
+	}
 }
 
 /* ── PRECARGA DE LA SIGUIENTE PANTALLA ────────────────────────────
@@ -868,6 +948,12 @@ function aplicar(primeraVez) {
 	document.body.style.backgroundImage = pag.degradado;
 	document.body.style.color = pag.texto;
 	document.getElementById('sinRed').style.color = pag.texto;
+	/* Después del color y no antes: las dos cosas escriben en el estilo del
+	   body, y así queda claro que no se pisan — una toca 'color', la otra
+	   'font-family'. Se llama en cada aplicar() porque el restaurante puede
+	   cambiar la letra desde el panel sin tocar el televisor, pero por dentro
+	   solo hace algo cuando la elección cambió de verdad. */
+	aplicarFuentes();
 
 	var logo = urlSegura(datos.restaurante.logo_url);
 	var marca = document.getElementById('marca');
