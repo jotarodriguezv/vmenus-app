@@ -8,6 +8,7 @@
 // 6. Activa features opcionales
 
 import { sbFetch } from './supabase.js';
+import { paraElPopup } from './promociones.js';
 import {
 	setRestaurante, setCategorias, setProductos,
 	showLoading, buildMenu,
@@ -132,9 +133,18 @@ async function init() {
 		applyStyles(restaurante);
 
 		// ── 4. DATOS DE MENÚ ──────────────────────────────────────
-		const [cats, prods] = await Promise.all([
+		const [cats, prods, promos] = await Promise.all([
 			sbFetch('categorias', `restaurante_id=eq.${restaurante.id}&select=*&order=orden.asc`),
-			sbFetch('productos', `restaurante_id=eq.${restaurante.id}&disponible=eq.true&select=*&order=${ordenDeProductos(restaurante)}`)
+			sbFetch('productos', `restaurante_id=eq.${restaurante.id}&disponible=eq.true&select=*&order=${ordenDeProductos(restaurante)}`),
+			// El .catch va en ESTA promesa y no en el Promise.all: si se cae la
+			// consulta de promociones, la carta tiene que salir igual. Una
+			// promoción es un adorno; los platos son el producto. Con el catch
+			// fuera, Promise.all rechazaría y se perdería el menú entero.
+			//
+			// La lectura pública solo devuelve las encendidas (RLS), así que lo
+			// que llega aquí ya está filtrado por 'activa'.
+			sbFetch('promociones', `restaurante_id=eq.${restaurante.id}&select=*&order=orden.asc`)
+				.catch(() => [])
 		]);
 		// Las categorías con horario se ocultan fuera de su franja. Se filtra
 		// aquí, antes de repartir los datos, para que los cuatro temas y sus
@@ -180,7 +190,18 @@ async function init() {
 		initGlobalEvents();
 
 		// ── 8. PROMO ─────────────────────────────────────────────
-		if (restaurante.promo_activa && restaurante.promo_imagen_url) {
+		// Cuál sale la decide promociones.js: mira la programación con el reloj
+		// del restaurante y, si hay varias vigentes, elige una al azar. El
+		// comensal escanea el QR una vez, así que con un orden fijo la segunda
+		// no la vería nadie.
+		const promo = paraElPopup(promos, restaurante);
+		if (promo) {
+			setTimeout(() => openPromo(promo.imagen_url), 700);
+		} else if (!promos.length && restaurante.promo_activa && restaurante.promo_imagen_url) {
+			// Respaldo para un restaurante cuya promoción todavía no esté en la
+			// tabla. Solo cuando la tabla no devuelve NADA: si devolvió filas y
+			// ninguna toca ahora, es que hoy no toca — y caer aquí sacaría una
+			// promoción que el restaurante había programado para otro día.
 			setTimeout(() => openPromo(), 700);
 		}
 

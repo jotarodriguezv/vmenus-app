@@ -239,10 +239,15 @@ export function buildMenu() {
 	}
 
 	// ── PROMO ─────────────────────────────────────────────────────
-	export function openPromo() {
-		if (!restaurante?.promo_imagen_url) return;
+	// La imagen llega como argumento desde el 05/09/2026: quién sale lo decide
+	// core/promociones.js, que sabe de programación y de azar. Sin argumento cae
+	// en la columna de siempre, que es lo que ven los restaurantes cuya
+	// promoción todavía no está en la tabla.
+	export function openPromo(imagen) {
+		const src = imagen || restaurante?.promo_imagen_url;
+		if (!src) return;
 		const img = document.querySelector('.promo-img');
-		if (img) img.src = restaurante.promo_imagen_url;
+		if (img) img.src = src;
 		document.getElementById('promoOverlay')?.classList.add('open');
 		document.body.style.overflow = 'hidden';
 	}

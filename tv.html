@@ -506,6 +506,110 @@ function construirSlides() {
 	slides = nuevos;
 }
 
+/* ── ¿ESTA PROMOCIÓN TOCA AHORA? ──────────────────────────────────
+   Copia de la regla de core/horarios.js, en el dialecto de aquí. No se puede
+   importar aquel: usa módulos ES, declaraciones de bloque y encadenamiento
+   opcional, y un televisor de 2017 no degrada eso — da error de sintaxis y la
+   pantalla se queda negra durante todo un servicio (§2 de pantalla-tv.md).
+
+   Las dos copias se comprueban contra el MISMO juego de casos
+   (test/casos-programacion.json). Si se separan, la carta del QR dice que el
+   dos por uno del martes está vigente y el televisor dice que no — y eso solo
+   se nota los martes. */
+function ahoraEnZona(zona, referencia) {
+	/* Dentro y no fuera: así la función no depende de nada de su alrededor.
+	   Estando fuera, quien la llamara sin arrastrar también esta variable caía
+	   en el catch de abajo y se iba al reloj local SIN ENTERARSE — que es
+	   exactamente lo que le pasó a la primera versión de su prueba, y pasaba
+	   en verde porque esta máquina ya está en la hora de Colombia. */
+	var DIAS_ABREV = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+	var d = referencia || new Date();
+	try {
+		if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+			var f = new Intl.DateTimeFormat('en-US', {
+				timeZone: zona, weekday: 'short', hour: '2-digit', minute: '2-digit',
+				hour12: false, year: 'numeric', month: '2-digit', day: '2-digit'
+			});
+			/* formatToParts es de 2017 justo. En un televisor anterior no existe,
+			   y pedirlo sin comprobar tiraría la pantalla entera. */
+			if (f.formatToParts) {
+				var partes = f.formatToParts(d), v = {};
+				for (var i = 0; i < partes.length; i++) v[partes[i].type] = partes[i].value;
+				var h = parseInt(v.hour, 10) % 24;
+				return { dia: DIAS_ABREV[v.weekday],
+				         minutos: h * 60 + parseInt(v.minute, 10),
+				         fecha: v.year + '-' + v.month + '-' + v.day };
+			}
+		}
+	} catch (e) { /* zona inválida o Intl a medias: se cae al reloj de abajo */ }
+
+	/* Respaldo: el reloj del propio televisor. No es un mal sustituto — el
+	   aparato está FÍSICAMENTE en el restaurante, así que su hora local suele
+	   ser exactamente la que hace falta. */
+	var mes = ('0' + (d.getMonth() + 1)).slice(-2), dia = ('0' + d.getDate()).slice(-2);
+	return { dia: d.getDay(),
+	         minutos: d.getHours() * 60 + d.getMinutes(),
+	         fecha: d.getFullYear() + '-' + mes + '-' + dia };
+}
+
+function aMinutosDelDia(hhmm) {
+	var m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm == null ? '' : hhmm));
+	if (!m) return null;
+	var h = +m[1], min = +m[2];
+	return (h > 23 || min > 59) ? null : h * 60 + min;
+}
+
+function esFecha(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v == null ? '' : v)); }
+
+/* Ante cualquier configuración incompleta o inválida devuelve true: vale más
+   enseñar de más que dejar a un restaurante sin promoción un sábado por la
+   noche por un dato mal escrito. */
+function vigenteAhora(h, zona, referencia) {
+	if (!h || !h.activo) return true;
+
+	var ahora = ahoraEnZona(zona, referencia);
+
+	if (esFecha(h.desde_fecha) && ahora.fecha < h.desde_fecha) return false;
+	if (esFecha(h.hasta_fecha) && ahora.fecha > h.hasta_fecha) return false;
+
+	var desde = aMinutosDelDia(h.desde), hasta = aMinutosDelDia(h.hasta);
+	var dias = (h.dias && h.dias.length) ? h.dias : [0, 1, 2, 3, 4, 5, 6];
+	var enDia = function (d) { for (var i = 0; i < dias.length; i++) if (dias[i] === d) return true; return false; };
+
+	if (desde === null || hasta === null || desde === hasta) return enDia(ahora.dia);
+	if (desde < hasta) return enDia(ahora.dia) && ahora.minutos >= desde && ahora.minutos < hasta;
+
+	/* Franja que cruza medianoche: la madrugada cuenta como la noche anterior. */
+	if (ahora.minutos >= desde) return enDia(ahora.dia);
+	if (ahora.minutos < hasta) return enDia((ahora.dia + 6) % 7);
+	return false;
+}
+
+function tieneProgramacion(h) {
+	if (!h || !h.activo) return false;
+	return !!(h.dias && h.dias.length) ||
+	       aMinutosDelDia(h.desde) !== null || aMinutosDelDia(h.hasta) !== null ||
+	       esFecha(h.desde_fecha) || esFecha(h.hasta_fecha);
+}
+
+/* Las promociones que la cartelera puede enseñar ahora mismo.
+   Dos niveles: si hay alguna programada vigente, las de fondo no juegan. */
+function promocionesDeAhora(referencia) {
+	var r = datos.restaurante;
+	var zona = (r.atributos && r.atributos.zona_horaria) || 'America/Bogota';
+	var todas = datos.promociones || [];
+	var vivas = [], programadas = [], fondo = [];
+	for (var i = 0; i < todas.length; i++) {
+		var p = todas[i];
+		if (!p || !p.activa || !p.en_tv) continue;
+		if (!urlSegura(p.imagen_url)) continue;
+		if (!vigenteAhora(p.programacion, zona, referencia)) continue;
+		vivas.push(p);
+		if (tieneProgramacion(p.programacion)) programadas.push(p); else fondo.push(p);
+	}
+	return programadas.length ? programadas : fondo;
+}
+
 /* ── LO QUE SE INTERCALA ENTRE LAS PANTALLAS DE PLATOS ────────────
    Antes solo cabía la promoción con su propia frecuencia. Ahora es una lista
    ordenada que rota por UN SOLO ritmo: cada 'cada' pantallas de platos entra
@@ -528,20 +632,39 @@ function listaIntercalados() {
 	   ayer: se arma la lista desde las columnas de siempre. Se puede quitar
 	   cuando todos hayan guardado una vez. */
 	if (!lista || !lista.length) {
-		lista = r.promo_en_tv ? [{ tipo: 'promocion' }] : [];
+		var hayEnTabla = false, tabla = datos.promociones || [];
+		for (var j = 0; j < tabla.length; j++) if (tabla[j] && tabla[j].en_tv) hayEnTabla = true;
+		lista = (r.promo_en_tv || hayEnTabla) ? [{ tipo: 'promocion' }] : [];
 	}
 
 	var puestos = [];
 	for (var i = 0; i < lista.length; i++) {
 		var it = lista[i] || {};
 		if (it.tipo === 'promocion') {
-			/* Apagada o sin imagen NO ocupa turno. Dejarle el hueco pintaría una
-			   pantalla vacía cada cuatro, que es peor que no intercalar nada. */
-			var img = urlSegura(r.promo_imagen_url);
-			if (r.promo_activa && img) {
-				puestos.push({ promo: { imagen: img,
-				                        nombre: r.promo_nombre || '',
-				                        precio: r.promo_precio || '' } });
+			/* Una entrada 'promocion' se despliega en TODAS las promociones que
+			   tocan ahora, no en una. La cartelera da vueltas todo el servicio:
+			   repetirse no molesta, y tener tres promociones tiene que notarse en
+			   pantalla y no solo en el panel.
+			   Apagada, sin imagen o fuera de su día NO ocupa turno: dejarle el
+			   hueco pintaría una pantalla vacía cada cuatro. */
+			var deAhora = promocionesDeAhora();
+			if (deAhora.length) {
+				for (var k = 0; k < deAhora.length; k++) {
+					puestos.push({ promo: { imagen: urlSegura(deAhora[k].imagen_url),
+					                        nombre: deAhora[k].nombre || '',
+					                        precio: deAhora[k].precio || '' } });
+				}
+			} else if (!(datos.promociones || []).length) {
+				/* Respaldo para un restaurante cuya promoción no esté todavía en la
+				   tabla. Solo si la tabla no trajo NADA: si trajo filas y ninguna
+				   toca ahora, es que hoy no toca — y caer aquí sacaría una
+				   promoción que el restaurante programó para otro día. */
+				var img = urlSegura(r.promo_imagen_url);
+				if (r.promo_activa && img) {
+					puestos.push({ promo: { imagen: img,
+					                        nombre: r.promo_nombre || '',
+					                        precio: r.promo_precio || '' } });
+				}
 			}
 		} else if (it.tipo === 'marca') {
 			var logo = it.logo ? urlSegura(r.logo_url) : '';
@@ -1124,9 +1247,12 @@ function sinRed(activo) {
    core/loader.js. Eso tiene una consecuencia que costó un despliegue: pedir
    una columna que no existe no devuelve un hueco, devuelve un 400 y se cae la
    petición entera. Aquí estaban 'promo_nombre', 'promo_precio', 'promo_en_tv'
-   y 'promo_cada' —de la fase 3, que aún no se ha hecho— y la pantalla se
-   quedaba en el aviso de sin conexión con la red perfectamente.
-   Al añadirlas en la fase 3 hay que acordarse de meterlas aquí. */
+   y 'promo_cada' antes de que existieran, y la pantalla se quedaba en el aviso
+   de sin conexión con la red perfectamente.
+
+   Desde el 05/09/2026 se pide también la tabla 'promociones', que es de donde
+   sale la programación por días y horas. Esa consulta va aparte y su fallo NO
+   corta la carga: los platos son el producto. */
 function cargar(alTerminar) {
 	pedir('restaurantes?slug=eq.' + encodeURIComponent(slug) + '&activo=is.true&select=' +
 		'id,nombre,slug,logo_url,color_primario,color_secundario,atributos,' +
@@ -1140,9 +1266,19 @@ function cargar(alTerminar) {
 					'&select=id,nombre,precio,imagen_url,categoria_id,disponible&order=orden.asc',
 					function (prods) {
 						if (!prods) { alTerminar(false); return; }
-						datos = { restaurante: r, categorias: cats, productos: prods };
-						guardarCache();
-						alTerminar(true);
+						/* Las promociones NO cortan la carga si fallan. Los platos son el
+						   producto; una promoción es un adorno, y quedarse sin pantalla por
+						   ella sería cambiar un problema pequeño por uno grande. Un null se
+						   trata como "hoy no hay". */
+						pedir('promociones?restaurante_id=eq.' + r.id +
+							'&select=id,imagen_url,nombre,precio,activa,en_popup,en_tv,programacion,orden' +
+							'&order=orden.asc',
+							function (promos) {
+								datos = { restaurante: r, categorias: cats, productos: prods,
+								          promociones: promos || [] };
+								guardarCache();
+								alTerminar(true);
+							});
 					});
 			});
 		});
