@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { vigenteAhora, tieneProgramacion } from '../core/horarios.js';
+import { ahoraEn, vigenteAhora, tieneProgramacion } from '../core/horarios.js';
 import { paraElPopup, paraLaCartelera } from '../core/promociones.js';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +29,18 @@ describe('vigenteAhora · el juego de casos compartido', () => {
 		// Un JSON con la lista vacía haría pasar todo lo de arriba sin probar
 		// nada, y el verde diría lo contrario de lo que ocurre.
 		assert.ok(CASOS.casos.length >= 20, `solo hay ${CASOS.casos.length} casos`);
+	});
+});
+
+describe('ahoraEn · la zona se calcula de verdad', () => {
+	test('preguntar por Madrid da la hora de Madrid', () => {
+		// Con Bogotá esta prueba no probaría nada en la máquina del usuario, que
+		// ya está en esa hora: cualquier respaldo por reloj local acertaría por
+		// casualidad. Madrid no coincide ni con su reloj ni con el UTC de CI.
+		const r = ahoraEn('Europe/Madrid', new Date('2026-09-08T23:30:00-05:00'));
+		assert.equal(r.dia, 3);
+		assert.equal(r.minutos, 6 * 60 + 30);
+		assert.equal(r.fecha, '2026-09-09');
 	});
 });
 

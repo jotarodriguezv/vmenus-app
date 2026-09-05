@@ -516,9 +516,13 @@ function construirSlides() {
    (test/casos-programacion.json). Si se separan, la carta del QR dice que el
    dos por uno del martes está vigente y el televisor dice que no — y eso solo
    se nota los martes. */
-var DIAS_ABREV = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
 function ahoraEnZona(zona, referencia) {
+	/* Dentro y no fuera: así la función no depende de nada de su alrededor.
+	   Estando fuera, quien la llamara sin arrastrar también esta variable caía
+	   en el catch de abajo y se iba al reloj local SIN ENTERARSE — que es
+	   exactamente lo que le pasó a la primera versión de su prueba, y pasaba
+	   en verde porque esta máquina ya está en la hora de Colombia. */
+	var DIAS_ABREV = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 	var d = referencia || new Date();
 	try {
 		if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {

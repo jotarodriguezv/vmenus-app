@@ -507,6 +507,22 @@ describe('tv.html · la programación, contra el juego de casos compartido', () 
 		assert.ok(CASOS.casos.length >= 20, `solo hay ${CASOS.casos.length} casos`);
 	});
 
+	test('la zona se calcula de verdad, no se cae al reloj de la máquina', () => {
+		// Se pregunta por MADRID a propósito. Con Bogotá, una máquina que ya
+		// está en hora de Colombia da la respuesta correcta aunque el cálculo de
+		// zona NO se esté ejecutando —el respaldo por reloj local coincide por
+		// casualidad— y la prueba pasa en verde sin probar nada. Eso fue
+		// exactamente lo que ocurrió: verde en local, rojo en CI.
+		//
+		// Madrid no coincide ni con el reloj del usuario (UTC-5) ni con el del
+		// contenedor (UTC), así que si el respaldo entra, esto falla en los dos.
+		const ctx = extraer(['ahoraEnZona'], { Intl, Date, String, parseInt });
+		const r = ctx.ahoraEnZona('Europe/Madrid', new Date('2026-09-08T23:30:00-05:00'));
+		assert.equal(r.dia, 3, 'en Madrid ya es miércoles');
+		assert.equal(r.minutos, 6 * 60 + 30, 'y son las 06:30');
+		assert.equal(r.fecha, '2026-09-09');
+	});
+
 	test('sin Intl.formatToParts cae en el reloj del televisor y no revienta', () => {
 		// Es de 2017 justo. En un aparato anterior no existe, y pedirlo sin
 		// comprobar tiraría la pantalla entera. El reloj local no es mal
