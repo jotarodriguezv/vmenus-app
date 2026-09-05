@@ -477,6 +477,100 @@ describe('tv.html · la página con los colores del restaurante', () => {
 	});
 });
 
+describe('tv.html · la programación, contra el juego de casos compartido', () => {
+	// LA prueba que impide que la carta y el televisor discrepen.
+	//
+	// La misma regla vive en core/horarios.js y, copiada al dialecto viejo, aquí
+	// dentro. No se puede compartir el módulo —un televisor de 2017 no entiende
+	// la sintaxis moderna y se queda con la pantalla negra— así que lo único que
+	// queda es correr las dos contra los mismos casos.
+	//
+	// Si esto falla, la carta del QR va a decir que el dos por uno del martes
+	// está vigente y el televisor va a decir que no. Y eso solo se nota los
+	// martes, que es cuando peor se encuentra.
+	const CASOS = JSON.parse(readFileSync(join(RAIZ, 'test', 'casos-programacion.json'), 'utf8'));
+
+	const regla = () => extraer(['ahoraEnZona', 'aMinutosDelDia', 'esFecha', 'vigenteAhora'],
+		{ Intl, Date, RegExp, String, parseInt });
+
+	for (const c of CASOS.casos) {
+		test(c.nombre, () => {
+			assert.equal(
+				regla().vigenteAhora(c.programacion, CASOS.zona, new Date(c.momento)),
+				c.esperado);
+		});
+	}
+
+	test('el archivo de casos no se ha quedado vacío', () => {
+		// Una lista vacía haría pasar todo lo de arriba sin probar nada, y el
+		// verde diría lo contrario de lo que ocurre.
+		assert.ok(CASOS.casos.length >= 20, `solo hay ${CASOS.casos.length} casos`);
+	});
+
+	test('sin Intl.formatToParts cae en el reloj del televisor y no revienta', () => {
+		// Es de 2017 justo. En un aparato anterior no existe, y pedirlo sin
+		// comprobar tiraría la pantalla entera. El reloj local no es mal
+		// sustituto: el televisor está FÍSICAMENTE en el restaurante.
+		const ctx = extraer(['ahoraEnZona'], { Intl: undefined, Date, String, parseInt });
+		const r = ctx.ahoraEnZona('America/Bogota', new Date('2026-09-08T19:00:00-05:00'));
+		assert.equal(typeof r.dia, 'number');
+		assert.match(r.fecha, /^\d{4}-\d{2}-\d{2}$/);
+	});
+});
+
+describe('tv.html · qué promociones toca enseñar', () => {
+	const MARTES = new Date('2026-09-08T19:00:00-05:00');
+	const JUEVES = new Date('2026-09-10T19:00:00-05:00');
+
+	const promo = (extra = {}) => Object.assign({
+		id: 'a', activa: true, imagen_url: 'https://x/a.jpg',
+		en_popup: false, en_tv: true, programacion: {}, orden: 0,
+	}, extra);
+
+	const conPromos = promociones => extraer(
+		['urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha', 'vigenteAhora',
+		 'tieneProgramacion', 'promocionesDeAhora'],
+		{ datos: { restaurante: { atributos: {} }, promociones },
+		  Intl, Date, RegExp, String, parseInt });
+
+	test('las apagadas y las que no van al televisor no cuentan', () => {
+		const ctx = conPromos([
+			promo({ id: 'apagada', activa: false }),
+			promo({ id: 'soloPopup', en_tv: false }),
+			promo({ id: 'buena' }),
+		]);
+		assert.equal(ctx.promocionesDeAhora(MARTES).map(p => p.id).join(' '), 'buena');
+	});
+
+	test('una imagen que no es una URL segura tampoco', () => {
+		const ctx = conPromos([promo({ imagen_url: 'javascript:alert(1)' })]);
+		assert.equal(ctx.promocionesDeAhora(MARTES).length, 0);
+	});
+
+	test('el martes manda lo programado para el martes', () => {
+		const ctx = conPromos([
+			promo({ id: 'fondo' }),
+			promo({ id: 'martes', programacion: { activo: true, dias: [2] } }),
+		]);
+		assert.equal(ctx.promocionesDeAhora(MARTES).map(p => p.id).join(' '), 'martes');
+	});
+
+	test('y el jueves vuelve la de siempre', () => {
+		const ctx = conPromos([
+			promo({ id: 'fondo' }),
+			promo({ id: 'martes', programacion: { activo: true, dias: [2] } }),
+		]);
+		assert.equal(ctx.promocionesDeAhora(JUEVES).map(p => p.id).join(' '), 'fondo');
+	});
+
+	test('entran TODAS las vigentes, no una', () => {
+		// Es la diferencia con el popup de la carta: aquí el bucle da vueltas
+		// todo el servicio, así que repetirse es el objetivo.
+		const ctx = conPromos([promo({ id: 'a' }), promo({ id: 'b' })]);
+		assert.equal(ctx.promocionesDeAhora(MARTES).length, 2);
+	});
+});
+
 describe('tv.html · la lista de intercalados', () => {
 	// Antes solo cabía la promoción, con su propia frecuencia. Ahora es una
 	// lista ordenada que rota por UN ritmo: cada N pantallas de platos entra el
@@ -498,13 +592,15 @@ describe('tv.html · la lista de intercalados', () => {
 	function ciclo(r, cuantos = 4, turnoIntercalado = 0) {
 		const ctx = extraer(
 			['config', 'tvActiva', 'urlSegura', 'categoriaVisible', 'platosElegidos',
-			 'barajar', 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
+			 'barajar', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha', 'vigenteAhora',
+			 'tieneProgramacion', 'promocionesDeAhora',
+			 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
 			{
 				POR_DEFECTO: { activa: true, por_slide: 1, segundos: 8, modo: 'todos',
 				               categoria_id: null, productos: [], aleatorio: false },
 				datos: { restaurante: r, categorias: [{ id: 'c1', nombre: 'Cat' }],
 				         productos: productos(cuantos) },
-				slides: [], turnoIntercalado, Math, parseInt, String,
+				slides: [], turnoIntercalado, Math, parseInt, String, Intl, Date, RegExp,
 			}
 		);
 		ctx.construirSlides();
@@ -740,13 +836,15 @@ describe('tv.html · la promoción a pantalla completa', () => {
 	function ciclo(r, cuantos = 4, turnoIntercalado = 0) {
 		const ctx = extraer(
 			['config', 'tvActiva', 'urlSegura', 'categoriaVisible', 'platosElegidos',
-			 'barajar', 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
+			 'barajar', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha', 'vigenteAhora',
+			 'tieneProgramacion', 'promocionesDeAhora',
+			 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
 			{
 				POR_DEFECTO: { activa: true, por_slide: 1, segundos: 8, modo: 'todos',
 				               categoria_id: null, productos: [], aleatorio: false },
 				datos: { restaurante: r, categorias: [{ id: 'c1', nombre: 'Cat' }],
 				         productos: productos(cuantos) },
-				slides: [], turnoIntercalado, Math, parseInt, String,
+				slides: [], turnoIntercalado, Math, parseInt, String, Intl, Date, RegExp,
 			}
 		);
 		ctx.construirSlides();
