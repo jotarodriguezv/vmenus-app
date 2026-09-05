@@ -351,54 +351,27 @@ function config() {
    dentro de una franja, y la hora es la del RESTAURANTE, no la del televisor.
    Ante cualquier configuración incompleta se muestra: es preferible enseñar
    de más que dejar la pantalla vacía por un dato mal escrito. */
+/* ── UNA CATEGORÍA, ¿SE VE AHORA? ─────────────────────────────────
+   Delega en vigenteAhora, que es la MISMA regla que usan las promociones aquí
+   y la carta en core/horarios.js.
+
+   Tenía su propia copia —con su propio ahoraEn() y su propio aMinutos()— y
+   convivió unas horas con la de las promociones sin que nadie lo notara: dos
+   funciones distintas contestando la misma pregunta en el mismo archivo. Eso
+   es exactamente lo que el juego de casos compartido existe para impedir, y se
+   había colado por dentro.
+
+   Al unificar, las categorías ganan además el rango de fechas y quedan
+   cubiertas por test/casos-programacion.json. Y cambia un caso: un horario con
+   días pero sin horas válidas devolvía true ignorando los días, así que unos
+   martes habrían salido toda la semana. Comprobado antes de tocarlo: ninguna
+   categoría en producción tiene horario activo. */
 function categoriaVisible(cat) {
-	var h = cat && cat.atributos && cat.atributos.horario;
-	if (!h || !h.activo) return true;
-	var desde = aMinutos(h.desde), hasta = aMinutos(h.hasta);
-	if (desde === null || hasta === null || desde === hasta) return true;
-
-	var zona = (datos.restaurante.atributos && datos.restaurante.atributos.zona_horaria) || 'America/Bogota';
-	var ahora = ahoraEn(zona);
-	if (ahora === null) return true;
-
-	var dias = (h.dias && h.dias.length) ? h.dias : [0,1,2,3,4,5,6];
-	function tieneDia(d) { for (var i=0;i<dias.length;i++) if (dias[i] === d) return true; return false; }
-
-	if (desde < hasta) return tieneDia(ahora.dia) && ahora.minutos >= desde && ahora.minutos < hasta;
-	/* Franja que cruza la medianoche: la madrugada es la noche de ayer. */
-	if (ahora.minutos >= desde) return tieneDia(ahora.dia);
-	if (ahora.minutos < hasta)  return tieneDia((ahora.dia + 6) % 7);
-	return false;
+	var zona = (datos.restaurante.atributos && datos.restaurante.atributos.zona_horaria) ||
+	           'America/Bogota';
+	return vigenteAhora(cat && cat.atributos && cat.atributos.horario, zona);
 }
 
-function aMinutos(hhmm) {
-	var m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm == null ? '' : hhmm));
-	if (!m) return null;
-	var h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
-	if (h > 23 || mi > 59) return null;
-	return h * 60 + mi;
-}
-
-var DIAS = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
-
-function ahoraEn(zona) {
-	/* Intl.DateTimeFormat con timeZone existe desde 2015, pero en un televisor
-	   viejo puede faltar o no traer la base de husos. Si no está, se devuelve
-	   null y el horario se ignora — que es el lado seguro. */
-	if (!window.Intl || !Intl.DateTimeFormat) return null;
-	try {
-		var f = new Intl.DateTimeFormat('en-US', {
-			timeZone: zona, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
-		});
-		var p = f.formatToParts ? f.formatToParts(new Date()) : null;
-		if (!p) return null;
-		var v = {};
-		for (var i = 0; i < p.length; i++) v[p[i].type] = p[i].value;
-		var hora = parseInt(v.hour, 10) % 24;
-		if (DIAS[v.weekday] === undefined || isNaN(hora)) return null;
-		return { dia: DIAS[v.weekday], minutos: hora * 60 + parseInt(v.minute, 10) };
-	} catch (e) { return null; }
-}
 
 /* El nombre de la categoría de un plato. Se busca cada vez y no se cachea: son
    cuatro categorías y una lista de veinte, y un mapa que hay que invalidar en
