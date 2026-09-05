@@ -477,6 +477,192 @@ describe('tv.html · la página con los colores del restaurante', () => {
 	});
 });
 
+describe('tv.html · la lista de intercalados', () => {
+	// Antes solo cabía la promoción, con su propia frecuencia. Ahora es una
+	// lista ordenada que rota por UN ritmo: cada N pantallas de platos entra el
+	// siguiente elemento, y al acabar la lista se vuelve a empezar.
+
+	const base = (tv, extra = {}) => Object.assign({
+		id: 'r1',
+		logo_url: 'https://x/logo.png',
+		promo_activa: true,
+		promo_imagen_url: 'https://x/promo.jpg',
+		atributos: { tv: Object.assign({ activa: true, por_slide: 1 }, tv) },
+	}, extra);
+
+	const productos = n => Array.apply(null, { length: n }).map((_, i) => ({
+		id: 'p' + i, nombre: 'Plato ' + i, precio: '$1', categoria_id: 'c1',
+		imagen_url: 'https://x/' + i + '.jpg', disponible: true,
+	}));
+
+	function ciclo(r, cuantos = 4) {
+		const ctx = extraer(
+			['config', 'tvActiva', 'urlSegura', 'categoriaVisible', 'platosElegidos',
+			 'barajar', 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
+			{
+				POR_DEFECTO: { activa: true, por_slide: 1, segundos: 8, modo: 'todos',
+				               categoria_id: null, productos: [], aleatorio: false },
+				datos: { restaurante: r, categorias: [{ id: 'c1', nombre: 'Cat' }],
+				         productos: productos(cuantos) },
+				slides: [], Math, parseInt, String,
+			}
+		);
+		ctx.construirSlides();
+		return ctx.slides;
+	}
+
+	const tipos = slides => slides.map(s => s.promo ? 'promo' : (s.marca ? 'marca' : 'platos')).join(' ');
+
+	test('la lista rota: promoción, marca, promoción…', () => {
+		// Es lo que hace visible el coste de añadir pantallas: el logo le quita
+		// la mitad de los turnos a la promoción en vez de diluirla a escondidas.
+		const s = ciclo(base({
+			cada: 1,
+			intercalados: [{ tipo: 'promocion' }, { tipo: 'marca', logo: true }],
+		}), 4);
+		assert.equal(tipos(s), 'platos promo platos marca platos promo platos marca');
+	});
+
+	test('con un solo elemento se comporta igual que antes', () => {
+		// La garantía para los restaurantes que ya tienen esto funcionando.
+		const s = ciclo(base({ cada: 2, intercalados: [{ tipo: 'promocion' }] }), 4);
+		assert.equal(tipos(s), 'platos platos promo platos platos promo');
+	});
+
+	test('sin lista guardada se arma desde promo_en_tv', () => {
+		// Compatibilidad: quien no haya vuelto a guardar la configuración tiene
+		// que ver exactamente lo de ayer.
+		const s = ciclo(base({}, { promo_en_tv: true, promo_cada: 2 }), 4);
+		assert.equal(tipos(s), 'platos platos promo platos platos promo');
+	});
+
+	test('y sin promo_en_tv no se intercala nada', () => {
+		const s = ciclo(base({}, { promo_cada: 2 }), 4);
+		assert.equal(tipos(s), 'platos platos platos platos');
+	});
+
+	test('el ritmo del televisor manda sobre promo_cada', () => {
+		// 'cada' es del televisor: gobierna cualquier intercalado, no solo la
+		// promoción. 'promo_cada' solo queda de respaldo.
+		const s = ciclo(base({ cada: 4, intercalados: [{ tipo: 'promocion' }] },
+		                     { promo_cada: 2 }), 4);
+		assert.equal(tipos(s), 'platos platos platos platos promo');
+	});
+
+	test('una promoción apagada no ocupa turno', () => {
+		// Dejarle el hueco pintaría una pantalla vacía cada cuatro, que es peor
+		// que no intercalar nada.
+		const s = ciclo(base(
+			{ cada: 2, intercalados: [{ tipo: 'promocion' }, { tipo: 'marca', logo: true }] },
+			{ promo_activa: false }), 4);
+		assert.equal(tipos(s), 'platos platos marca platos platos marca');
+	});
+
+	test('una marca sin logo y sin frase tampoco', () => {
+		const s = ciclo(base({
+			cada: 2, intercalados: [{ tipo: 'marca' }, { tipo: 'promocion' }],
+		}), 4);
+		assert.equal(tipos(s), 'platos platos promo platos platos promo');
+	});
+
+	test('marcar el logo en un restaurante que no lo ha subido no cuenta', () => {
+		const s = ciclo(base(
+			{ cada: 2, intercalados: [{ tipo: 'marca', logo: true }] },
+			{ logo_url: null }), 4);
+		assert.equal(tipos(s), 'platos platos platos platos');
+	});
+
+	test('una frase sola sí cuenta', () => {
+		const s = ciclo(base({
+			cada: 2, intercalados: [{ tipo: 'marca', frase: 'Cocina de leña' }],
+		}), 4);
+		assert.equal(tipos(s), 'platos platos marca platos platos marca');
+	});
+
+	test('un tipo desconocido se ignora en vez de romper la pantalla', () => {
+		// Configuración de una versión futura leída por un televisor que todavía
+		// no se ha recargado. Un hueco de menos es un fallo; la pantalla negra, no.
+		const s = ciclo(base({
+			cada: 2, intercalados: [{ tipo: 'loquesea' }, { tipo: 'promocion' }],
+		}), 4);
+		assert.equal(tipos(s), 'platos platos promo platos platos promo');
+	});
+
+	test('un ritmo sin sentido cae en 4', () => {
+		const s = ciclo(base({ cada: 0, intercalados: [{ tipo: 'promocion' }] }), 4);
+		assert.equal(tipos(s), 'platos platos platos platos promo');
+	});
+});
+
+describe('tv.html · la pantalla de marca', () => {
+	function pintarMarca(marca) {
+		const ctx = extraer(PARA_PINTAR, {
+			document: domFalso(),
+			marcaDerecha: false,
+			NEUTRO,
+			POR_DEFECTO: { por_slide: 1, segundos: 8, tema: 'oscuro', color_categoria: 'oscuro' },
+			datos: { restaurante: { color_primario: '#ffd521', atributos: { tv: {} } },
+			         categorias: [] },
+			Math, parseInt, String,
+		});
+		return todos(ctx.pintarSlide({ marca }));
+	}
+
+	const logoDe = nodos => nodos.filter(n => (n.className || '').indexOf('marca-logo') === 0)[0];
+	const fraseDe = nodos => nodos.filter(n => n.className === 'marca-frase')[0];
+
+	test('el logo se pinta como imagen', () => {
+		const img = logoDe(pintarMarca({ logo: 'https://x/logo.png', frase: '' }));
+		assert.ok(img, 'hay un nodo para el logo');
+		assert.equal(img.src, 'https://x/logo.png');
+	});
+
+	test('con frase, el logo lleva la clase que le pone margen', () => {
+		const img = logoDe(pintarMarca({ logo: 'https://x/logo.png', frase: 'Desde 1998' }));
+		assert.match(img.className, /con-frase/);
+	});
+
+	test('sin frase no la lleva', () => {
+		// Con el logo solo, centrado de verdad se ve mejor que empujado arriba.
+		const img = logoDe(pintarMarca({ logo: 'https://x/logo.png', frase: '' }));
+		assert.doesNotMatch(img.className, /con-frase/);
+	});
+
+	test('la frase se pone con textContent, nunca como marcado', () => {
+		// La escribe el restaurante en el panel.
+		const f = fraseDe(pintarMarca({ logo: '', frase: '<b>Hola</b> & adiós' }));
+		assert.equal(f.textContent, '<b>Hola</b> & adiós');
+	});
+
+	test('la frase sola va más grande que acompañando al logo', () => {
+		const sola = fraseDe(pintarMarca({ logo: '', frase: 'Desde 1998' }));
+		const con = fraseDe(pintarMarca({ logo: 'https://x/l.png', frase: 'Desde 1998' }));
+		assert.equal(sola.style.fontSize, '6vmin');
+		assert.equal(con.style.fontSize, '4.6vmin');
+	});
+
+	test('sin logo no se crea el nodo de la imagen', () => {
+		assert.equal(logoDe(pintarMarca({ logo: '', frase: 'Desde 1998' })), undefined);
+	});
+});
+
+describe('tv.html · la animación de la marca cuelga del interruptor de siempre', () => {
+	// Un logo con movimiento propio, ajeno a esa casilla, devolvería el tirón
+	// que el panel promete evitar al apagarla para el duplicado por WiFi.
+	test('las reglas de la marca van bajo body.animada', () => {
+		for (const pieza of ['marca-logo', 'marca-frase']) {
+			const re = new RegExp('body\\.animada[^{]*\\.' + pieza + '\\s*\\{');
+			assert.ok(re.test(HTML), pieza + ' tiene que animarse solo con body.animada');
+		}
+	});
+
+	test('y no hay animación de marca fuera de ese interruptor', () => {
+		// Una regla suelta '.marca-logo { animation: … }' se saltaría la casilla.
+		const sueltas = HTML.match(/^\s*\.marca-[\w-]+\s*\{[^}]*animation/gm) || [];
+		assert.equal(sueltas.length, 0, 'hay animación de marca fuera de body.animada');
+	});
+});
+
 describe('tv.html · la promoción a pantalla completa', () => {
 	// Fase 3. La promoción se intercala cada N pantallas y ocupa el slide
 	// entero: esas piezas se diseñan para verse solas.
@@ -498,7 +684,7 @@ describe('tv.html · la promoción a pantalla completa', () => {
 	function ciclo(r, cuantos = 4) {
 		const ctx = extraer(
 			['config', 'tvActiva', 'urlSegura', 'categoriaVisible', 'platosElegidos',
-			 'barajar', 'construirSlides'],
+			 'barajar', 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
 			{
 				POR_DEFECTO: { activa: true, por_slide: 1, segundos: 8, modo: 'todos',
 				               categoria_id: null, productos: [], aleatorio: false },
