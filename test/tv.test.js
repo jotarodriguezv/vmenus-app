@@ -477,6 +477,57 @@ describe('tv.html · la página con los colores del restaurante', () => {
 	});
 });
 
+describe('tv.html · una sola regla de horario, no dos', () => {
+	// Esto pasó de verdad, y en cuestión de horas. Al traer las promociones se
+	// escribió vigenteAhora() aquí, y categoriaVisible() se quedó con SU copia
+	// —con su propio ahoraEn() y su propio aMinutos()—: dos funciones distintas
+	// contestando la misma pregunta, en el mismo archivo, sin que nadie lo
+	// notara.
+	//
+	// El juego de casos compartido no lo habría cazado: corre contra
+	// vigenteAhora, y la copia vieja no pasaba por ahí. Hace falta mirar el
+	// fuente.
+
+	// El cuerpo de una función suelta: desde su cabecera hasta la llave que la
+	// cierra en la columna 0, igual que hace extraer().
+	const cuerpoDe = nombre => {
+		const desde = GUION.indexOf(`function ${nombre}(`);
+		assert.notEqual(desde, -1, `no se encontró ${nombre}()`);
+		return GUION.slice(desde, GUION.indexOf('\n}', desde));
+	};
+
+	test('categoriaVisible delega, no calcula', () => {
+		const dentro = cuerpoDe('categoriaVisible');
+		assert.match(dentro, /vigenteAhora\(/,
+			'categoriaVisible tiene que apoyarse en la regla compartida');
+		assert.doesNotMatch(dentro, /formatToParts|% 7/,
+			'y no traer su propio cálculo de días y horas');
+	});
+
+	test('no queda ningún ayudante de horario duplicado', () => {
+		// Dos nombres distintos para lo mismo es como vuelve a colarse.
+		for (const viejo of ['function ahoraEn(', 'function aMinutos(']) {
+			assert.equal(GUION.indexOf(viejo), -1,
+				`${viejo}) es el ayudante de la copia vieja: si vuelve, hay dos reglas`);
+		}
+	});
+
+	test('solo hay UN reloj: nadie mira formatToParts fuera de ahoraEnZona', () => {
+		// Es la señal más fiable de un segundo cálculo de zona horaria. No se
+		// cuentan apariciones —hay tres, y una es un comentario—: lo que importa
+		// es que todas caigan dentro de la misma función.
+		const desde = GUION.indexOf('function ahoraEnZona(');
+		const hasta = GUION.indexOf('\n}', desde);
+		assert.notEqual(desde, -1);
+
+		for (let i = GUION.indexOf('formatToParts'); i !== -1;
+		     i = GUION.indexOf('formatToParts', i + 1)) {
+			assert.ok(i > desde && i < hasta,
+				'hay un formatToParts fuera de ahoraEnZona: eso es un segundo reloj');
+		}
+	});
+});
+
 describe('tv.html · la programación, contra el juego de casos compartido', () => {
 	// LA prueba que impide que la carta y el televisor discrepen.
 	//
@@ -607,8 +658,8 @@ describe('tv.html · la lista de intercalados', () => {
 
 	function ciclo(r, cuantos = 4, turnoIntercalado = 0) {
 		const ctx = extraer(
-			['config', 'tvActiva', 'urlSegura', 'categoriaVisible', 'platosElegidos',
-			 'barajar', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha', 'vigenteAhora',
+			['config', 'tvActiva', 'urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha',
+			 'vigenteAhora', 'categoriaVisible', 'platosElegidos', 'barajar',
 			 'tieneProgramacion', 'promocionesDeAhora',
 			 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
 			{
@@ -851,8 +902,8 @@ describe('tv.html · la promoción a pantalla completa', () => {
 
 	function ciclo(r, cuantos = 4, turnoIntercalado = 0) {
 		const ctx = extraer(
-			['config', 'tvActiva', 'urlSegura', 'categoriaVisible', 'platosElegidos',
-			 'barajar', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha', 'vigenteAhora',
+			['config', 'tvActiva', 'urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha',
+			 'vigenteAhora', 'categoriaVisible', 'platosElegidos', 'barajar',
 			 'tieneProgramacion', 'promocionesDeAhora',
 			 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
 			{
@@ -1177,7 +1228,10 @@ describe('tv.html · el orden aleatorio no puede repetir al cerrar el ciclo', ()
 });
 
 describe('tv.html · horarios de categoría', () => {
-	const { aMinutos } = extraer(['aMinutos'], { RegExp, String, parseInt });
+	// 'aMinutos' era el ayudante de la copia vieja de la regla, que convivió
+	// unas horas con la de las promociones sin que nadie lo notara. Ahora hay
+	// una sola, y este es su ayudante.
+	const { aMinutosDelDia: aMinutos } = extraer(['aMinutosDelDia'], { RegExp, String, parseInt });
 
 	test('lee las horas bien escritas', () => {
 		assert.equal(aMinutos('11:00'), 660);
