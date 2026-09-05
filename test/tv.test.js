@@ -495,7 +495,7 @@ describe('tv.html · la lista de intercalados', () => {
 		imagen_url: 'https://x/' + i + '.jpg', disponible: true,
 	}));
 
-	function ciclo(r, cuantos = 4) {
+	function ciclo(r, cuantos = 4, turnoIntercalado = 0) {
 		const ctx = extraer(
 			['config', 'tvActiva', 'urlSegura', 'categoriaVisible', 'platosElegidos',
 			 'barajar', 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
@@ -504,7 +504,7 @@ describe('tv.html · la lista de intercalados', () => {
 				               categoria_id: null, productos: [], aleatorio: false },
 				datos: { restaurante: r, categorias: [{ id: 'c1', nombre: 'Cat' }],
 				         productos: productos(cuantos) },
-				slides: [], Math, parseInt, String,
+				slides: [], turnoIntercalado, Math, parseInt, String,
 			}
 		);
 		ctx.construirSlides();
@@ -591,6 +591,62 @@ describe('tv.html · la lista de intercalados', () => {
 	test('un ritmo sin sentido cae en 4', () => {
 		const s = ciclo(base({ cada: 0, intercalados: [{ tipo: 'promocion' }] }), 4);
 		assert.equal(tipos(s), 'platos platos platos platos promo');
+	});
+
+	// ── LA ROTACIÓN SIGUE ENTRE VUELTAS ───────────────────────
+	// Fallo real, visto el 05/09/2026 al probarlo con la tele puesta: con las
+	// dos encendidas solo salía la primera, siempre. Rotando únicamente dentro
+	// de la vuelta, un ciclo con UN hueco —seis pantallas de platos y una
+	// intercalada cada cuatro— enseña siempre intercalados[0] y el segundo no
+	// aparece jamás. Hacían falta 'cada × elementos' pantallas de platos.
+
+	const dos = { cada: 4, intercalados: [{ tipo: 'promocion' }, { tipo: 'marca', logo: true }] };
+
+	test('con un solo hueco por vuelta, la primera vuelta enseña la promoción', () => {
+		const s = ciclo(base(dos), 6, 0);
+		assert.equal(tipos(s), 'platos platos platos platos promo platos platos');
+	});
+
+	test('y la siguiente vuelta enseña la marca', () => {
+		// Esto es lo que no ocurría: el segundo elemento no salía nunca.
+		const s = ciclo(base(dos), 6, 1);
+		assert.equal(tipos(s), 'platos platos platos platos marca platos platos');
+	});
+
+	test('y a la tercera se vuelve a la promoción', () => {
+		const s = ciclo(base(dos), 6, 2);
+		assert.equal(tipos(s), 'platos platos platos platos promo platos platos');
+	});
+
+	test('con dos huecos por vuelta salen las dos en la misma vuelta', () => {
+		const s = ciclo(base(dos), 8, 0);
+		assert.equal(tipos(s),
+			'platos platos platos platos promo platos platos platos platos marca');
+	});
+});
+
+describe('tv.html · la vuelta que rota los intercalados', () => {
+	// El contador avanza al empezar cada vuelta, no al pintar cada pantalla: si
+	// avanzara por pantalla, con dos huecos por vuelta se saltaría elementos.
+	const cuerpo = GUION.slice(GUION.indexOf('function avanzar('));
+
+	test('avanzar() rota y rehace los slides al volver al principio', () => {
+		const reinicio = cuerpo.indexOf('indice === 0');
+		assert.notEqual(reinicio, -1, 'avanzar() tiene que detectar el fin de vuelta');
+		const trozo = cuerpo.slice(reinicio, reinicio + 260);
+		assert.match(trozo, /turnoIntercalado\+\+/,
+			'al empezar otra vuelta hay que rotar la lista');
+		assert.match(trozo, /construirSlides\(\)/,
+			'y rehacer los slides para que la rotación se note');
+	});
+
+	test('la rotación se rehace antes de pintar', () => {
+		// Si se rehiciera después, la primera pantalla de la vuelta nueva se
+		// pintaría desde la lista vieja.
+		const rota = cuerpo.indexOf('turnoIntercalado++');
+		const pinta = cuerpo.indexOf('pintarSlide(');
+		assert.notEqual(rota, -1);
+		assert.ok(rota < pinta, 'hay que rotar antes de pintar');
 	});
 });
 
@@ -681,7 +737,7 @@ describe('tv.html · la promoción a pantalla completa', () => {
 		imagen_url: 'https://x/' + i + '.jpg', disponible: true,
 	}));
 
-	function ciclo(r, cuantos = 4) {
+	function ciclo(r, cuantos = 4, turnoIntercalado = 0) {
 		const ctx = extraer(
 			['config', 'tvActiva', 'urlSegura', 'categoriaVisible', 'platosElegidos',
 			 'barajar', 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
@@ -690,7 +746,7 @@ describe('tv.html · la promoción a pantalla completa', () => {
 				               categoria_id: null, productos: [], aleatorio: false },
 				datos: { restaurante: r, categorias: [{ id: 'c1', nombre: 'Cat' }],
 				         productos: productos(cuantos) },
-				slides: [], Math, parseInt, String,
+				slides: [], turnoIntercalado, Math, parseInt, String,
 			}
 		);
 		ctx.construirSlides();

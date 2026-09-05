@@ -230,7 +230,8 @@ var POR_DEFECTO = {
 var arranque = new Date().getTime();
 var slug = leerSlug();
 var datos = null;      /* { restaurante, categorias, productos } */
-var slides = [];       /* lista de listas de platos, o {promo:true} */
+var slides = [];       /* lista de listas de platos, o {promo:…} o {marca:…} */
+var turnoIntercalado = 0;  /* por dónde va la rotación; avanza una vez por vuelta */
 var indice = -1;
 var temporizador = null;
 var nodoActual = null;
@@ -480,12 +481,19 @@ function construirSlides() {
 		}
 	}
 
-	/* Los intercalados van al margen de 'por_slide'. */
+	/* Los intercalados van al margen de 'por_slide'.
+
+	   La rotación NO empieza de cero: sigue donde la dejó la vuelta anterior.
+	   Esto es el arreglo de un fallo real. Rotando solo dentro de la vuelta, un
+	   ciclo con un único hueco —seis pantallas de platos y una intercalada cada
+	   cuatro, que es lo normal— enseñaba SIEMPRE el primer elemento y el
+	   segundo no salía nunca. Hacían falta 'cada × elementos' pantallas de
+	   platos para verlos todos, y casi ningún restaurante las tiene. */
 	var intercalados = listaIntercalados();
 	if (intercalados.length && nuevos.length) {
 		var cada = ritmoIntercalado();
 		var con = [];
-		var turno = 0;
+		var turno = turnoIntercalado;
 		for (var n = 0; n < nuevos.length; n++) {
 			con.push(nuevos[n]);
 			if ((n + 1) % cada === 0) {
@@ -1010,6 +1018,20 @@ function avanzar() {
 	mostrarReposo(false);
 
 	indice = (indice + 1) % slides.length;
+
+	/* Empieza otra vuelta: se rota la lista de intercalados y se rehacen los
+	   slides. Rehacerlos AQUÍ no interrumpe nada —el ciclo estaba volviendo a
+	   empezar de todos modos—, y es lo que hace que con un solo hueco por
+	   vuelta se vea la promoción en una y la marca en la siguiente.
+
+	   Sin 'aleatorio' el resultado es idéntico salvo por el intercalado, porque
+	   platosElegidos() devuelve el mismo orden. Con 'aleatorio' encendido
+	   además se rebaraja, que es justo lo que esa casilla promete. */
+	if (indice === 0) {
+		turnoIntercalado++;
+		construirSlides();
+		if (!slides.length) { mostrarReposo(true); return; }
+	}
 
 	/* La marca cambia de esquina en cada slide: un panel OLED marca lo que se
 	   queda quieto, y esto va a estar meses en la misma pantalla.
