@@ -415,9 +415,28 @@ function nombreCategoria(id) {
    No hace falta nada para que el cambio de hora surta efecto: avanzar() rehace
    los slides al cerrar cada vuelta, así que la selección se vuelve a resolver
    como mucho una vuelta después. */
+/* Lo que la pantalla enseña cuando no manda ninguna excepción. */
+function seleccionBase() {
+	var c = config();
+	return { modo: c.modo, categoria_id: c.categoria_id, productos: c.productos, mezclar: false };
+}
+
+/* ¿Este plato entra en una selección? Sacado a función porque ahora se
+   pregunta DOS veces por plato: una por la excepción y otra por la base,
+   cuando la excepción se mezcla en vez de reemplazar. */
+function entraEnSeleccion(p, sel) {
+	if (sel.modo === 'categoria') return !!sel.categoria_id && p.categoria_id === sel.categoria_id;
+	if (sel.modo === 'manual') {
+		var lista = sel.productos || [];
+		for (var i = 0; i < lista.length; i++) if (lista[i] === p.id) return true;
+		return false;
+	}
+	return true;   /* 'todos' */
+}
+
 function seleccionDeAhora() {
 	var c = config();
-	var base = { modo: c.modo, categoria_id: c.categoria_id, productos: c.productos };
+	var base = seleccionBase();
 	var lista = c.programaciones;
 	if (!lista || !lista.length) return base;
 
@@ -430,7 +449,11 @@ function seleccionDeAhora() {
 		return {
 			modo: pr.modo || base.modo,
 			categoria_id: pr.categoria_id === undefined ? base.categoria_id : pr.categoria_id,
-			productos: pr.productos || []
+			productos: pr.productos || [],
+			/* Mezclar = SUMAR a lo de siempre en vez de reemplazarlo. "Los martes
+			   añadimos alitas a las hamburguesas" es una petición distinta de
+			   "los martes solo alitas", y hasta ahora solo se podía la segunda. */
+			mezclar: !!pr.mezclar
 		};
 	}
 	return base;
@@ -439,6 +462,7 @@ function seleccionDeAhora() {
 function platosElegidos() {
 	var c = config();
 	var sel = seleccionDeAhora();
+	var base = seleccionBase();
 	var visibles = {};
 	for (var i = 0; i < datos.categorias.length; i++) {
 		/* Con los horarios apagados entran todas: la categoría sigue existiendo
@@ -455,13 +479,12 @@ function platosElegidos() {
 		   peor que un plato de menos. */
 		if (!urlSegura(p.imagen_url)) continue;
 		if (!visibles[p.categoria_id]) continue;
-		if (sel.modo === 'categoria') {
-			if (!sel.categoria_id || p.categoria_id !== sel.categoria_id) continue;
-		} else if (sel.modo === 'manual') {
-			var dentro = false;
-			for (var k = 0; k < sel.productos.length; k++) if (sel.productos[k] === p.id) dentro = true;
-			if (!dentro) continue;
-		}
+		var dentro = entraEnSeleccion(p, sel);
+		/* Con la mezcla encendida, lo de siempre NO se apaga: la excepción suma.
+		   Se pregunta por la base solo si la excepción ya dijo que no, que es una
+		   comprobación de menos por plato en el caso normal. */
+		if (!dentro && sel.mezclar) dentro = entraEnSeleccion(p, base);
+		if (!dentro) continue;
 		salida.push(p);
 	}
 	return salida;
