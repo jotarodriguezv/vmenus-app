@@ -477,6 +477,76 @@ describe('tv.html · la página con los colores del restaurante', () => {
 	});
 });
 
+describe('tv.html · los horarios de categoría se pueden apagar', () => {
+	// El televisor y la carta no siempre quieren lo mismo. Una categoría de
+	// desayunos escondida a las once tiene todo el sentido en el QR —quien lo
+	// escanea va a pedir— y ninguno en una pantalla que solo enseña lo que el
+	// negocio sabe hacer.
+	// La franja va por FECHAS y en el pasado, no por día de la semana: con
+	// 'dias: [1]' esta prueba fallaría un lunes por la mañana, y una prueba que
+	// depende de cuándo se corre es la peor clase de prueba que hay.
+	const DESAYUNOS = { id: 'c1', nombre: 'Desayunos',
+		atributos: { horario: { activo: true, desde_fecha: '2020-01-01', hasta_fecha: '2020-01-02' } } };
+	const SIEMPRE = { id: 'c2', nombre: 'Hamburguesas' };
+
+	const platos = (respetar) => {
+		const ctx = extraer(
+			['config', 'tvActiva', 'urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha',
+			 'vigenteAhora', 'categoriaVisible', 'platosElegidos'],
+			{
+				POR_DEFECTO: { activa: true, por_slide: 1, modo: 'todos', categoria_id: null,
+				               productos: [], respetar_horarios: true },
+				datos: {
+					restaurante: { atributos: { tv: respetar === undefined ? {} : { respetar_horarios: respetar } } },
+					categorias: [DESAYUNOS, SIEMPRE],
+					productos: [
+						{ id: 'p1', categoria_id: 'c1', imagen_url: 'https://x/1.jpg', disponible: true },
+						{ id: 'p2', categoria_id: 'c2', imagen_url: 'https://x/2.jpg', disponible: true },
+					],
+				},
+				Intl, Date, RegExp, String, parseInt, Math,
+			});
+		return ctx.platosElegidos().map(p => p.id).join(' ');
+	};
+
+	test('por defecto se respetan, que es lo de siempre', () => {
+		// Un restaurante que no vuelva a guardar su configuración no tiene esta
+		// clave, y no puede notar que existe.
+		assert.equal(platos(undefined), 'p2');
+	});
+
+	test('encendidos explícitamente, igual', () => {
+		assert.equal(platos(true), 'p2');
+	});
+
+	test('apagados, entran también los platos fuera de horario', () => {
+		assert.equal(platos(false), 'p1 p2');
+	});
+
+	test('apagarlos no se lleva por delante lo demás que filtra', () => {
+		// Sigue haciendo falta foto y estar disponible: lo único que se ignora es
+		// la franja de la categoría.
+		const ctx = extraer(
+			['config', 'tvActiva', 'urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha',
+			 'vigenteAhora', 'categoriaVisible', 'platosElegidos'],
+			{
+				POR_DEFECTO: { activa: true, por_slide: 1, modo: 'todos', categoria_id: null,
+				               productos: [], respetar_horarios: true },
+				datos: {
+					restaurante: { atributos: { tv: { respetar_horarios: false } } },
+					categorias: [DESAYUNOS],
+					productos: [
+						{ id: 'sinFoto', categoria_id: 'c1', imagen_url: '', disponible: true },
+						{ id: 'agotado', categoria_id: 'c1', imagen_url: 'https://x/1.jpg', disponible: false },
+						{ id: 'bueno', categoria_id: 'c1', imagen_url: 'https://x/2.jpg', disponible: true },
+					],
+				},
+				Intl, Date, RegExp, String, parseInt, Math,
+			});
+		assert.equal(ctx.platosElegidos().map(p => p.id).join(' '), 'bueno');
+	});
+});
+
 describe('tv.html · una sola regla de horario, no dos', () => {
 	// Esto pasó de verdad, y en cuestión de horas. Al traer las promociones se
 	// escribió vigenteAhora() aquí, y categoriaVisible() se quedó con SU copia

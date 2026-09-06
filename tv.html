@@ -224,7 +224,16 @@ var POR_DEFECTO = {
 	activa: true, orientacion: 'horizontal', por_slide: 2,
 	segundos: 8, modo: 'todos', categoria_id: null, productos: [], aleatorio: false,
 	animacion: 'suave', mostrar_categoria: false, color_categoria: 'oscuro',
-	tema: 'oscuro'
+	tema: 'oscuro',
+	/* Si la cartelera obedece los horarios de categoría. Por defecto SÍ, que es
+	   lo que hacía antes de existir esta clave: un restaurante que no vuelva a
+	   guardar su configuración no puede notar el cambio.
+
+	   Se puede apagar porque el televisor y la carta no siempre quieren lo
+	   mismo. Una categoría de desayunos escondida a las once tiene todo el
+	   sentido en el QR —quien lo escanea va a pedir— y ninguno en una pantalla
+	   que solo enseña lo que el negocio sabe hacer. */
+	respetar_horarios: true
 };
 
 var arranque = new Date().getTime();
@@ -387,7 +396,10 @@ function platosElegidos() {
 	var c = config();
 	var visibles = {};
 	for (var i = 0; i < datos.categorias.length; i++) {
-		if (categoriaVisible(datos.categorias[i])) visibles[datos.categorias[i].id] = true;
+		/* Con los horarios apagados entran todas: la categoría sigue existiendo
+		   y sus platos siguen teniendo foto, lo único que se ignora es su franja. */
+		if (c.respetar_horarios === false || categoriaVisible(datos.categorias[i]))
+			visibles[datos.categorias[i].id] = true;
 	}
 
 	var salida = [];
