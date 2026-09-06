@@ -233,7 +233,10 @@ var POR_DEFECTO = {
 	   mismo. Una categoría de desayunos escondida a las once tiene todo el
 	   sentido en el QR —quien lo escanea va a pedir— y ninguno en una pantalla
 	   que solo enseña lo que el negocio sabe hacer. */
-	respetar_horarios: true
+	respetar_horarios: true,
+	/* Selecciones con horario propio. Vacío = la pantalla enseña siempre lo
+	   mismo, que es lo que hacía antes de existir esto. */
+	programaciones: []
 };
 
 var arranque = new Date().getTime();
@@ -392,8 +395,50 @@ function nombreCategoria(id) {
 	return '';
 }
 
+/* ── QUÉ ENSEÑA LA PANTALLA AHORA MISMO ───────────────────────────
+   La selección base —modo, categoría, lista de platos— es la de siempre.
+   Encima puede haber una lista de PROGRAMACIONES, cada una con su horario y su
+   propia selección: a las siete desayunos, a las doce almuerzos, los martes lo
+   que el negocio quiera.
+
+   Eso es exactamente lo que una memoria USB no sabe hacer, y es la razón de
+   que esto exista.
+
+   Gana la PRIMERA vigente, no "la más específica". El orden lo pone el
+   restaurante y se ve en el panel; una regla de especificidad hay que
+   deducirla, y el día que dos programaciones se solapen nadie sabría explicar
+   por qué salió una y no la otra.
+
+   Una entrada SIN horario de verdad se salta: sería vigente siempre y taparía
+   la selección base para siempre, sin que se note que fue ella.
+
+   No hace falta nada para que el cambio de hora surta efecto: avanzar() rehace
+   los slides al cerrar cada vuelta, así que la selección se vuelve a resolver
+   como mucho una vuelta después. */
+function seleccionDeAhora() {
+	var c = config();
+	var base = { modo: c.modo, categoria_id: c.categoria_id, productos: c.productos };
+	var lista = c.programaciones;
+	if (!lista || !lista.length) return base;
+
+	var zona = (datos.restaurante.atributos && datos.restaurante.atributos.zona_horaria) ||
+	           'America/Bogota';
+	for (var i = 0; i < lista.length; i++) {
+		var pr = lista[i];
+		if (!pr || !tieneProgramacion(pr.programacion)) continue;
+		if (!vigenteAhora(pr.programacion, zona)) continue;
+		return {
+			modo: pr.modo || base.modo,
+			categoria_id: pr.categoria_id === undefined ? base.categoria_id : pr.categoria_id,
+			productos: pr.productos || []
+		};
+	}
+	return base;
+}
+
 function platosElegidos() {
 	var c = config();
+	var sel = seleccionDeAhora();
 	var visibles = {};
 	for (var i = 0; i < datos.categorias.length; i++) {
 		/* Con los horarios apagados entran todas: la categoría sigue existiendo
@@ -410,11 +455,11 @@ function platosElegidos() {
 		   peor que un plato de menos. */
 		if (!urlSegura(p.imagen_url)) continue;
 		if (!visibles[p.categoria_id]) continue;
-		if (c.modo === 'categoria') {
-			if (!c.categoria_id || p.categoria_id !== c.categoria_id) continue;
-		} else if (c.modo === 'manual') {
+		if (sel.modo === 'categoria') {
+			if (!sel.categoria_id || p.categoria_id !== sel.categoria_id) continue;
+		} else if (sel.modo === 'manual') {
 			var dentro = false;
-			for (var k = 0; k < c.productos.length; k++) if (c.productos[k] === p.id) dentro = true;
+			for (var k = 0; k < sel.productos.length; k++) if (sel.productos[k] === p.id) dentro = true;
 			if (!dentro) continue;
 		}
 		salida.push(p);

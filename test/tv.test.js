@@ -477,6 +477,116 @@ describe('tv.html · la página con los colores del restaurante', () => {
 	});
 });
 
+describe('tv.html · la pantalla cambia de contenido según la hora', () => {
+	// Es lo que una memoria USB no sabe hacer, y la razón de que esto exista: a
+	// las siete la pantalla enseña desayunos, a las doce almuerzos, los martes
+	// lo que el negocio quiera.
+	//
+	// Las programaciones se fijan por FECHAS y no por día de la semana, para
+	// que las pruebas no dependan de cuándo se corran.
+	const SIEMPRE = { activo: true, desde_fecha: '2020-01-01', hasta_fecha: '2099-12-31' };
+	const NUNCA   = { activo: true, desde_fecha: '2020-01-01', hasta_fecha: '2020-01-02' };
+
+	const resolver = (tv) => extraer(
+		['config', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha', 'vigenteAhora',
+		 'tieneProgramacion', 'seleccionDeAhora'],
+		{
+			POR_DEFECTO: { modo: 'todos', categoria_id: null, productos: [], programaciones: [] },
+			datos: { restaurante: { atributos: { tv } } },
+			Intl, Date, RegExp, String, parseInt,
+		}).seleccionDeAhora();
+
+	test('sin programaciones manda la selección de siempre', () => {
+		const r = resolver({ modo: 'categoria', categoria_id: 'c9' });
+		assert.equal(r.modo, 'categoria');
+		assert.equal(r.categoria_id, 'c9');
+	});
+
+	test('una programación vigente se impone', () => {
+		const r = resolver({
+			modo: 'todos',
+			programaciones: [{ programacion: SIEMPRE, modo: 'categoria', categoria_id: 'desayunos' }],
+		});
+		assert.equal(r.modo, 'categoria');
+		assert.equal(r.categoria_id, 'desayunos');
+	});
+
+	test('una que no toca ahora se ignora', () => {
+		const r = resolver({
+			modo: 'todos',
+			programaciones: [{ programacion: NUNCA, modo: 'categoria', categoria_id: 'desayunos' }],
+		});
+		assert.equal(r.modo, 'todos');
+	});
+
+	test('gana la PRIMERA vigente, no la última', () => {
+		// El orden lo pone el restaurante y se ve en el panel. Una regla de
+		// especificidad habría que deducirla, y con dos solapadas nadie sabría
+		// explicar por qué salió una.
+		const r = resolver({
+			programaciones: [
+				{ programacion: SIEMPRE, modo: 'categoria', categoria_id: 'primera' },
+				{ programacion: SIEMPRE, modo: 'categoria', categoria_id: 'segunda' },
+			],
+		});
+		assert.equal(r.categoria_id, 'primera');
+	});
+
+	test('se salta las que no tocan hasta encontrar una que sí', () => {
+		const r = resolver({
+			programaciones: [
+				{ programacion: NUNCA,   modo: 'categoria', categoria_id: 'nunca' },
+				{ programacion: SIEMPRE, modo: 'categoria', categoria_id: 'ahora' },
+			],
+		});
+		assert.equal(r.categoria_id, 'ahora');
+	});
+
+	test('una entrada SIN horario de verdad no tapa la base', () => {
+		// Sería vigente siempre y escondería la selección de siempre para
+		// siempre, sin que se note que fue ella.
+		const r = resolver({
+			modo: 'categoria', categoria_id: 'base',
+			programaciones: [{ programacion: {}, modo: 'categoria', categoria_id: 'fantasma' }],
+		});
+		assert.equal(r.categoria_id, 'base');
+	});
+
+	test('una programación manual trae su propia lista de platos', () => {
+		const r = resolver({
+			modo: 'todos', productos: [],
+			programaciones: [{ programacion: SIEMPRE, modo: 'manual', productos: ['p1', 'p2'] }],
+		});
+		assert.equal(r.modo, 'manual');
+		assert.equal(r.productos.join(' '), 'p1 p2');
+	});
+
+	// ── Y que de verdad cambie lo que sale ────────────────────
+	test('la pantalla acaba enseñando otros platos', () => {
+		const ctx = extraer(
+			['config', 'tvActiva', 'urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha',
+			 'vigenteAhora', 'tieneProgramacion', 'seleccionDeAhora', 'categoriaVisible',
+			 'platosElegidos'],
+			{
+				POR_DEFECTO: { activa: true, modo: 'todos', categoria_id: null, productos: [],
+				               respetar_horarios: true, programaciones: [] },
+				datos: {
+					restaurante: { atributos: { tv: {
+						modo: 'todos',
+						programaciones: [{ programacion: SIEMPRE, modo: 'categoria', categoria_id: 'c2' }],
+					} } },
+					categorias: [{ id: 'c1', nombre: 'Desayunos' }, { id: 'c2', nombre: 'Almuerzos' }],
+					productos: [
+						{ id: 'p1', categoria_id: 'c1', imagen_url: 'https://x/1.jpg', disponible: true },
+						{ id: 'p2', categoria_id: 'c2', imagen_url: 'https://x/2.jpg', disponible: true },
+					],
+				},
+				Intl, Date, RegExp, String, parseInt, Math,
+			});
+		assert.equal(ctx.platosElegidos().map(p => p.id).join(' '), 'p2');
+	});
+});
+
 describe('tv.html · los horarios de categoría se pueden apagar', () => {
 	// El televisor y la carta no siempre quieren lo mismo. Una categoría de
 	// desayunos escondida a las once tiene todo el sentido en el QR —quien lo
@@ -492,7 +602,7 @@ describe('tv.html · los horarios de categoría se pueden apagar', () => {
 	const platos = (respetar) => {
 		const ctx = extraer(
 			['config', 'tvActiva', 'urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha',
-			 'vigenteAhora', 'categoriaVisible', 'platosElegidos'],
+			 'vigenteAhora', 'tieneProgramacion', 'seleccionDeAhora', 'categoriaVisible', 'platosElegidos'],
 			{
 				POR_DEFECTO: { activa: true, por_slide: 1, modo: 'todos', categoria_id: null,
 				               productos: [], respetar_horarios: true },
@@ -528,7 +638,7 @@ describe('tv.html · los horarios de categoría se pueden apagar', () => {
 		// la franja de la categoría.
 		const ctx = extraer(
 			['config', 'tvActiva', 'urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha',
-			 'vigenteAhora', 'categoriaVisible', 'platosElegidos'],
+			 'vigenteAhora', 'tieneProgramacion', 'seleccionDeAhora', 'categoriaVisible', 'platosElegidos'],
 			{
 				POR_DEFECTO: { activa: true, por_slide: 1, modo: 'todos', categoria_id: null,
 				               productos: [], respetar_horarios: true },
@@ -729,7 +839,7 @@ describe('tv.html · la lista de intercalados', () => {
 	function ciclo(r, cuantos = 4, turnoIntercalado = 0) {
 		const ctx = extraer(
 			['config', 'tvActiva', 'urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha',
-			 'vigenteAhora', 'categoriaVisible', 'platosElegidos', 'barajar',
+			 'vigenteAhora', 'tieneProgramacion', 'seleccionDeAhora', 'categoriaVisible', 'platosElegidos', 'barajar',
 			 'tieneProgramacion', 'promocionesDeAhora',
 			 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
 			{
@@ -973,7 +1083,7 @@ describe('tv.html · la promoción a pantalla completa', () => {
 	function ciclo(r, cuantos = 4, turnoIntercalado = 0) {
 		const ctx = extraer(
 			['config', 'tvActiva', 'urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha',
-			 'vigenteAhora', 'categoriaVisible', 'platosElegidos', 'barajar',
+			 'vigenteAhora', 'tieneProgramacion', 'seleccionDeAhora', 'categoriaVisible', 'platosElegidos', 'barajar',
 			 'tieneProgramacion', 'promocionesDeAhora',
 			 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
 			{
