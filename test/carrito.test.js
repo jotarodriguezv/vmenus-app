@@ -2,6 +2,7 @@
 // que al restaurante le llegue un pedido con el precio equivocado.
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 // El carrito toca localStorage y el DOM. Se preparan ANTES de importar el
 // módulo, aunque solo se usen dentro de las funciones.
@@ -664,5 +665,111 @@ describe('sin número de WhatsApp, el pedido avisa antes de pedir datos', () => 
 		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: {} });
 		loadCartFromStorage();
 		assert.notEqual(dom.nodos.cartSinPedidos?.style.display, 'block');
+	});
+});
+
+describe('abrir WhatsApp no es enviar el pedido', () => {
+	// V5 en adminmenus_restaurantes/docs/revision-ux.md. Abrir wa.me vaciaba el
+	// carrito y borraba nombre y dirección en el acto; si el comensal no le daba
+	// a enviar dentro de WhatsApp, volvía a una carta sin pedido y sin datos.
+	function montar({ bloqueado = false } = {}) {
+		const nodos = {};
+		const nodo = () => {
+			const n = {
+				style: {}, innerHTML: '', textContent: '', value: '', onclick: null, hidden: false, oyentes: {},
+				classList: { _c: new Set(), add(c) { this._c.add(c); }, remove(c) { this._c.delete(c); },
+					toggle(c) { this._c.has(c) ? this._c.delete(c) : this._c.add(c); }, contains(c) { return this._c.has(c); } },
+				appendChild() {}, querySelectorAll: () => [],
+				addEventListener(ev, fn) { (this.oyentes[ev] ||= []).push(fn); },
+				insertAdjacentElement(_, el) { nodos[el.id] = el; },
+				remove() { delete nodos[n.id]; },
+			};
+			n.querySelector = sel => (sel === 'a' ? (n._a ||= nodo()) : nodo());
+			return n;
+		};
+		globalThis.document = {
+			getElementById: id => (id in nodos ? nodos[id] : (nodos[id] = Object.assign(nodo(), { id }))),
+			createElement: () => nodo(),
+			querySelectorAll: () => [],
+		};
+		const abiertas = [];
+		globalThis.window = { open: url => { abiertas.push(url); return bloqueado ? null : {}; }, location: {} };
+		setRestaurante({ id: 'r1', slug: 'pruebas', nombre: 'Pruebas', atributos: { whatsapp_pedidos: '573001234567' } });
+		setProductos([P('h', 'HAMBURGUESA', 25000)]);
+		guardar({ v: 2, ts: Date.now(), items: [{ cartKey: 'h', id: 'h', name: 'HAMBURGUESA', price: 25000, extras: 0, cantidad: 1 }] });
+		activarCarrito();
+		const $ = id => document.getElementById(id);
+		$('clientName').value = 'Ana';
+		$('clientAddress').value = 'Calle 10 # 20-30';
+		$('paymentMethod').value = 'efectivo';
+		// Abierto a mano: openCheckout pinta los métodos de pago, y eso es otra prueba.
+		$('checkoutOverlay').classList.add('open');
+		window.vmSendWhatsAppOrder({ preventDefault() {} });
+		return { $, abiertas, nodos };
+	}
+	const enCarrito = () => leido()?.items?.length ?? 0;
+
+	test('al abrir WhatsApp el pedido y los datos siguen ahí, y se pregunta', () => {
+		const { $, abiertas } = montar();
+		assert.equal(abiertas.length, 1);
+		assert.equal(enCarrito(), 1, 'el carrito se vació solo por abrir WhatsApp');
+		assert.equal($('clientName').value, 'Ana');
+		assert.equal($('clientAddress').value, 'Calle 10 # 20-30');
+		assert.equal($('checkoutEnviado').hidden, false, 'no se pregunta si se envió');
+		assert.equal($('checkoutForm').hidden, true);
+	});
+
+	test('«Sí, ya lo envié» vacía, borra los datos y cierra', () => {
+		const { $ } = montar();
+		window.vmConfirmarEnviado();
+		assert.equal(enCarrito(), 0);
+		assert.equal($('clientName').value, '');
+		assert.equal($('checkoutOverlay').classList.contains('open'), false);
+		// La próxima vez que se abra tiene que salir el formulario, no la pregunta.
+		assert.equal($('checkoutForm').hidden, false);
+		assert.equal($('checkoutEnviado').hidden, true);
+	});
+
+	test('«Todavía no» vuelve al formulario sin tocar nada', () => {
+		const { $ } = montar();
+		window.vmTodaviaNoEnviado();
+		assert.equal(enCarrito(), 1);
+		assert.equal($('clientAddress').value, 'Calle 10 # 20-30');
+		assert.equal($('checkoutForm').hidden, false);
+		assert.equal($('checkoutEnviado').hidden, true);
+	});
+
+	test('con el emergente bloqueado, pulsar el enlace tampoco vacía: pregunta', () => {
+		const { $, nodos } = montar({ bloqueado: true });
+		assert.equal(enCarrito(), 1);
+		const aviso = nodos.checkoutManual;
+		assert.ok(aviso, 'no salió el enlace manual');
+		aviso.querySelector('a').oyentes.click.forEach(fn => fn());
+		assert.equal(enCarrito(), 1, 'pulsar el enlace vació el carrito');
+		assert.equal($('checkoutEnviado').hidden, false);
+	});
+});
+
+describe('el formulario del pedido', () => {
+	// V4. Y el tamaño de letra, que depende de V1: al quitar maximum-scale del
+	// viewport, iOS vuelve a ampliar la página al tocar un campo de menos de 16 px.
+	const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+
+	test('cada etiqueta apunta a su campo', () => {
+		for (const id of ['clientName', 'clientAddress', 'paymentMethod']) {
+			assert.match(html, new RegExp(`<label for="${id}">`), `la etiqueta de ${id} no está asociada`);
+		}
+	});
+
+	test('el móvil puede ofrecer el nombre y la dirección', () => {
+		assert.match(html.match(/<input[^>]*id="clientName"[^>]*>/)[0], /autocomplete="name"/);
+		assert.match(html.match(/<textarea[^>]*id="clientAddress"[^>]*>/)[0], /autocomplete="street-address"/);
+	});
+
+	test('los campos tienen al menos 16 px, o iOS amplía al tocarlos', () => {
+		const regla = html.match(/\.checkout-form-group input, \.checkout-form-group textarea, \.checkout-form-group select \{[\s\S]*?\}/)[0];
+		assert.match(regla, /font-size: 16px/);
+		const buscador = html.match(/color: var\(--text\); font-size: (\d+)px; font-family: var\(--font-cuerpo, inherit\);\s+\/\* 16/);
+		assert.ok(buscador && Number(buscador[1]) >= 16, 'el buscador de Explorar baja de 16 px');
 	});
 });

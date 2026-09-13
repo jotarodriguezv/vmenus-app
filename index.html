@@ -385,9 +385,19 @@
 			.checkout-form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--text); font-size: 12px; }
 			.checkout-form-group input, .checkout-form-group textarea, .checkout-form-group select {
 				width: 100%; padding: 10px; background: var(--card); border: 1px solid var(--border);
-				border-radius: 6px; color: var(--text); font-family: var(--font-cuerpo, inherit); font-size: 13px; outline: none;
+				/* 16 px y no menos: por debajo, iOS amplía la página al tocar el campo.
+				   Antes lo impedía el maximum-scale=1 del viewport, que se quitó en V1
+				   porque también impedía ampliar a quien lo necesita. */
+				border-radius: 6px; color: var(--text); font-family: var(--font-cuerpo, inherit); font-size: 16px; outline: none;
 			}
 			.checkout-form-group input:focus, .checkout-form-group textarea:focus, .checkout-form-group select:focus { border-color: var(--primary); }
+			.checkout-enviado { text-align: center; padding: 4px 0; }
+			.checkout-enviado-titulo { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+			.checkout-enviado-texto { font-size: 13px; line-height: 1.5; color: var(--text-muted); margin-bottom: 18px; }
+			.btn-todavia-no {
+				width: 100%; margin-top: 10px; padding: 12px; background: none; color: var(--text);
+				border: 1px solid var(--border); border-radius: 8px; font-size: 13px; cursor: pointer;
+			}
 			.checkout-summary { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 12px; }
 			.checkout-summary-item { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: var(--text-muted); }
 			.checkout-summary-total { display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border); color: var(--secondary); font-weight: 700; }
@@ -806,7 +816,7 @@
 			}
 			.exp-search-wrap input {
 				flex: 1; background: none; border: none; outline: none;
-				color: var(--text); font-size: 15px; font-family: var(--font-cuerpo, inherit);
+				color: var(--text); font-size: 16px; font-family: var(--font-cuerpo, inherit);   /* 16: ver .checkout-form-group */
 			}
 			.exp-search-wrap input::placeholder { color: var(--text-muted); }
 			.exp-search-clear { background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; }
@@ -1744,23 +1754,36 @@
 					<h3>Finalizar Pedido</h3>
 					<button class="close-checkout" onclick="window.vmCloseCheckout()">✕</button>
 				</div>
-				<form onsubmit="window.vmSendWhatsAppOrder(event)">
+				<form id="checkoutForm" onsubmit="window.vmSendWhatsAppOrder(event)">
 					<div class="checkout-form-group">
-						<label>👤 Tu Nombre</label>
-						<input type="text" id="clientName" placeholder="Ej: Juan Pérez" required>
+						<!-- El emoji va aparte y oculto al lector de pantalla: dentro de la
+						     etiqueta se leía en voz alta como parte del nombre del campo. -->
+						<label for="clientName"><span aria-hidden="true">👤</span> Tu Nombre</label>
+						<input type="text" id="clientName" placeholder="Ej: Juan Pérez" required
+							autocomplete="name" autocapitalize="words">
 					</div>
 					<div class="checkout-form-group">
-						<label>📍 Dirección de Entrega</label>
-						<textarea id="clientAddress" rows="3" placeholder="Ej: Calle 10 # 20-30" required></textarea>
+						<label for="clientAddress"><span aria-hidden="true">📍</span> Dirección de Entrega</label>
+						<textarea id="clientAddress" rows="3" placeholder="Ej: Calle 10 # 20-30" required
+							autocomplete="street-address"></textarea>
 					</div>
 					<div class="checkout-form-group">
-						<label>💳 Método de Pago</label>
+						<label for="paymentMethod"><span aria-hidden="true">💳</span> Método de Pago</label>
 						<select id="paymentMethod" required onchange="window.vmUpdatePaymentDetails()"></select>
 						<div id="paymentDetails" class="checkout-summary" style="display:none;margin-top:10px;"></div>
 					</div>
 					<div class="checkout-summary" id="checkoutSummary"></div>
 					<button type="submit" class="btn-send-order">📱 Enviar Pedido por WhatsApp</button>
 				</form>
+				<!-- Abrir WhatsApp solo PREPARA el mensaje: el envío lo hace el comensal
+				     dentro de WhatsApp. Por eso el pedido no se borra al abrirlo, sino
+				     cuando dice que lo envió. Ver V5 y core/carrito.js. -->
+				<div id="checkoutEnviado" class="checkout-enviado" hidden>
+					<p class="checkout-enviado-titulo">¿Enviaste el pedido en WhatsApp?</p>
+					<p class="checkout-enviado-texto">Se abrió con el mensaje ya escrito, pero hay que darle a enviar allí. Tu pedido sigue guardado aquí hasta que nos digas.</p>
+					<button type="button" class="btn-send-order" onclick="window.vmConfirmarEnviado()">Sí, ya lo envié</button>
+					<button type="button" class="btn-todavia-no" onclick="window.vmTodaviaNoEnviado()">Todavía no</button>
+				</div>
 			</div>
 		</div>
 

@@ -676,6 +676,43 @@ function updatePaymentDetails() {
 
 function closeCheckout() {
 	document.getElementById('checkoutOverlay').classList.remove('open');
+	// Si se cierra con la pregunta a la vista, la próxima vez se abre el
+	// formulario: la pregunta es sobre el envío de ahora, no un estado guardado.
+	mostrarPreguntaEnvio(false);
+}
+
+// ── ¿SE ENVIÓ? ────────────────────────────────────────────────
+// V5 en adminmenus_restaurantes/docs/revision-ux.md. Antes, abrir wa.me vaciaba
+// el carrito y borraba nombre y dirección en el acto. Pero abrir WhatsApp solo
+// prepara el mensaje: si el comensal no le daba a enviar —se lo pensó, no tenía
+// WhatsApp, volvió atrás— regresaba a una carta sin pedido y sin datos. El
+// camino del emergente bloqueado ya razonaba así; el habitual, no.
+//
+// No hay forma de saber desde aquí si el mensaje salió, así que se pregunta.
+function mostrarPreguntaEnvio(visible) {
+	const form = document.getElementById('checkoutForm');
+	const pregunta = document.getElementById('checkoutEnviado');
+	if (form) form.hidden = visible;
+	if (pregunta) pregunta.hidden = !visible;
+}
+
+function vaciarPedido() {
+	cart = [];
+	saveCartToStorage();
+	updateCartUI();
+	document.getElementById('checkoutManual')?.remove();
+	document.getElementById('clientName').value = '';
+	document.getElementById('clientAddress').value = '';
+}
+
+function confirmarEnviado() {
+	vaciarPedido();
+	closeCheckout();
+}
+
+// Vuelve al formulario tal cual: pedido, nombre y dirección siguen ahí.
+function todaviaNoEnviado() {
+	mostrarPreguntaEnvio(false);
 }
 
 function updateCheckoutSummary() {
@@ -736,12 +773,7 @@ function sendWhatsAppOrder(event) {
 		return;
 	}
 
-	cart = [];
-	saveCartToStorage();
-	updateCartUI();
-	closeCheckout();
-	document.getElementById('clientName').value = '';
-	document.getElementById('clientAddress').value = '';
+	mostrarPreguntaEnvio(true);
 }
 
 // Enlace de reserva cuando el emergente no abre. Es un <a> de verdad: al
@@ -756,16 +788,11 @@ function mostrarEnlaceManual(url) {
 	aviso.style.cssText = 'background:rgba(255,176,32,.12);border:1px solid rgba(255,176,32,.45);border-radius:8px;padding:12px;margin-top:12px;font-size:13px;line-height:1.5;text-align:center;color:var(--text)';
 	aviso.innerHTML = `<div style="margin-bottom:8px">Tu navegador bloqueó la apertura de WhatsApp. Tu pedido sigue guardado.</div>
 		<a href="${escUrl(url)}" target="_blank" rel="noopener" style="display:inline-block;background:var(--accent);color:#000;padding:10px 18px;border-radius:8px;font-weight:700;text-decoration:none">Abrir WhatsApp y enviar</a>`;
-	// Al pulsar el enlace el pedido sí sale, así que a partir de ahí el
-	// carrito se vacía igual que en el camino normal.
+	// Al pulsar el enlace pasa lo mismo que en el camino normal: WhatsApp se
+	// abre con el mensaje, pero enviarlo sigue siendo cosa del comensal.
 	aviso.querySelector('a').addEventListener('click', () => {
-		cart = [];
-		saveCartToStorage();
-		updateCartUI();
 		aviso.remove();
-		closeCheckout();
-		document.getElementById('clientName').value = '';
-		document.getElementById('clientAddress').value = '';
+		mostrarPreguntaEnvio(true);
 	});
 	cont.insertAdjacentElement('afterend', aviso);
 }
@@ -796,6 +823,8 @@ export function activarCarrito() {
 	window.vmOpenCheckout = openCheckout;
 	window.vmCloseCheckout = closeCheckout;
 	window.vmSendWhatsAppOrder = sendWhatsAppOrder;
+	window.vmConfirmarEnviado = confirmarEnviado;
+	window.vmTodaviaNoEnviado = todaviaNoEnviado;
 	window.vmCloseCustomModal = closeCustomModal;
 	window.vmUpdatePaymentDetails = updatePaymentDetails;
 }
