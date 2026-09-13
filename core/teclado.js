@@ -45,3 +45,53 @@ export function devolverFoco() {
 	// La tarjeta puede haber desaparecido (un filtro que la escondió).
 	if (el?.isConnected) el.focus({ preventScroll: true });
 }
+
+// ── EL TAB NO SALE DE LA FICHA ABIERTA ─────────────────────────
+// Con la ficha abierta, Tab pasaba del botón de cerrar a las flechas y de ahí a
+// la carta de detrás, tapada por el fondo oscuro: el foco quedaba en un plato
+// que no se ve, y un lector de pantalla se salía del diálogo sin avisar.
+//
+// Una sola escucha para todas las ventanas. Se guarda la abierta más reciente:
+// si una se abre encima de otra, manda la de arriba.
+let abierta = null;
+
+let escuchando = false;
+export function encerrarTab(contenedor) {
+	abierta = contenedor;
+	// La escucha se pone la primera vez que hace falta y no al importar el
+	// módulo: importarlo no debe tocar el documento (las pruebas lo cargan sin él).
+	if (!escuchando) { document.addEventListener('keydown', alPulsarTab); escuchando = true; }
+}
+export function soltarTab(contenedor) { if (abierta === contenedor) abierta = null; }
+
+const ENFOCABLES = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+	'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// Lo que de verdad se puede alcanzar: la flecha «anterior» en el primer plato
+// sigue en el DOM con visibility:hidden, y un Tab que la eligiera no haría nada.
+export function enfocablesDe(contenedor) {
+	return [...contenedor.querySelectorAll(ENFOCABLES)].filter(el =>
+		el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden');
+}
+
+function alPulsarTab(e) {
+	if (e.key !== 'Tab' || !abierta?.isConnected) return;
+	const lista = enfocablesDe(abierta);
+	if (!lista.length) {
+		// Nada enfocable dentro (una ficha sin fotos ni botones): el foco se
+		// queda en la propia ventana en vez de escaparse.
+		e.preventDefault();
+		abierta.focus?.({ preventScroll: true });
+		return;
+	}
+	const primero = lista[0], ultimo = lista[lista.length - 1];
+	const activo = document.activeElement;
+	const dentro = abierta.contains(activo);
+	if (e.shiftKey && (!dentro || activo === primero || activo === abierta)) {
+		e.preventDefault();
+		ultimo.focus({ preventScroll: true });
+	} else if (!e.shiftKey && (!dentro || activo === ultimo)) {
+		e.preventDefault();
+		primero.focus({ preventScroll: true });
+	}
+}

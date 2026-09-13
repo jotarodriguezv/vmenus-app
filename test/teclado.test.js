@@ -22,9 +22,15 @@ function nodo() {
 	};
 }
 
-globalThis.document = { body: {}, activeElement: null };
+const oyentesDoc = {};
+globalThis.document = {
+	body: {}, activeElement: null,
+	addEventListener(ev, fn) { (oyentesDoc[ev] ||= []).push(fn); },
+};
 document.activeElement = document.body;
-const { hacerActivable, llevarFocoA, devolverFoco } = await import('../core/teclado.js');
+// enfocablesDe mira si el control se ve: visibility:hidden cuenta como no.
+globalThis.getComputedStyle = el => ({ visibility: el.oculto ? 'hidden' : 'visible' });
+const { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } = await import('../core/teclado.js');
 
 describe('una tarjeta activable', () => {
 	test('entra en el orden del tabulador y se anuncia como botón', () => {
@@ -99,6 +105,100 @@ describe('el foco al abrir y cerrar la ficha', () => {
 	});
 });
 
+describe('el Tab no sale de la ficha abierta', () => {
+	// Con la ficha abierta, Tab llegaba a la carta de detrás: el foco acababa en
+	// un plato tapado por el fondo oscuro.
+	function control(nombre, { oculto = false, sinCaja = false } = {}) {
+		const c = nodo();
+		Object.assign(c, { nombre, oculto, getClientRects: () => (sinCaja ? [] : [{}]) });
+		return c;
+	}
+	function ventana(controles) {
+		const v = nodo();
+		v.querySelectorAll = () => controles;
+		v.contains = el => el === v || controles.includes(el);
+		return v;
+	}
+	function tab(shiftKey = false) {
+		let evitado = false;
+		const e = { key: 'Tab', shiftKey, preventDefault() { evitado = true; } };
+		(oyentesDoc.keydown || []).forEach(fn => fn(e));
+		return evitado;
+	}
+	const cerrar = control('cerrar'), anterior = control('anterior', { oculto: true }),
+		siguiente = control('siguiente'), escondido = control('escondido', { sinCaja: true });
+
+	beforeEach(() => { soltarTab(document.__v); });
+
+	test('desde el último vuelve al primero', () => {
+		const v = document.__v = ventana([cerrar, anterior, siguiente]);
+		encerrarTab(v);
+		siguiente.focus();
+		assert.equal(tab(), true);
+		assert.equal(document.activeElement, cerrar);
+	});
+
+	test('Mayús+Tab desde el primero va al último', () => {
+		const v = document.__v = ventana([cerrar, siguiente]);
+		encerrarTab(v);
+		cerrar.focus();
+		tab(true);
+		assert.equal(document.activeElement, siguiente);
+	});
+
+	test('entre medias no se toca: el navegador avanza solo', () => {
+		const medio = control('medio');
+		const v = document.__v = ventana([cerrar, medio, siguiente]);
+		encerrarTab(v);
+		medio.focus();
+		assert.equal(tab(), false);
+	});
+
+	test('se salta la flecha escondida y lo que no ocupa sitio', () => {
+		// En el primer plato la flecha «anterior» sigue en el DOM con
+		// visibility:hidden. Si contara como la última, Mayús+Tab iría a ella.
+		const v = document.__v = ventana([cerrar, siguiente, anterior, escondido]);
+		encerrarTab(v);
+		cerrar.focus();
+		tab(true);
+		assert.equal(document.activeElement, siguiente);
+	});
+
+	test('si el foco quedó fuera, Tab lo mete dentro', () => {
+		const v = document.__v = ventana([cerrar, siguiente]);
+		encerrarTab(v);
+		control('un plato de detrás').focus();
+		tab();
+		assert.equal(document.activeElement, cerrar);
+	});
+
+	test('una ventana sin nada enfocable retiene el foco en sí misma', () => {
+		const v = document.__v = ventana([]);
+		encerrarTab(v);
+		assert.equal(tab(), true);
+		assert.equal(document.activeElement, v);
+	});
+
+	test('al soltarla, Tab vuelve a ser libre', () => {
+		const v = document.__v = ventana([cerrar, siguiente]);
+		encerrarTab(v);
+		soltarTab(v);
+		siguiente.focus();
+		assert.equal(tab(), false);
+		assert.equal(document.activeElement, siguiente);
+	});
+
+	test('soltar una ventana que no es la de arriba no suelta la de arriba', () => {
+		const abajo = ventana([cerrar]), arriba = document.__v = ventana([siguiente]);
+		encerrarTab(abajo);
+		encerrarTab(arriba);
+		soltarTab(abajo);
+		control('fuera').focus();
+		tab();
+		assert.equal(document.activeElement, siguiente);
+	});
+});
+
 describe('dónde se usa', () => {
 	const leer = f => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 
@@ -135,13 +235,13 @@ describe('dónde se usa', () => {
 		// importarla, y la carta del modelo Carrito entera dejaba de cargar con
 		// «No se pudo cargar el menú». La prueba de arriba lee el texto y no lo
 		// vio; se cazó abriendo la carta en un navegador.
-		const archivos = ['core/menu.js', 'core/carrusel.js', 'temas/carrito.js', 'temas/explorar.js',
+		const archivos = ['core/menu.js', 'core/carrusel.js', 'core/carrito.js', 'temas/carrito.js', 'temas/explorar.js',
 			'temas/sidebar.js', 'temas/topnav.js', 'temas/vertical.js', 'temas/video.js'];
 		for (const f of archivos) {
 			const src = leer(f);
 			const importacion = src.match(/import \{([^}]*)\} from '\.{1,2}\/(core\/)?teclado\.js'/);
 			const importadas = importacion ? importacion[1].split(',').map(s => s.trim()) : [];
-			for (const fn of ['hacerActivable', 'llevarFocoA', 'devolverFoco']) {
+			for (const fn of ['hacerActivable', 'llevarFocoA', 'devolverFoco', 'encerrarTab', 'soltarTab']) {
 				if (new RegExp(`\\b${fn}\\(`).test(src)) {
 					assert.ok(importadas.includes(fn), `${f} llama a ${fn} sin importarla`);
 				}
@@ -156,6 +256,27 @@ describe('dónde se usa', () => {
 		assert.match(menu, /if \(estabaAbierta\) devolverFoco\(\)/);
 		const exp = leer('temas/explorar.js').match(/function closeExpModal\(\) \{[\s\S]*?\n\}/)[0];
 		assert.match(exp, /if \(estabaAbierta\) devolverFoco\(\)/);
+	});
+
+	test('las tres ventanas encierran el Tab al abrirse y lo sueltan al cerrarse', () => {
+		const casos = [
+			['core/menu.js', /export function openModal[\s\S]*?\n\t\}/, /export function closeModal\(\) \{[\s\S]*?\n\t\}/],
+			['temas/explorar.js', /function openExpModal[\s\S]*?\n\}/, /function closeExpModal\(\) \{[\s\S]*?\n\}/],
+			['core/carrito.js', /function openCustomModal[\s\S]*?\n\}/, /function closeCustomModal\(\) \{[\s\S]*?\n\}/],
+		];
+		for (const [f, abrir, cerrar] of casos) {
+			const src = leer(f);
+			assert.match(src.match(abrir)[0], /encerrarTab\(/, `${f}: abrir no encierra el Tab`);
+			assert.match(src.match(cerrar)[0], /soltarTab\(/, `${f}: cerrar no suelta el Tab`);
+		}
+	});
+
+	test('la personalización recibe el foco, lo devuelve y se cierra con Escape', () => {
+		// No hacía ninguna de las tres.
+		const src = leer('core/carrito.js');
+		assert.match(src.match(/function openCustomModal[\s\S]*?\n\}/)[0], /llevarFocoA\(/);
+		assert.match(src.match(/function closeCustomModal\(\) \{[\s\S]*?\n\}/)[0], /if \(estabaAbierta\) devolverFoco\(\)/);
+		assert.match(src, /if \(e\.key === 'Escape'\) closeCustomModal\(\)/);
 	});
 
 	test('la ficha de Explorar se cierra con Escape, solo si está abierta', () => {

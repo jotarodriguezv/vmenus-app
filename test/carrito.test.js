@@ -619,6 +619,7 @@ describe('sin número de WhatsApp, el pedido avisa antes de pedir datos', () => 
 				getElementById: id => (nodos[id] ||= nodo()),
 				createElement: () => nodo(),
 				querySelectorAll: () => [],
+				addEventListener() {},
 			},
 		};
 	}
@@ -691,6 +692,7 @@ describe('abrir WhatsApp no es enviar el pedido', () => {
 			getElementById: id => (id in nodos ? nodos[id] : (nodos[id] = Object.assign(nodo(), { id }))),
 			createElement: () => nodo(),
 			querySelectorAll: () => [],
+			addEventListener() {},
 		};
 		const abiertas = [];
 		globalThis.window = { open: url => { abiertas.push(url); return bloqueado ? null : {}; }, location: {} };

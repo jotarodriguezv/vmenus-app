@@ -2,7 +2,7 @@ import { trackClic } from './analytics.js';
 import { esc, escUrl } from './html.js';
 import { fotosDe, construirCarrusel } from './carrusel.js';
 import { montarChips, ocultarNoCoinciden } from './filtros.js';
-import { hacerActivable, llevarFocoA, devolverFoco } from './teclado.js';
+import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────
 export let restaurante = null;
@@ -154,6 +154,7 @@ export function buildMenu() {
 		document.getElementById('modalOverlay')?.classList.add('open');
 		document.body.style.overflow = 'hidden';
 		llevarFocoA(document.querySelector('#modalOverlay .modal-close-btn'));
+		encerrarTab(document.getElementById('modalSheet'));
 		const p = currentCategoryProducts[idx];
 		if (p) trackClic(restaurante?.id, p.id);
 	}
@@ -231,6 +232,7 @@ export function buildMenu() {
 		const estabaAbierta = overlay?.classList.contains('open');
 		overlay?.classList.remove('open');
 		document.body.style.overflow = '';
+		soltarTab(document.getElementById('modalSheet'));
 		if (estabaAbierta) devolverFoco();
 	}
 

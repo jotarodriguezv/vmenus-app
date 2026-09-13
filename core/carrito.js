@@ -19,6 +19,7 @@
 import { restaurante, productos, soloDigitos } from './menu.js';
 import { trackAgregarCarrito } from './analytics.js';
 import { esc, escUrl } from './html.js';
+import { llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
 
 // ── CATÁLOGO DE MÉTODOS DE PAGO ─────────────────────────────────
 // El restaurante activa/desactiva cada uno y llena sus datos desde
@@ -172,6 +173,11 @@ function openCustomModal(productId, editingCartKey = null) {
 
 	document.getElementById('customOverlay').classList.add('open');
 	document.body.style.overflow = 'hidden';
+	// Como la ficha del plato (core/teclado.js): el foco entra, no sale con Tab
+	// y vuelve al botón que la abrió. Esta ventana no hacía ninguna de las tres.
+	const custom = document.getElementById('customOverlay');
+	llevarFocoA(custom.querySelector('.custom-close'));
+	encerrarTab(custom.querySelector('.custom-modal'));
 }
 
 function toggleInSet(set, key) {
@@ -300,8 +306,13 @@ function updateCustomTotal() {
 }
 
 function closeCustomModal() {
-	document.getElementById('customOverlay').classList.remove('open');
+	const overlay = document.getElementById('customOverlay');
+	// La misma guarda que closeModal: Escape llama aquí aunque esté cerrada.
+	const estabaAbierta = overlay.classList.contains('open');
+	overlay.classList.remove('open');
 	document.body.style.overflow = '';
+	soltarTab(overlay.querySelector('.custom-modal'));
+	if (estabaAbierta) devolverFoco();
 }
 
 function addCustomToCart() {
@@ -813,6 +824,10 @@ export function activarCarrito() {
 	document.getElementById('btnAgregarCarrito')?.addEventListener('click', addCustomToCart);
 	document.getElementById('customOverlay')?.addEventListener('click', e => {
 		if (e.target.id === 'customOverlay') closeCustomModal();
+	});
+	// No se cerraba con Escape, a diferencia de la ficha del plato.
+	document.addEventListener('keydown', e => {
+		if (e.key === 'Escape') closeCustomModal();
 	});
 
 	// A propósito NO se enseña aquí ningún botón de carrito. Cada tema tiene
