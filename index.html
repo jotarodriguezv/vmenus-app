@@ -1655,6 +1655,43 @@
 				body.reels .cart-fab   { right: calc(50% - var(--ver-ancho) / 2 + 18px); }
 				body.reels .social-bar { right: calc(50% - var(--ver-ancho) / 2 + 12px); }
 			}
+
+			/* ══════════════════════════════════════════════════════════
+			   ZONA DE TOQUE (V3 y MD2 en adminmenus_restaurantes/docs/revision-ux.md)
+			   Ocho controles medían menos de 44 × 44, la referencia para un pulgar,
+			   y los peores eran los de CERRAR: 18 × 30 el del pedido. El de limpiar
+			   la búsqueda de Explorar, 16 × 16.
+
+			   Se agranda lo que se puede TOCAR, no lo que se VE: el diseño de cada
+			   tema se queda como está. Va al final para ganar a las reglas de arriba
+			   sin tener que tocarlas una a una.
+			══════════════════════════════════════════════════════════ */
+
+			/* Los redondos, colocados con position:absolute: un borde invisible
+			   alrededor lleva la diana de 36 a 44 sin cambiar el círculo. */
+			.modal-close-btn::before, .modal-nav::before, .promo-close::before {
+				content: ''; position: absolute; inset: -4px; border-radius: 50%;
+			}
+			/* Estos dos llevan borde de 1 px, y el inset se mide desde DENTRO del
+			   borde: con -4px se quedaban en 42. Medido en la carta, no calculado. */
+			.modal-nav::before, .promo-close::before { inset: -5px; }
+			/* Cantidad: se pulsa muchas veces seguidas, y el hueco entre los dos
+			   (16 px) deja sitio para crecer 5 px por lado sin solaparse. */
+			.custom-qty-btn { position: relative; }
+			.custom-qty-btn::before { content: ''; position: absolute; inset: -5px; border-radius: 50%; }
+
+			/* Las ✕ de texto: tamaño mínimo real, y el margen negativo devuelve el
+			   sitio que ocupaban para que la cabecera no crezca ni se descoloque. */
+			.close-cart, .close-checkout, .custom-close {
+				min-width: 44px; min-height: 44px; margin: -8px -12px -8px 0;
+				display: inline-flex; align-items: center; justify-content: center;
+			}
+
+			/* Limpiar la búsqueda: cabe en la barra de 48 px de alto. */
+			.exp-search-clear {
+				min-width: 44px; min-height: 44px; margin: -14px -14px -14px 0;
+				align-items: center; justify-content: center;
+			}
 		</style>
 	</head>
 	<body>
