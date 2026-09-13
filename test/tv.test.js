@@ -1506,3 +1506,107 @@ describe('tv.html · horarios de categoría', () => {
 			assert.equal(aMinutos(malo), null, `con ${JSON.stringify(malo)}`);
 	});
 });
+
+describe('tv.html · la pantalla no se apaga sola', () => {
+	// TV1. El panel recomienda un computador por HDMI como lo más estable, y un
+	// computador apaga la pantalla a los diez o quince minutos de fábrica.
+	const montar = (extra = {}) => {
+		const avisos = [];
+		const ctx = extraer(['mantenerEncendida'], {
+			bloqueoPantalla: null, pidiendoBloqueo: false, ultimoRechazo: 0, ESPERA_TRAS_RECHAZO_MS: 5 * 60 * 1000,
+			registrar: t => avisos.push(t), ...extra,
+		});
+		return { ctx, avisos };
+	};
+	// Una promesa a mano, sincrónica, para ver el orden sin esperar.
+	const pedida = (resultado, falla = false) => {
+		const p = { pedidas: 0 };
+		p.request = tipo => {
+			p.pedidas++; p.tipo = tipo;
+			return { then(bien, mal) { p.bien = () => bien(resultado); p.mal = () => mal({ name: 'NotAllowedError' }); if (!falla) p.bien(); else p.mal(); } };
+		};
+		return p;
+	};
+	const visible = { visibilityState: 'visible' };
+
+	test('pide el bloqueo de pantalla al arrancar', () => {
+		const { ctx } = montar();
+		const wl = pedida({ released: false });
+		assert.equal(ctx.mantenerEncendida({ wakeLock: wl }, visible), true);
+		assert.equal(wl.pedidas, 1);
+		assert.equal(wl.tipo, 'screen');
+	});
+
+	test('con un bloqueo vivo no vuelve a pedir en cada vuelta del carrusel', () => {
+		const { ctx } = montar();
+		const wl = pedida({ released: false });
+		ctx.mantenerEncendida({ wakeLock: wl }, visible);
+		ctx.mantenerEncendida({ wakeLock: wl }, visible);
+		ctx.mantenerEncendida({ wakeLock: wl }, visible);
+		assert.equal(wl.pedidas, 1);
+	});
+
+	test('si el navegador lo soltó, lo vuelve a pedir', () => {
+		// Lo suelta al cambiar de pestaña o minimizar, y ya no sirve.
+		const { ctx } = montar();
+		const b = { released: false };
+		const wl = pedida(b);
+		ctx.mantenerEncendida({ wakeLock: wl }, visible);
+		b.released = true;
+		ctx.mantenerEncendida({ wakeLock: wl }, visible);
+		assert.equal(wl.pedidas, 2);
+	});
+
+	test('con la página oculta no lo pide: fallaría siempre', () => {
+		const { ctx } = montar();
+		const wl = pedida({ released: false });
+		assert.equal(ctx.mantenerEncendida({ wakeLock: wl }, { visibilityState: 'hidden' }), false);
+		assert.equal(wl.pedidas, 0);
+	});
+
+	test('un navegador sin la función sigue como antes, sin romper nada', () => {
+		// Es el caso de muchos televisores. Tiene que ser silencioso.
+		const { ctx, avisos } = montar();
+		assert.equal(ctx.mantenerEncendida({}, visible), false);
+		assert.equal(ctx.mantenerEncendida(undefined, visible), false);
+		assert.equal(avisos.length, 0);
+	});
+
+	test('si lo deniega, lo cuenta en la consola y puede volver a intentarlo', () => {
+		const { ctx, avisos } = montar();
+		const wl = pedida(null, true);
+		ctx.mantenerEncendida({ wakeLock: wl }, visible);
+		assert.match(avisos[0], /pantalla se apague/);
+		ctx.mantenerEncendida({ wakeLock: wl }, visible);
+		assert.equal(wl.pedidas, 2, 'un rechazo dejó la bandera puesta y no se reintenta nunca');
+	});
+
+	test('tras una denegación, el carrusel no insiste en cada vuelta', () => {
+		// Visto en un navegador que deniega el permiso: sin esto pediría y avisaría
+		// en la consola cada ocho segundos, para siempre.
+		const { ctx, avisos } = montar();
+		const wl = pedida(null, true);
+		ctx.mantenerEncendida({ wakeLock: wl }, visible);
+		for (let i = 0; i < 10; i++) ctx.mantenerEncendida({ wakeLock: wl }, visible, true);
+		assert.equal(wl.pedidas, 1);
+		assert.equal(avisos.length, 1);
+		// Pasados cinco minutos, sí.
+		ctx.ultimoRechazo -= 5 * 60 * 1000 + 1;
+		ctx.mantenerEncendida({ wakeLock: wl }, visible, true);
+		assert.equal(wl.pedidas, 2);
+	});
+
+	test('si request lanza en vez de devolver, tampoco rompe la cartelera', () => {
+		const { ctx, avisos } = montar();
+		const wl = { request() { throw new Error('SecurityError'); } };
+		assert.doesNotThrow(() => ctx.mantenerEncendida({ wakeLock: wl }, visible));
+		assert.equal(avisos.length, 1);
+	});
+
+	test('se pide al arrancar, al volver a verse la página y en cada vuelta', () => {
+		assert.match(CODIGO, /\/\* ── ARRANQUE[\s\S]*?\nmantenerEncendida\(window\.navigator, document\);/);
+		assert.match(CODIGO, /'visibilitychange', function \(\) \{\s*mantenerEncendida\(/);
+		const i = CODIGO.indexOf('function avanzar(');
+		assert.match(CODIGO.slice(i, CODIGO.indexOf('\n}', i)), /mantenerEncendida\(window\.navigator, document, true\)/);
+	});
+});

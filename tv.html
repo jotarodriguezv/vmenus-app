@@ -1189,6 +1189,8 @@ function avanzar() {
 	   quedarse encendido días, y ahí es donde se acumulan las fugas. Recargar
 	   en la transición, nunca a media animación. */
 	if (new Date().getTime() - arranque > REINICIO_MS) { window.location.reload(); return; }
+	/* Por si el navegador soltó el bloqueo de apagado sin avisar. */
+	mantenerEncendida(window.navigator, document, true);
 
 	if (!tvActiva() || !slides.length) { mostrarReposo(true); return; }
 	mostrarReposo(false);
@@ -1349,7 +1351,65 @@ function sondear() {
 	});
 }
 
+/* ── LA PANTALLA NO SE APAGA SOLA ────────────────────────────────── */
+
+/* TV1 en adminmenus_restaurantes/docs/revision-ux.md. El panel recomienda,
+   como lo más estable, un computador por HDMI, y un computador apaga la
+   pantalla por ahorro de energía a los diez o quince minutos de fábrica: la
+   cartelera se quedaba en negro sola y el dueño no tenía cómo relacionarlo.
+
+   Se pide el bloqueo de apagado donde el navegador lo ofrezca. Donde no —un
+   televisor viejo, un navegador sin la función— no pasa nada y la pantalla
+   se comporta como antes; por eso el panel también dice cómo quitar el apagado
+   a mano.
+
+   El navegador SUELTA el bloqueo al cambiar de pestaña o minimizar, así que no
+   basta con pedirlo al arrancar: se vuelve a pedir cada vez que la página
+   vuelve a verse. Y se sondea en cada vuelta del carrusel por si lo soltó sin
+   avisar, que es barato porque solo pide si no hay uno vivo.
+
+   Salvo tras una denegación: un navegador que dice que no lo seguirá diciendo,
+   y reintentar cada ocho segundos llenaría la consola para siempre. Visto en
+   un navegador que deniega el permiso. Entonces el carrusel reintenta como
+   mucho cada cinco minutos; al arrancar y al volver a verse, siempre. */
+var bloqueoPantalla = null;
+var pidiendoBloqueo = false;
+var ultimoRechazo = 0;
+var ESPERA_TRAS_RECHAZO_MS = 5 * 60 * 1000;
+
+function mantenerEncendida(nav, doc, desdeCarrusel) {
+	var wl = nav && nav.wakeLock;
+	if (!wl || typeof wl.request !== 'function') return false;
+	if (pidiendoBloqueo || (bloqueoPantalla && !bloqueoPantalla.released)) return false;
+	if (desdeCarrusel && new Date().getTime() - ultimoRechazo < ESPERA_TRAS_RECHAZO_MS) return false;
+	/* Pedirlo con la página oculta falla siempre: se espera a que se vea. */
+	if (doc && doc.visibilityState && doc.visibilityState !== 'visible') return false;
+	pidiendoBloqueo = true;
+	try {
+		wl.request('screen').then(function (b) {
+			pidiendoBloqueo = false;
+			bloqueoPantalla = b;
+		}, function (err) {
+			pidiendoBloqueo = false;
+			ultimoRechazo = new Date().getTime();
+			registrar('no se pudo impedir que la pantalla se apague: ' + ((err && err.name) || err));
+		});
+	} catch (e) {
+		pidiendoBloqueo = false;
+		ultimoRechazo = new Date().getTime();
+		registrar('no se pudo impedir que la pantalla se apague: ' + e);
+	}
+	return true;
+}
+
 /* ── ARRANQUE ────────────────────────────────────────────────────── */
+
+mantenerEncendida(window.navigator, document);
+if (document.addEventListener) {
+	document.addEventListener('visibilitychange', function () {
+		mantenerEncendida(window.navigator, document);
+	}, false);
+}
 
 if (!slug) {
 	mostrarReposo(true);
