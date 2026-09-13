@@ -284,3 +284,52 @@ describe('dónde se usa', () => {
 		assert.match(src, /e\.key === 'Escape' && modal\.classList\.contains\('open'\)\) closeExpModal\(\)/);
 	});
 });
+
+describe('los controles pequeños se pueden tocar con el pulgar', () => {
+	// V3 y MD2. Medidos en la carta a 375 px: el cierre del pedido 18 × 30, el de
+	// limpiar la búsqueda 16 × 16. La referencia es 44 × 44. Se agranda la zona
+	// de toque sin cambiar lo que se ve, así que la cuenta sale del CSS.
+	const css = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+	const MINIMO = 44;
+	// La primera regla del archivo que empieza exactamente por ese selector: la
+	// que define su tamaño visible.
+	const regla = sel => {
+		const i = css.indexOf('\n\t\t\t' + sel + ' {');
+		assert.ok(i >= 0, `no se encontró la regla de ${sel}`);
+		const abre = css.indexOf('{', i);
+		return css.slice(abre + 1, css.indexOf('}', abre));
+	};
+	const px = (cuerpo, prop) => {
+		const m = cuerpo.match(new RegExp(String.raw`(?:^|[;\s])${prop}:\s*(-?\d+)px`));
+		return m ? Number(m[1]) : 0;
+	};
+	// El último inset que se declara para el ::before de ese control. Los
+	// comentarios se quitan antes: el que va delante de una regla se colaba en
+	// su selector.
+	const sinComentarios = css.replace(/\/\*[\s\S]*?\*\//g, '');
+	const insetDe = sel => {
+		const bloques = [...sinComentarios.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+			.filter(([, s]) => s.split(',').map(x => x.trim()).includes(`${sel}::before`));
+		assert.ok(bloques.length, `${sel} no tiene zona de toque ampliada`);
+		return Number(bloques.map(b => b[2].match(/inset:\s*(-?\d+)px/)).filter(Boolean).pop()[1]);
+	};
+	const borde = cuerpo => (/border:\s*1px/.test(cuerpo) ? 1 : 0);
+
+	for (const sel of ['.modal-close-btn', '.modal-nav', '.promo-close', '.custom-qty-btn']) {
+		test(`${sel}: lo que se ve más el borde invisible llega a ${MINIMO}`, () => {
+			const cuerpo = regla(sel);
+			const visible = px(cuerpo, 'width');
+			// El inset se mide desde dentro del borde: ya pasó con -4px, que dejaba 42.
+			const tocable = visible - 2 * borde(cuerpo) - 2 * insetDe(sel);
+			assert.ok(tocable >= MINIMO, `${sel} se toca en ${tocable} px`);
+		});
+	}
+
+	test('las ✕ de texto y el botón de limpiar la búsqueda miden al menos 44', () => {
+		const bloque = css.match(/\.close-cart, \.close-checkout, \.custom-close \{([^}]*)\}/);
+		assert.ok(bloque, 'falta la regla de las ✕ de texto');
+		assert.ok(px(bloque[1], 'min-width') >= MINIMO && px(bloque[1], 'min-height') >= MINIMO);
+		const limpiar = [...css.matchAll(/\n\s*\.exp-search-clear \{([^}]*)\}/g)].map(m => m[1]).pop();
+		assert.ok(px(limpiar, 'min-width') >= MINIMO && px(limpiar, 'min-height') >= MINIMO);
+	});
+});
