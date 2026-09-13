@@ -326,9 +326,12 @@ describe('los controles pequeños se pueden tocar con el pulgar', () => {
 	}
 
 	test('las ✕ de texto y el botón de limpiar la búsqueda miden al menos 44', () => {
-		const bloque = css.match(/\.close-cart, \.close-checkout, \.custom-close \{([^}]*)\}/);
+		const bloque = css.match(/\.close-cart, \.close-checkout, \.custom-close, \.close-menu \{([^}]*)\}/);
 		assert.ok(bloque, 'falta la regla de las ✕ de texto');
 		assert.ok(px(bloque[1], 'min-width') >= MINIMO && px(bloque[1], 'min-height') >= MINIMO);
+		// MD1: el botón que abre el lateral medía 40 × 33.
+		const hamburguesa = [...css.matchAll(/\n\s*\.menu-toggle \{([^}]*)\}/g)].map(m => m[1]).pop();
+		assert.ok(px(hamburguesa, 'min-width') >= MINIMO && px(hamburguesa, 'min-height') >= MINIMO);
 		const limpiar = [...css.matchAll(/\n\s*\.exp-search-clear \{([^}]*)\}/g)].map(m => m[1]).pop();
 		assert.ok(px(limpiar, 'min-width') >= MINIMO && px(limpiar, 'min-height') >= MINIMO);
 	});
