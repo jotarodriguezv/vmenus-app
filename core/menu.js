@@ -2,6 +2,7 @@ import { trackClic } from './analytics.js';
 import { esc, escUrl } from './html.js';
 import { fotosDe, construirCarrusel } from './carrusel.js';
 import { montarChips, ocultarNoCoinciden } from './filtros.js';
+import { hacerActivable, llevarFocoA, devolverFoco } from './teclado.js';
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────
 export let restaurante = null;
@@ -80,6 +81,7 @@ export function buildMenu() {
 				item.className = 'list-item';
 				item.dataset.plato = p.id;
 				item.onclick = () => openModal(cat.id, prods.indexOf(p));
+				hacerActivable(item);
 				item.innerHTML = `
 				<span class="list-name">
 					${esc(p.nombre)}
@@ -103,6 +105,7 @@ export function buildMenu() {
 					row.className = 'product-noimg';
 					row.dataset.plato = p.id;
 					row.onclick = () => openModal(cat.id, idx);
+					hacerActivable(row);
 					row.innerHTML = `
 					<div class="card-name">${esc(p.nombre)}</div>
 					<div class="card-price">${esc(p.precio)}</div>
@@ -114,6 +117,7 @@ export function buildMenu() {
 				card.className = 'product-card has-img';
 				card.dataset.plato = p.id;
 				card.onclick = () => openModal(cat.id, idx);
+				hacerActivable(card);
 				card.innerHTML = `
 				<div class="card-img-wrap">
 					<img class="card-img" src="${escUrl(p.imagen_url)}" alt="${esc(p.nombre)}" loading="lazy"
@@ -149,6 +153,7 @@ export function buildMenu() {
 		renderModal();
 		document.getElementById('modalOverlay')?.classList.add('open');
 		document.body.style.overflow = 'hidden';
+		llevarFocoA(document.querySelector('#modalOverlay .modal-close-btn'));
 		const p = currentCategoryProducts[idx];
 		if (p) trackClic(restaurante?.id, p.id);
 	}
@@ -178,6 +183,7 @@ export function buildMenu() {
 			img.src = imgs[0];
 			img.alt = p.nombre;
 			img.onclick = () => openLightbox(imgs[0]);
+			hacerActivable(img, 'Ampliar la foto');
 			img.onerror = () => {
 				img.remove();
 				wrap.insertAdjacentHTML('afterbegin', `<div class="modal-no-img">${noImgHtml()}</div>`);
@@ -219,8 +225,13 @@ export function buildMenu() {
 	}
 
 	export function closeModal() {
-		document.getElementById('modalOverlay')?.classList.remove('open');
+		const overlay = document.getElementById('modalOverlay');
+		// Escape llama aquí esté o no abierta la ficha: sin esta guarda, cada
+		// Escape robaría el foco de donde estuviera.
+		const estabaAbierta = overlay?.classList.contains('open');
+		overlay?.classList.remove('open');
 		document.body.style.overflow = '';
+		if (estabaAbierta) devolverFoco();
 	}
 
 	export function handleOverlayClick(e) {

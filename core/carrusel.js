@@ -7,6 +7,8 @@
 // carrusel en vez de una copia. Dos copias es justo como empezó el problema
 // del escapado de HTML: bien resuelto en un tema y ausente en los otros dos.
 
+import { hacerActivable } from './teclado.js';
+
 // Fotos de un producto, en orden y sin repetir: la principal primero.
 export function fotosDe(producto) {
 	const fotos = [];
@@ -39,7 +41,10 @@ export function construirCarrusel(fotos, { alt = '', alAmpliar = null } = {}) {
 		img.src = url;
 		img.alt = alt;
 		img.style.cursor = alAmpliar ? 'zoom-in' : 'default';
-		if (alAmpliar) img.onclick = () => alAmpliar(url);
+		if (alAmpliar) {
+			img.onclick = () => alAmpliar(url);
+			hacerActivable(img, 'Ampliar la foto');
+		}
 		diapositiva.appendChild(img);
 		pista.appendChild(diapositiva);
 	});
@@ -50,6 +55,7 @@ export function construirCarrusel(fotos, { alt = '', alAmpliar = null } = {}) {
 		const punto = document.createElement('div');
 		punto.className = 'carousel-dot' + (i === 0 ? ' active' : '');
 		punto.onclick = () => irA(i);
+		hacerActivable(punto, `Foto ${i + 1} de ${fotos.length}`);
 		puntosWrap.appendChild(punto);
 		return punto;
 	});

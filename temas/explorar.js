@@ -16,6 +16,7 @@ import { trackClic } from '../core/analytics.js';
 import { esc, escUrl } from '../core/html.js';
 import { fotosDe, construirCarrusel } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
+import { hacerActivable, llevarFocoA, devolverFoco } from '../core/teclado.js';
 
 // ── ESTADO DEL TEMA ───────────────────────────────────────────
 let viewMode = 'list';        // 'list' | 'grid'
@@ -136,6 +137,10 @@ export function buildNav() {
 	const modal = document.createElement('div');
 	modal.className = 'exp-modal';
 	modal.id = 'expModal';
+	// tabindex -1: recibe el foco al abrirse sin entrar en el orden del tabulador.
+	modal.tabIndex = -1;
+	modal.setAttribute('role', 'dialog');
+	modal.setAttribute('aria-modal', 'true');
 	modal.innerHTML = `<div class="exp-modal-handle"></div><div id="expModalContent"></div>`;
 	document.body.appendChild(modal);
 
@@ -150,6 +155,11 @@ export function buildNav() {
 	if (hayFiltros) document.getElementById('expFilterToggle').onclick = toggleFilterPanel;
 
 	modalBg.onclick = closeExpModal;
+	// Esta ficha no es la de core/menu.js y no tenía Escape. Solo si está
+	// abierta: el mismo cuidado que el lateral (MD3).
+	document.addEventListener('keydown', e => {
+		if (e.key === 'Escape' && modal.classList.contains('open')) closeExpModal();
+	});
 	modal.addEventListener('touchstart', onModalTouchStart, { passive: true });
 	modal.addEventListener('touchmove', onModalTouchMove, { passive: true });
 
@@ -335,6 +345,7 @@ function itemLista(p, cat, map) {
 		</div>`;
 	alFallarImagen(div, '.exp-thumb img', cat.emoji, 'exp-thumb-ph');
 	div.onclick = () => openExpModal(p, cat, map);
+	hacerActivable(div);
 	return div;
 }
 
@@ -362,6 +373,7 @@ function itemCard(p, cat, map) {
 		</div>`;
 	alFallarImagen(div, '.exp-card-img', cat.emoji, 'exp-card-ph');
 	div.onclick = () => openExpModal(p, cat, map);
+	hacerActivable(div);
 	return div;
 }
 
@@ -425,12 +437,16 @@ function openExpModal(p, cat, map) {
 	document.getElementById('expModalBg').classList.add('open');
 	document.getElementById('expModal').classList.add('open');
 	document.body.style.overflow = 'hidden';
+	llevarFocoA(document.getElementById('expModal'));
 }
 
 function closeExpModal() {
+	const modal = document.getElementById('expModal');
+	const estabaAbierta = modal?.classList.contains('open');
 	document.getElementById('expModalBg')?.classList.remove('open');
-	document.getElementById('expModal')?.classList.remove('open');
+	modal?.classList.remove('open');
 	document.body.style.overflow = '';
+	if (estabaAbierta) devolverFoco();
 }
 
 let touchStartY = 0;

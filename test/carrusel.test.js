@@ -9,7 +9,8 @@ function nodoFalso(etiqueta) {
 	const hijos = [];
 	return {
 		etiqueta, hijos, className: '', src: '', alt: '', style: {}, onclick: null,
-		oyentes: {},
+		oyentes: {}, atributos: {},
+		setAttribute(k, v) { this.atributos[k] = String(v); },
 		appendChild(h) { hijos.push(h); return h; },
 		addEventListener(ev, fn) { (this.oyentes[ev] ||= []).push(fn); },
 		classList: {

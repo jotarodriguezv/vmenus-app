@@ -12,6 +12,7 @@ import { trackClic } from '../core/analytics.js';
 import { esc, escUrl } from '../core/html.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
+import { hacerActivable } from '../core/teclado.js';
 
 // ── NAV (reutiliza el sidebar + enciende el carrito) ───────────
 // Aquí el carrito se enciende SIN preguntar, y es a propósito. En el modelo
@@ -75,6 +76,7 @@ export function buildMenu() {
 					<div class="card-price">${esc(p.precio)}</div>
 					<span class="noimg-add-indicator">+</span>
 				</div>`;
+				hacerActivable(row);
 				row.onclick = () => {
 					trackClic(restaurante?.id, p.id);
 					if (tieneOpciones) {
@@ -106,6 +108,10 @@ export function buildMenu() {
 				${tieneOpciones ? '<div class="card-hint">Toca para personalizar</div>' : ''}
 			</div>`;
 
+			// El «+» de dentro hace lo mismo que la tarjeta (su clic sube hasta ella):
+			// fuera del orden del tabulador, o serían dos paradas para una acción.
+			card.querySelector('.card-add-btn').tabIndex = -1;
+			hacerActivable(card);
 			card.onclick = () => {
 				trackClic(restaurante?.id, p.id);
 				if (tieneOpciones) {
