@@ -1682,10 +1682,14 @@
 
 			/* Las ✕ de texto: tamaño mínimo real, y el margen negativo devuelve el
 			   sitio que ocupaban para que la cabecera no crezca ni se descoloque. */
-			.close-cart, .close-checkout, .custom-close {
+			.close-cart, .close-checkout, .custom-close, .close-menu {
 				min-width: 44px; min-height: 44px; margin: -8px -12px -8px 0;
 				display: inline-flex; align-items: center; justify-content: center;
 			}
+
+			/* El botón del lateral medía 40 × 33 (MD1). Crece hacia dentro: el padding
+			   ya centraba las barras, así que solo cambia la caja. */
+			.menu-toggle { min-width: 44px; min-height: 44px; justify-content: center; align-items: center; }
 
 			/* Limpiar la búsqueda: cabe en la barra de 48 px de alto. */
 			.exp-search-clear {
@@ -1726,8 +1730,11 @@
 
 		<!-- Header fijo (sidebar y carrito) -->
 		<div class="header-fixed" id="headerFixed" style="display:none">
-			<button class="menu-toggle" id="menuToggle">
-				<span></span><span></span><span></span>
+			<!-- Tres barras dibujadas con CSS y ni una letra: sin aria-label, un lector
+			     de pantalla anunciaba «botón» y nada más. Ver MD1. -->
+			<button class="menu-toggle" id="menuToggle" aria-label="Categorías del menú"
+				aria-controls="sidebar" aria-expanded="false">
+				<span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
 			</button>
 			<div class="logo-header" id="logoHeader"></div>
 			<div style="width:40px;display:flex;align-items:center;justify-content:center;">
@@ -1738,10 +1745,10 @@
 		</div>
 
 		<!-- Sidebar -->
-		<div class="sidebar" id="sidebar" style="display:none">
+		<div class="sidebar" id="sidebar" style="display:none" role="dialog" aria-modal="true" aria-label="Categorías del menú">
 			<div class="sidebar-header">
 				<div class="sidebar-title">Menú</div>
-				<button class="close-menu" id="closeMenu">✕</button>
+				<button class="close-menu" id="closeMenu" aria-label="Cerrar el menú">✕</button>
 			</div>
 			<nav class="sidebar-nav" id="sidebarNav"></nav>
 		</div>

@@ -3,6 +3,7 @@
 // Usado por: Malparados y restaurantes con header fijo.
 
 import { categorias, productos } from '../core/menu.js';
+import { llevarFocoA, devolverFoco, encerrarTab, soltarTab } from '../core/teclado.js';
 
 export function buildNav() {
 	const nav = document.getElementById('sidebarNav');
@@ -51,14 +52,37 @@ export function buildNav() {
 	});
 }
 
+// MD4: al abrir el lateral el foco se quedaba en el botón de fuera, y tabulando
+// se recorría la carta de detrás con el lateral tapándola. Lo mismo que las
+// fichas (core/teclado.js): el foco entra, el Tab no sale, y al cerrar vuelve
+// al botón que lo abrió.
 function openSidebar() {
-	document.getElementById('sidebar')?.classList.add('open');
+	const lateral = document.getElementById('sidebar');
+	lateral?.classList.add('open');
 	document.getElementById('overlay')?.classList.add('open');
 	document.body.style.overflow = 'hidden';
+	document.getElementById('menuToggle')?.setAttribute('aria-expanded', 'true');
+	if (!lateral) return;
+	// El foco tiene que volver a SU botón al cerrar, y llevarFocoA recuerda lo que
+	// estuviera enfocado. Tras un toque eso no es el botón: Safari no enfoca un
+	// botón al pulsarlo, y un clic con el ratón tampoco lo deja siempre. Visto en
+	// un navegador: al cerrar, el foco acababa en otra parte. Se enfoca antes de
+	// entrar para que sea el botón lo que se recuerda.
+	document.getElementById('menuToggle')?.focus({ preventScroll: true });
+	// A la primera categoría, que es a lo que se viene; si no hay, a cerrar.
+	llevarFocoA(lateral.querySelector('.sidebar-link') || document.getElementById('closeMenu'));
+	encerrarTab(lateral);
 }
 
 function closeSidebar() {
-	document.getElementById('sidebar')?.classList.remove('open');
+	const lateral = document.getElementById('sidebar');
+	const estabaAbierto = lateral?.classList.contains('open');
+	lateral?.classList.remove('open');
 	document.getElementById('overlay')?.classList.remove('open');
 	document.body.style.overflow = '';
+	document.getElementById('menuToggle')?.setAttribute('aria-expanded', 'false');
+	soltarTab(lateral);
+	// Al elegir una categoría la página se desplaza hasta ella: el foco vuelve al
+	// botón sin mover la pantalla (llevarFocoA y devolverFoco usan preventScroll).
+	if (estabaAbierto) devolverFoco();
 }
