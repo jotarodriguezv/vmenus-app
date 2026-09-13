@@ -16,7 +16,7 @@ import { trackClic } from '../core/analytics.js';
 import { esc, escUrl } from '../core/html.js';
 import { fotosDe, construirCarrusel } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
-import { hacerActivable, llevarFocoA, devolverFoco } from '../core/teclado.js';
+import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from '../core/teclado.js';
 
 // ── ESTADO DEL TEMA ───────────────────────────────────────────
 let viewMode = 'list';        // 'list' | 'grid'
@@ -438,6 +438,7 @@ function openExpModal(p, cat, map) {
 	document.getElementById('expModal').classList.add('open');
 	document.body.style.overflow = 'hidden';
 	llevarFocoA(document.getElementById('expModal'));
+	encerrarTab(document.getElementById('expModal'));
 }
 
 function closeExpModal() {
@@ -446,6 +447,7 @@ function closeExpModal() {
 	document.getElementById('expModalBg')?.classList.remove('open');
 	modal?.classList.remove('open');
 	document.body.style.overflow = '';
+	soltarTab(modal);
 	if (estabaAbierta) devolverFoco();
 }
 
