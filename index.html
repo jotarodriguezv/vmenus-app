@@ -342,6 +342,13 @@
 				cursor: pointer; transition: transform 0.18s;
 			}
 			.btn-checkout:active, .btn-send-order:active { transform: scale(0.98); }
+			/* Sustituye a «Hacer Pedido» cuando el restaurante no tiene número de
+			   WhatsApp para pedidos. Va con los colores de la carta a propósito:
+			   no es un error del comensal, así que no se pinta como uno. */
+			.cart-sin-pedidos {
+				padding: 12px; border: 1px dashed var(--border); border-radius: 8px;
+				color: var(--text-muted); font-size: 13px; line-height: 1.5; text-align: center;
+			}
 
 			/* Checkout */
 			.checkout-overlay {
@@ -1718,6 +1725,9 @@
 			<div class="cart-footer">
 				<div class="cart-total"><span>Total:</span><strong id="cartTotal">$0</strong></div>
 				<button class="btn-checkout" id="checkoutBtn" onclick="window.vmOpenCheckout()" style="display:none">Hacer Pedido</button>
+				<div class="cart-sin-pedidos" id="cartSinPedidos" style="display:none">
+					Este restaurante todavía no recibe pedidos por aquí. Puedes pedirlo en el local.
+				</div>
 			</div>
 		</div>
 

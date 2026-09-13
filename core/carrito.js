@@ -531,6 +531,23 @@ function removeFromCart(cartKey) {
 	updateCartUI();
 }
 
+// ── ¿PUEDE ESTE RESTAURANTE RECIBIR EL PEDIDO? ─────────────────
+// El pedido sale por WhatsApp y no hay otra vía. Sin número, el comensal podía
+// armar el pedido entero, escribir nombre y dirección, elegir cómo pagar, pulsar
+// enviar… y solo ahí recibía un alert() diciendo que el restaurante no tenía
+// número. Todo el trabajo hecho y ningún camino hacia adelante.
+//
+// No se resuelve escondiendo el carrito. En el modelo 'carrito' tocar un plato
+// ES añadirlo al pedido —no hay ficha—, así que quitarlo dejaría una carta
+// donde tocar un plato no hace nada (ver temas/carrito.js, que lo advierte).
+// Lo que se hace es avisar ANTES de pedir datos: en lugar de «Hacer Pedido».
+//
+// Pasa por soloDigitos como el envío, para que «+57 300…» cuente como número y
+// un campo con solo espacios o guiones cuente como vacío.
+export function recibePedidos() {
+	return !!soloDigitos(restaurante?.atributos?.whatsapp_pedidos);
+}
+
 function updateCartUI() {
 	const count = cart.reduce((sum, i) => sum + i.cantidad, 0);
 	// Dos contadores porque hay dos botones: el de la cabecera fija del modelo
@@ -544,15 +561,19 @@ function updateCartUI() {
 	const itemsDiv = document.getElementById('cartItems');
 	const emptyDiv = document.getElementById('cartEmpty');
 	const checkoutBtn = document.getElementById('checkoutBtn');
+	const sinPedidos = document.getElementById('cartSinPedidos');
 	if (!itemsDiv) return;
 
 	if (!cart.length) {
 		itemsDiv.innerHTML = '';
 		emptyDiv.style.display = 'flex';
 		checkoutBtn.style.display = 'none';
+		if (sinPedidos) sinPedidos.style.display = 'none';
 	} else {
 		emptyDiv.style.display = 'none';
-		checkoutBtn.style.display = 'block';
+		const puede = recibePedidos();
+		checkoutBtn.style.display = puede ? 'block' : 'none';
+		if (sinPedidos) sinPedidos.style.display = puede ? 'none' : 'block';
 		itemsDiv.innerHTML = '';
 		cart.forEach(item => {
 			const prod = productos.find(p => p.id === item.id);
@@ -605,6 +626,10 @@ function toggleCart() {
 
 // ── CHECKOUT ─────────────────────────────────────────────────
 function openCheckout() {
+	// Con el botón escondido no se llega aquí, pero window.vmOpenCheckout es
+	// global y algo más podría llamarlo. Si no hay a dónde mandar el pedido,
+	// no se piden datos que no van a servir.
+	if (!recibePedidos()) { updateCartUI(); return; }
 	renderPaymentOptions();
 	updateCheckoutSummary();
 	document.getElementById('checkoutOverlay').classList.add('open');
@@ -672,7 +697,13 @@ function sendWhatsAppOrder(event) {
 	// sitio y se quede roto en el otro — que es lo que había pasado.
 	const whatsapp = soloDigitos(restaurante?.atributos?.whatsapp_pedidos);
 	if (!whatsapp) {
-		alert('Este restaurante no tiene configurado un número de WhatsApp para pedidos.');
+		// Última red: el checkout ya no se abre sin número. Si aun así se llega
+		// —el número se borró con la carta abierta—, se vuelve al carrito, que
+		// enseña el aviso, en vez de un alert() del navegador. El pedido no se
+		// toca: el comensal no pierde lo que armó.
+		closeCheckout();
+		updateCartUI();
+		document.getElementById('cartSidebar')?.classList.add('open');
 		return;
 	}
 	const name    = document.getElementById('clientName').value;

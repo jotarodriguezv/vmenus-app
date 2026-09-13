@@ -16,7 +16,8 @@ globalThis.document = { getElementById: () => null };
 
 const { setRestaurante, setProductos, soloDigitos } = await import('../core/menu.js');
 const { revalidarCarrito, recargoPremium, loadCartFromStorage, opcionesDe,
-        describirSeleccion, leerSeleccion, catalogoDe } = await import('../core/carrito.js');
+        describirSeleccion, leerSeleccion, catalogoDe,
+        recibePedidos, activarCarrito } = await import('../core/carrito.js');
 
 const P = (id, nombre, precio) => ({ id, nombre, precio_numerico: precio, categoria_id: 'c1' });
 const CLAVE = 'pruebas_cart';
@@ -573,5 +574,95 @@ describe('leerSeleccion · volver a abrir lo que se eligió', () => {
 		const leido = leerSeleccion(item, cat);
 
 		assert.equal(recargoPremium(cat.premium, leido.premium), 4000);
+	});
+});
+
+describe('sin número de WhatsApp, el pedido avisa antes de pedir datos', () => {
+	// PE1 en adminmenus_restaurantes/docs/revision-ux.md. Antes el comensal armaba
+	// el pedido, escribía nombre y dirección, elegía cómo pagar, pulsaba enviar y
+	// solo entonces recibía un alert() diciendo que no había número.
+
+	test('recibePedidos: con número, sí', () => {
+		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: { whatsapp_pedidos: '573001234567' } });
+		assert.equal(recibePedidos(), true);
+	});
+
+	test('recibePedidos: un número escrito con espacios y + cuenta como número', () => {
+		// Es como lo teclea cualquiera, y el envío ya lo limpia con soloDigitos.
+		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: { whatsapp_pedidos: '+57 300 123 4567' } });
+		assert.equal(recibePedidos(), true);
+	});
+
+	test('recibePedidos: vacío, ausente o solo símbolos, no', () => {
+		for (const w of [undefined, null, '', '   ', ' - + ']) {
+			setRestaurante({ id: 'r1', slug: 'pruebas', atributos: { whatsapp_pedidos: w } });
+			assert.equal(recibePedidos(), false, `con ${JSON.stringify(w)} no debería recibir pedidos`);
+		}
+	});
+
+	// ── El carrito de verdad, con un DOM falso ──────────────────
+	function domFalso() {
+		const nodos = {};
+		// querySelector devuelve un nodo y no null: al pintar cada línea el carrito
+		// hace div.querySelector('[data-act="minus"]').onclick = …, y con null la
+		// prueba reventaría midiendo el simulador en vez del carrito.
+		const nodo = () => ({
+			style: {}, innerHTML: '', textContent: '', value: '', onclick: null,
+			classList: { _c: new Set(), add(c) { this._c.add(c); }, remove(c) { this._c.delete(c); },
+				toggle(c) { this._c.has(c) ? this._c.delete(c) : this._c.add(c); }, contains(c) { return this._c.has(c); } },
+			appendChild() {}, addEventListener() {}, querySelector: () => nodo(), querySelectorAll: () => [],
+		});
+		return {
+			nodos,
+			document: {
+				getElementById: id => (nodos[id] ||= nodo()),
+				createElement: () => nodo(),
+				querySelectorAll: () => [],
+			},
+		};
+	}
+
+	function conCarritoLleno(atributos) {
+		const dom = domFalso();
+		globalThis.document = dom.document;
+		setRestaurante({ id: 'r1', slug: 'pruebas', atributos });
+		setProductos([P('h', 'HAMBURGUESA', 25000)]);
+		guardar({ v: 2, ts: Date.now(), items: [{ cartKey: 'h', id: 'h', name: 'HAMBURGUESA', price: 25000, extras: 0, cantidad: 1 }] });
+		loadCartFromStorage();
+		return dom;
+	}
+
+	test('sin número: en lugar de «Hacer Pedido» sale el aviso', () => {
+		const { nodos } = conCarritoLleno({});
+		assert.equal(nodos.checkoutBtn.style.display, 'none', 'el botón de pedir sigue a la vista');
+		assert.equal(nodos.cartSinPedidos.style.display, 'block', 'no se enseña el aviso');
+	});
+
+	test('con número: el botón de siempre, y el aviso escondido', () => {
+		const { nodos } = conCarritoLleno({ whatsapp_pedidos: '573001234567' });
+		assert.equal(nodos.checkoutBtn.style.display, 'block');
+		assert.equal(nodos.cartSinPedidos.style.display, 'none');
+	});
+
+	test('sin número, el formulario de pedido no llega a abrirse', () => {
+		// window.vmOpenCheckout es global. Aunque el botón esté escondido, si algo
+		// lo llamara no debe pedirle nombre y dirección al comensal para nada.
+		const dom = conCarritoLleno({});
+		globalThis.window = {};
+		activarCarrito();
+		globalThis.window.vmOpenCheckout();
+		// Se lee por getElementById y no por dom.nodos: si la guarda corta a
+		// tiempo, nadie llega a pedir ese nodo y ni siquiera existe. Si fallara,
+		// estaría ahí con la clase 'open' puesta.
+		assert.equal(dom.document.getElementById('checkoutOverlay').classList.contains('open'), false,
+			'se abrió el checkout sin número al que mandar el pedido');
+	});
+
+	test('el carrito vacío no enseña el aviso', () => {
+		const dom = domFalso();
+		globalThis.document = dom.document;
+		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: {} });
+		loadCartFromStorage();
+		assert.notEqual(dom.nodos.cartSinPedidos?.style.display, 'block');
 	});
 });
