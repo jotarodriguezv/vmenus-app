@@ -2,11 +2,17 @@
 <html lang="es">
 	<head>
 		<meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+		<!-- Sin maximum-scale ni user-scalable=no: prohibían ampliar con los dedos en
+		     Android, y una carta a 13 px en un local con poca luz es justo donde se
+		     amplía. Ver V1 en adminmenus_restaurantes/docs/revision-ux.md. -->
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>Cargando menú...</title>
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 
 		<style>
+			/* Las tarjetas activables con teclado (core/teclado.js). El contorno por
+			   defecto se pierde sobre fotos oscuras; este usa el color de la carta. */
+			[role="button"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 			/* ── VARIABLES BASE ──────────────────────────────────────────
 				Cada restaurante sobreescribe estas desde loader.js usando document.documentElement.style.setProperty()
 			*/
