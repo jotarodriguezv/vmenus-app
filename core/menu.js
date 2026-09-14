@@ -213,8 +213,10 @@ export function buildMenu() {
 
 		const prev = document.getElementById('modalPrev');
 		const next = document.getElementById('modalNext');
-		if (prev) prev.style.visibility = currentProductIndex === 0 ? 'hidden' : 'visible';
-		if (next) next.style.visibility = currentProductIndex === total - 1 ? 'hidden' : 'visible';
+		// '' y no 'visible': un 'visible' en línea se impone al hidden de la ficha
+		// cerrada, y la flecha seguía en el Tab sin verse (V6).
+		if (prev) prev.style.visibility = currentProductIndex === 0 ? 'hidden' : '';
+		if (next) next.style.visibility = currentProductIndex === total - 1 ? 'hidden' : '';
 	}
 
 	export function navigateModal(dir) {

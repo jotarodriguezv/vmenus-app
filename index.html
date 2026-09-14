@@ -140,7 +140,7 @@
 				font-weight: 500;
 				cursor: pointer;
 				white-space: nowrap;
-				transition: all 0.2s;
+				transition: all 0.2s, visibility 0s;
 			}
 			.nav-btn.active {
 				border-color: var(--primary);
@@ -199,11 +199,19 @@
 				backdrop-filter: blur(10px);
 				border-right: 2px solid var(--primary);
 				z-index: 200;
-				transition: left 0.3s cubic-bezier(0.4,0,0.2,1);
+				/* V6: fuera de la pantalla no basta. Sin visibility el Tab recorría
+				   sus once enlaces con el lateral cerrado. La visibilidad espera a
+				   que acabe el deslizamiento, y al abrir cambia al instante para
+				   que el foco pueda entrar. Mismo patrón en todas las capas.
+				   Ojo: los hijos heredan la visibilidad, y uno con «transition: all»
+				   la animaba también y seguía oculto al recibir el foco. Por eso
+				   toda «transition: all» lleva detrás «visibility 0s». */
+				visibility: hidden;
+				transition: left 0.3s cubic-bezier(0.4,0,0.2,1), visibility 0s linear 0.3s;
 				overflow-y: auto;
 				padding-top: 60px;
 			}
-			.sidebar.open { left: 0; }
+			.sidebar.open { left: 0; visibility: visible; transition-delay: 0s; }
 			.sidebar-header {
 				padding: 20px 16px;
 				border-bottom: 1px solid var(--border);
@@ -236,7 +244,7 @@
 				background: transparent;
 				border-left: none; border-right: none; border-top: none;
 				width: 100%; text-align: left;
-				transition: all 0.2s;
+				transition: all 0.2s, visibility 0s;
 			}
 			.sidebar-link:hover, .sidebar-link.active {
 				background: rgba(205,254,254,0.1);
@@ -269,7 +277,7 @@
 				cursor: pointer;
 				display: flex; align-items: center; justify-content: center;
 				font-size: 18px;
-				transition: all 0.2s;
+				transition: all 0.2s, visibility 0s;
 			}
 			.cart-btn:active { transform: scale(0.95); }
 			.cart-count {
@@ -298,10 +306,11 @@
 				background: var(--surface);
 				border-left: 2px solid var(--primary);
 				z-index: 250;
-				transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+				visibility: hidden;
+				transition: right 0.3s cubic-bezier(0.4,0,0.2,1), visibility 0s linear 0.3s;
 				display: flex; flex-direction: column;
 			}
-			.cart-sidebar.open { right: 0; }
+			.cart-sidebar.open { right: 0; visibility: visible; transition-delay: 0s; }
 			.cart-header {
 				padding: 16px; border-bottom: 1px solid var(--border);
 				display: flex; justify-content: space-between; align-items: center;
@@ -360,9 +369,10 @@
 			.checkout-overlay {
 				position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 300;
 				display: flex; align-items: flex-end; justify-content: center;
-				opacity: 0; pointer-events: none; transition: opacity 0.25s;
+				opacity: 0; pointer-events: none; visibility: hidden;
+				transition: opacity 0.25s, visibility 0s linear 0.25s;
 			}
-			.checkout-overlay.open { opacity: 1; pointer-events: all; }
+			.checkout-overlay.open { opacity: 1; pointer-events: all; visibility: visible; transition-delay: 0s; }
 			.checkout-modal {
 				width: 100%; max-width: 100%; background: var(--surface);
 				border-top: 2px solid var(--primary); border-radius: 20px 20px 0 0;
@@ -406,9 +416,10 @@
 			.custom-overlay {
 				position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 400;
 				display: flex; align-items: flex-end; justify-content: center;
-				opacity: 0; pointer-events: none; transition: opacity 0.25s;
+				opacity: 0; pointer-events: none; visibility: hidden;
+				transition: opacity 0.25s, visibility 0s linear 0.25s;
 			}
-			.custom-overlay.open { opacity: 1; pointer-events: all; }
+			.custom-overlay.open { opacity: 1; pointer-events: all; visibility: visible; transition-delay: 0s; }
 			.custom-modal {
 				width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto;
 				background: var(--surface); border-top: 2px solid var(--primary);
@@ -443,7 +454,7 @@
 				padding: 7px 12px; border-radius: 20px; border: 1px solid var(--border);
 				background: var(--card); color: var(--text-muted);
 				font-family: var(--font-cuerpo, inherit); font-size: 12px; cursor: pointer;
-				transition: all 0.18s; white-space: nowrap;
+				transition: all 0.18s, visibility 0s; white-space: nowrap;
 			}
 			.custom-chip.active { border-color: var(--secondary); background: rgba(255,255,255,0.06); color: var(--primary); }
 			.custom-qty-row {
@@ -578,10 +589,10 @@
 				background: rgba(0,0,0,0.85);
 				z-index: 500;
 				display: flex; align-items: flex-end;
-				opacity: 0; pointer-events: none;
-				transition: opacity 0.25s;
+				opacity: 0; pointer-events: none; visibility: hidden;
+				transition: opacity 0.25s, visibility 0s linear 0.25s;
 			}
-			.modal-overlay.open { opacity: 1; pointer-events: all; }
+			.modal-overlay.open { opacity: 1; pointer-events: all; visibility: visible; transition-delay: 0s; }
 			.modal-sheet {
 				width: 100%; max-height: 88vh;
 				background: var(--surface);
@@ -670,9 +681,10 @@
 				position: fixed; inset: 0;
 				background: rgba(0,0,0,0.95); z-index: 900;
 				display: flex; align-items: center; justify-content: center;
-				opacity: 0; pointer-events: none; transition: opacity 0.2s;
+				opacity: 0; pointer-events: none; visibility: hidden;
+				transition: opacity 0.2s, visibility 0s linear 0.2s;
 			}
-			.lightbox.open { opacity: 1; pointer-events: all; }
+			.lightbox.open { opacity: 1; pointer-events: all; visibility: visible; transition-delay: 0s; }
 			.lightbox img { max-width: 95vw; max-height: 90vh; object-fit: contain; border-radius: 8px; }
 			.lightbox-close {
 				position: absolute; top: 16px; right: 16px;
@@ -687,9 +699,10 @@
 				position: fixed; inset: 0;
 				background: rgba(0,0,0,0.88); z-index: 800;
 				display: flex; align-items: center; justify-content: center;
-				padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.35s;
+				padding: 20px; opacity: 0; pointer-events: none; visibility: hidden;
+				transition: opacity 0.35s, visibility 0s linear 0.35s;
 			}
-			.promo-overlay.open { opacity: 1; pointer-events: all; }
+			.promo-overlay.open { opacity: 1; pointer-events: all; visibility: visible; transition-delay: 0s; }
 			.promo-box {
 				position: relative; width: 100%; max-width: 460px;
 				border: 2px solid var(--primary);
@@ -706,7 +719,7 @@
 				background: rgba(0,0,0,0.7); border: 1px solid var(--primary); color: var(--primary);
 				font-size: 18px; cursor: pointer;
 				display: flex; align-items: center; justify-content: center;
-				transition: all 0.2s;
+				transition: all 0.2s, visibility 0s;
 			}
 			.promo-close:hover {
 				background: color-mix(in srgb, var(--primary) 20%, transparent);
@@ -720,10 +733,10 @@
 				background: var(--accent2); border: none; color: white;
 				font-size: 18px; cursor: pointer;
 				display: flex; align-items: center; justify-content: center;
-				opacity: 0; transform: translateY(10px);
-				transition: opacity 0.25s, transform 0.25s; z-index: 200;
+				opacity: 0; transform: translateY(10px); visibility: hidden;
+				transition: opacity 0.25s, transform 0.25s, visibility 0s linear 0.25s; z-index: 200;
 			}
-			.scroll-top.visible { opacity: 1; transform: translateY(0); }
+			.scroll-top.visible { opacity: 1; transform: translateY(0); visibility: visible; transition-delay: 0s; }
 
 			/* Barra social */
 			.social-bar {
@@ -785,7 +798,7 @@
 				background: rgba(10,10,15,0.72); backdrop-filter: blur(16px);
 				border: 1px solid var(--border); color: var(--text);
 				display: flex; align-items: center; justify-content: center; cursor: pointer;
-				transition: all 0.2s;
+				transition: all 0.2s, visibility 0s;
 			}
 			.exp-iconbtn:hover, .exp-iconbtn.active { border-color: var(--primary); color: var(--primary); }
 			.exp-viewtoggle {
@@ -797,7 +810,7 @@
 				width: 36px; height: 36px; border-radius: 20px;
 				background: transparent; border: none; color: var(--text-muted);
 				display: flex; align-items: center; justify-content: center; cursor: pointer;
-				transition: all 0.2s;
+				transition: all 0.2s, visibility 0s;
 			}
 			.exp-viewbtn.active { background: var(--text); color: var(--dark); }
 
@@ -806,9 +819,10 @@
 				position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
 				width: 100%; max-width: 520px; z-index: 55; padding: 0 16px;
 				opacity: 0; height: 0; overflow: hidden; pointer-events: none;
-				transition: all 0.25s;
+				visibility: hidden;
+				transition: all 0.25s, visibility 0s linear 0.25s;
 			}
-			.exp-searchbar.open { opacity: 1; height: auto; padding-top: 6px; padding-bottom: 10px; pointer-events: all; }
+			.exp-searchbar.open { opacity: 1; height: auto; padding-top: 6px; padding-bottom: 10px; pointer-events: all; visibility: visible; transition-delay: 0s; }
 			.exp-search-wrap {
 				display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px;
 				background: rgba(10,10,15,0.94); backdrop-filter: blur(20px);
@@ -826,9 +840,10 @@
 				position: fixed; top: 62px; left: 50%; transform: translateX(-50%);
 				width: 100%; max-width: 520px; z-index: 54; padding: 0 16px;
 				opacity: 0; max-height: 0; overflow: hidden; pointer-events: none;
-				transition: all 0.25s;
+				visibility: hidden;
+				transition: all 0.25s, visibility 0s linear 0.25s;
 			}
-			.exp-filterpanel.open { opacity: 1; max-height: 200px; padding-top: 6px; pointer-events: all; }
+			.exp-filterpanel.open { opacity: 1; max-height: 200px; padding-top: 6px; pointer-events: all; visibility: visible; transition-delay: 0s; }
 			.exp-filter-row {
 				display: flex; flex-wrap: wrap; gap: 8px; padding: 12px;
 				background: rgba(10,10,15,0.94); backdrop-filter: blur(20px);
@@ -838,7 +853,7 @@
 				display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px;
 				border-radius: 20px; border: 1px solid var(--border); background: transparent;
 				color: var(--text-muted); font-size: 12px; cursor: pointer; font-family: inherit;
-				transition: all 0.15s;
+				transition: all 0.15s, visibility 0s;
 			}
 			.exp-filter-chip.active { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--primary) 15%, transparent); }
 
@@ -957,7 +972,7 @@
 			.exp-catnav-btn {
 				flex-shrink: 0; padding: 7px 16px; border-radius: 20px; border: none;
 				background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 500;
-				white-space: nowrap; cursor: pointer; transition: all 0.2s; font-family: inherit;
+				white-space: nowrap; cursor: pointer; transition: all 0.2s, visibility 0s; font-family: inherit;
 			}
 			.exp-catnav-btn.active { background: var(--text); color: var(--dark); }
 
@@ -976,9 +991,10 @@
 				position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
 				width: 100%; max-width: 520px; background: var(--surface);
 				border-radius: 22px 22px 0 0; z-index: 501; max-height: 88vh; overflow-y: auto;
-				transition: transform 0.34s cubic-bezier(0.32,0.72,0,1);
+				visibility: hidden;
+				transition: transform 0.34s cubic-bezier(0.32,0.72,0,1), visibility 0s linear 0.34s;
 			}
-			.exp-modal.open { transform: translateX(-50%) translateY(0); }
+			.exp-modal.open { transform: translateX(-50%) translateY(0); visibility: visible; transition-delay: 0s; }
 			.exp-modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; }
 			.exp-modal-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; }
 			/* El carrusel se reutiliza tal cual del modal compartido, pero allí
