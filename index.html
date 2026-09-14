@@ -492,6 +492,20 @@
 				text-transform: uppercase;
 				white-space: nowrap;
 			}
+			/* P4: la nota de la categoría, bajo el título. Mismo texto en todos los
+			   modelos; cada uno ajusta solo el sitio. */
+			.categoria-nota {
+				margin: -6px 0 16px;
+				font-size: 14px; line-height: 1.45;
+				color: var(--text-muted);
+			}
+			.exp-section .categoria-nota { margin-top: -8px; }
+			.vid-nota { margin: -6px 4px 12px; }
+			/* Sobre el video: claro y con sombra, como el resto de la ficha. */
+			.ver-info .ver-nota {
+				margin: -2px 0 8px; font-size: 13px;
+				color: rgba(255,255,255,.88); text-shadow: 0 1px 6px rgba(0,0,0,.7);
+			}
 			.category-line {
 				flex: 1; height: 2px;
 				background: linear-gradient(90deg, var(--primary) 0%, transparent 100%);

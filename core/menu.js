@@ -1,5 +1,5 @@
 import { trackClic } from './analytics.js';
-import { esc, escUrl } from './html.js';
+import { esc, escUrl, notaDe } from './html.js';
 import { fotosDe, construirCarrusel } from './carrusel.js';
 import { montarChips, ocultarNoCoinciden } from './filtros.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
@@ -70,6 +70,7 @@ export function buildMenu() {
 			<div class="category-title">${esc(cat.emoji || '')} ${esc(cat.nombre)}</div>
 			<div class="category-line"></div>
 		</div>
+		${notaDe(cat)}
 		`;
 
 		if (cat.sin_fotos) {

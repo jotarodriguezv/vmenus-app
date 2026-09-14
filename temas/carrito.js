@@ -9,7 +9,7 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { buildNav as buildSidebarNav } from './sidebar.js';
 import { trackClic } from '../core/analytics.js';
-import { esc, escUrl } from '../core/html.js';
+import { esc, escUrl, notaDe } from '../core/html.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
 import { hacerActivable } from '../core/teclado.js';
@@ -53,7 +53,8 @@ export function buildMenu() {
 		<div class="category-header">
 			<div class="category-title">${esc(cat.emoji || '')} ${esc(cat.nombre)}</div>
 			<div class="category-line"></div>
-		</div>`;
+		</div>
+		${notaDe(cat)}`;
 
 		const grid = document.createElement('div');
 		grid.className = 'products-grid';

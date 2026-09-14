@@ -1,5 +1,5 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
-import { esc } from '../core/html.js';
+import { esc, notaDe } from '../core/html.js';
 import { mediaDe, activarVideos } from '../core/reproduccion.js';
 import { planDe } from '../core/planes.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
@@ -172,12 +172,16 @@ export function buildMenu() {
 
 		const titulo = `${esc(cat.emoji || '')} ${esc(cat.nombre)}`.trim();
 
-		seccion.innerHTML = prods.map(p => `
+		// Aquí no hay cabecera de categoría: cada plato ocupa la pantalla. La nota
+		// va en el PRIMER plato de la categoría, bajo su nombre, que es donde se
+		// entra a ella; repetirla en cada uno taparía la comida.
+		seccion.innerHTML = prods.map((p, i) => `
 			<article class="ver-plato" data-plato="${esc(p.id)}" data-cat="${esc(cat.id)}">
 				<div class="ver-media">${mediaDe(p)}</div>
 				<div class="ver-velo"></div>
 				<div class="ver-info">
 					<div class="ver-cat">${titulo}</div>
+					${i === 0 ? notaDe(cat, 'categoria-nota ver-nota') : ''}
 					<h3 class="ver-nombre">${esc(p.nombre)}</h3>
 					${p.descripcion_avanzada || p.descripcion
 						? `<p class="ver-desc">${esc(p.descripcion_avanzada || p.descripcion)}</p>`

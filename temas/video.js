@@ -1,5 +1,5 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
-import { esc } from '../core/html.js';
+import { esc, notaDe } from '../core/html.js';
 import { mediaDe, activarVideos } from '../core/reproduccion.js';
 import { planDe } from '../core/planes.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
@@ -101,6 +101,7 @@ export function buildMenu() {
 
 		seccion.innerHTML = `
 			<div class="vid-cat">${esc(cat.emoji || '')} ${esc(cat.nombre)}</div>
+			${notaDe(cat, 'categoria-nota vid-nota')}
 			${prods.map(p => `
 				<article class="vid-plato" data-plato="${esc(p.id)}">
 					<div class="vid-media">${mediaDe(p)}</div>

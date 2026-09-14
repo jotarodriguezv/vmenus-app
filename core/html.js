@@ -19,6 +19,16 @@ export function esc(s) {
 // destino sea una URL de verdad. Lo que no lo sea se queda en '#'.
 const PROTOCOLOS_SEGUROS = ['http:', 'https:', 'mailto:', 'tel:'];
 
+// ── LA NOTA DE UNA CATEGORÍA ─────────────────────────────────
+// P4 en adminmenus_restaurantes/docs/revision-ux.md. «Todas las hamburguesas van
+// acompañadas de papas» se escribía como un plato de $ 0, que caía primero solo
+// mientras el orden fuera por precio. Ahora es un texto de la categoría, y cada
+// modelo lo pinta bajo su título con esta función: una sola que escapa.
+export function notaDe(cat, clase = 'categoria-nota') {
+	const nota = String(cat?.atributos?.nota ?? '').trim();
+	return nota ? `<p class="${clase}">${esc(nota)}</p>` : '';
+}
+
 export function escUrl(u) {
 	const s = String(u ?? '').trim();
 	if (!s) return '';

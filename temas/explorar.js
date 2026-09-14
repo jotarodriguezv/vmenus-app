@@ -13,7 +13,7 @@
 
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { trackClic } from '../core/analytics.js';
-import { esc, escUrl } from '../core/html.js';
+import { esc, escUrl, notaDe } from '../core/html.js';
 import { fotosDe, construirCarrusel } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from '../core/teclado.js';
@@ -294,6 +294,7 @@ function renderDishes() {
 			header.innerHTML = `<span>${label}</span>`;
 		}
 		section.appendChild(header);
+		section.insertAdjacentHTML('beforeend', notaDe(cat));
 
 		const wrap = document.createElement('div');
 		wrap.className = viewMode === 'list' ? 'exp-list' : 'exp-grid';
