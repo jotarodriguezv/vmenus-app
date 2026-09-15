@@ -597,6 +597,45 @@
 			.list-desc-avanzada { display: block; font-size: 11px; color: var(--text-dim); margin-top: 2px; }
 			.list-price { font-size: 13px; color: var(--primary); font-weight: 500; white-space: nowrap; }
 
+			/* ── Agregar al pedido en topnav y sidebar (15/09/2026) ──
+			   Solo existen con el carrito encendido; sin él la carta queda igual.
+			   El «+» de la tarjeta con foto flota en la esquina de su pie para no
+			   empujar el nombre ni el precio; en filas y listas va al final. */
+			.card-body { position: relative; }
+			.product-card .card-body { padding-right: 46px; }
+			.menu-add {
+				position: relative;
+				flex-shrink: 0;
+				width: 32px; height: 32px;
+				border: 1px solid var(--primary);
+				border-radius: 50%;
+				background: var(--card);
+				color: var(--primary);
+				font-size: 20px; line-height: 1; font-weight: 600;
+				display: inline-flex; align-items: center; justify-content: center;
+				cursor: pointer;
+				transition: background .15s, color .15s, transform .1s;
+			}
+			/* El dedo necesita más que 32 px: el área se agranda sin agrandar el círculo. */
+			.menu-add::after { content: ''; position: absolute; inset: -8px; }
+			/* En la tarjeta con foto flota en la esquina; en filas y listas, en línea. */
+			.product-card .menu-add { position: absolute; right: 8px; bottom: 8px; }
+			.menu-add:active { transform: scale(.92); }
+			.menu-add.agregado,
+			.menu-add:hover { background: var(--primary); color: var(--dark); }
+			.modal-agregar {
+				display: block; width: 100%;
+				margin: 14px 0 4px;
+				min-height: 46px;
+				border: none; border-radius: 999px;
+				background: var(--primary); color: var(--dark);
+				font-family: var(--font-cuerpo, inherit);
+				font-size: 15px; font-weight: 700;
+				cursor: pointer;
+			}
+			.modal-agregar[hidden] { display: none; }
+			.modal-agregar:active { transform: scale(.98); }
+
 			/* Modal */
 			.modal-overlay {
 				position: fixed; inset: 0;
@@ -1924,6 +1963,9 @@
 					<div class="modal-desc-avanzada" id="modalDescAvanzada" style="display:none"></div>
 					<div class="modal-price" id="modalPrice"></div>
 					<div class="modal-desc" id="modalDesc"></div>
+					<!-- Agregar desde la ficha: topnav y sidebar con carrito (15/09/2026).
+					     Lo enseña renderModal() en core/menu.js; los demás modelos no lo tocan. -->
+					<button type="button" class="modal-agregar" id="modalAgregar" hidden></button>
 					<div class="modal-counter" id="modalCounter"></div>
 				</div>
 			</div>

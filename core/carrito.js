@@ -17,6 +17,7 @@
 // le llegue un pedido con el precio equivocado.
 
 import { restaurante, productos, soloDigitos } from './menu.js';
+import { planDe } from './planes.js';
 import { trackAgregarCarrito } from './analytics.js';
 import { esc, escUrl } from './html.js';
 import { llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
@@ -808,11 +809,33 @@ function mostrarEnlaceManual(url) {
 	cont.insertAdjacentElement('afterend', aviso);
 }
 
+// ── ¿ESTA CARTA LLEVA CARRITO? ────────────────────────────────
+// Hacen falta las dos condiciones. El plan dice si el negocio puede tenerlo; el
+// atributo, si lo quiere. Un restaurante con plan de sobra puede querer su carta
+// sin pedidos, y desde el 15/09/2026 lo decide él mismo en la pestaña Ajustes.
+//
+// La tenían escrita video.js y vertical.js cada uno por su lado; al sumarse
+// topnav y sidebar habrían sido cuatro copias de la misma regla. Queda aquí.
+//
+// El modelo 'carrito' no pregunta: allí el carrito ES la carta (temas/carrito.js
+// explica por qué apagárselo la rompería).
+export function carritoEncendido(r = restaurante) {
+	return !!(planDe(r).carrito && r?.atributos?.carrito);
+}
+
 // ── ARRANQUE ──────────────────────────────────────────────────
 // Lo llama el tema que tenga el carrito encendido, después de construir su
 // nav. Engancha los botones del modal de personalización y publica en
 // window lo que el marcado de index.html invoca con onclick.
 export function activarCarrito() {
+	// Una sola vez por página. El modelo 'carrito' reutiliza la navegación de
+	// sidebar, y sidebar enciende el carrito cuando lo tiene: sin esto se
+	// encendería dos veces y cada escuchador quedaría duplicado —el «+» de
+	// cantidad sumaría de dos en dos y cerrar el modal lo haría dos veces—.
+	// Va en el documento y no en una variable del módulo: las pruebas montan un
+	// documento nuevo por caso y cada uno tiene que poder encenderlo.
+	if (document.vmCarritoActivo) return;
+	document.vmCarritoActivo = true;
 	loadCartFromStorage();
 
 	document.getElementById('btnMenos')?.addEventListener('click', () => {

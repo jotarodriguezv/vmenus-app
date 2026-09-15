@@ -1,9 +1,8 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { esc, notaDe } from '../core/html.js';
 import { mediaDe, activarVideos } from '../core/reproduccion.js';
-import { planDe } from '../core/planes.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
-import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
+import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion, carritoEncendido } from '../core/carrito.js';
 
 // ── TEMA: VERTICAL ────────────────────────────────────────────
 // La carta en video, pero a pantalla completa y de a un plato: se desliza
@@ -41,9 +40,8 @@ import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } 
 //    completa. El velo oscuro de detrás es lo que mantiene legible el
 //    texto sobre cualquier fotograma.
 
-function conCarrito() {
-	return !!(planDe(restaurante).carrito && restaurante?.atributos?.carrito);
-}
+// La regla vive en core/carrito.js desde que topnav y sidebar también la usan.
+const conCarrito = () => carritoEncendido();
 
 // ── ESTILOS ───────────────────────────────────────────────────
 // El mismo carrete con tres aspectos. NO son tres plantillas: cambia cómo se

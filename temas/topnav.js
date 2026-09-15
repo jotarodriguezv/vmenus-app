@@ -1,4 +1,5 @@
 import { categorias, productos } from '../core/menu.js';
+import { activarCarrito, carritoEncendido } from '../core/carrito.js';
 
 export function buildNav() {
   const nav = document.getElementById('navScroll');
@@ -21,6 +22,15 @@ export function buildNav() {
     firstBtn = false;
   });
   // initScrollSpy ya NO se llama aquí
+
+  // Carrito desde el 15/09/2026, si el plan lo incluye y el restaurante lo
+  // encendió. Topnav no tiene cabecera fija donde colgar el botón —la barra de
+  // categorías ya va justa en un móvil—, así que usa el flotante, igual que
+  // video. El «+» de cada plato y el de la ficha los pone core/menu.js.
+  if (!carritoEncendido()) return;
+  activarCarrito();
+  const fab = document.getElementById('cartFab');
+  if (fab) fab.style.display = 'block';
 }
 
 export function initScrollSpy() {

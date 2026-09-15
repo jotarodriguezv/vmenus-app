@@ -1,9 +1,8 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { esc, notaDe } from '../core/html.js';
 import { mediaDe, activarVideos } from '../core/reproduccion.js';
-import { planDe } from '../core/planes.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
-import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
+import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion, carritoEncendido } from '../core/carrito.js';
 
 // ── TEMA: VIDEO ───────────────────────────────────────────────
 // Carta en video. Una sola columna, un plato por fila, el video a
@@ -43,9 +42,8 @@ import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } 
 // Hacen falta las dos condiciones. El plan dice si el negocio puede
 // tenerlo; el atributo, si lo quiere. Un restaurante con plan de sobra
 // puede querer su carta sin pedidos.
-function conCarrito() {
-	return !!(planDe(restaurante).carrito && restaurante?.atributos?.carrito);
-}
+// La regla vive en core/carrito.js desde que topnav y sidebar también la usan.
+const conCarrito = () => carritoEncendido();
 
 export function buildNav() {
 	const nav = document.getElementById('navScroll');
