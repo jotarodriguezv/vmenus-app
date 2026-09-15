@@ -3,6 +3,7 @@ import { esc, escUrl, notaDe } from './html.js';
 import { fotosDe, construirCarrusel } from './carrusel.js';
 import { montarChips, ocultarNoCoinciden } from './filtros.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
+import { carritoEncendido, agregarSimple, openCustomModal, tienePersonalizacion } from './carrito.js';
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────
 export let restaurante = null;
@@ -52,11 +53,50 @@ export function noImgHtml() {
 	</div>`;
 }
 
+// ── AGREGAR AL PEDIDO (topnav y sidebar) ──────────────────────
+// Desde el 15/09/2026 estos dos modelos pueden llevar carrito, y el comensal
+// agrega de dos formas, decididas con el usuario: un «+» en cada plato para
+// pedir varias cosas sin abrir fichas, y un botón dentro de la ficha para quien
+// la abrió a mirar. Tocar el plato sigue abriendo la ficha, como siempre.
+//
+// Con toppings no se agrega a ciegas: se abre la personalización. Lo decide el
+// plato, igual que en video.
+export function agregarAlPedido(p, boton, confirmacion = '✓ Agregado') {
+	if (tienePersonalizacion(p)) {
+		// La ficha va por encima de la personalización (z-index 500 contra 400):
+		// sin cerrarla, la personalización se abriría detrás, sin verse.
+		closeModal();
+		return openCustomModal(p.id);
+	}
+	agregarSimple(p);
+	if (!boton) return;
+	// Una confirmación que se ve sin tapar nada: el propio botón dice que sí.
+	const antes = boton.textContent;
+	boton.textContent = confirmacion;
+	boton.classList.add('agregado');
+	setTimeout(() => { boton.textContent = antes; boton.classList.remove('agregado'); }, 900);
+}
+
+function botonAgregar(p) {
+	const b = document.createElement('button');
+	b.type = 'button';
+	b.className = 'menu-add';
+	b.textContent = '+';
+	b.setAttribute('aria-label', `${tienePersonalizacion(p) ? 'Personalizar' : 'Agregar'} ${p.nombre} al pedido`);
+	// stopPropagation: el botón vive dentro de la tarjeta, y el clic subiría a
+	// ella y abriría la ficha además de agregar. Con teclado no hace falta:
+	// hacerActivable ignora las teclas que no nacen en la propia tarjeta.
+	// Un círculo de 32 px no cabe «✓ Agregado»: confirma con la marca sola.
+	b.onclick = e => { e.stopPropagation(); agregarAlPedido(p, b, '✓'); };
+	return b;
+}
+
 // ── CONSTRUIR MENÚ ────────────────────────────────────────────
 export function buildMenu() {
 	const main = document.getElementById('mainContent');
 	if (!main) return;
 	main.innerHTML = '';
+	const conPedido = carritoEncendido();
 
 	categorias.forEach(cat => {
 		const prods = productos.filter(p => p.categoria_id === cat.id);
@@ -92,6 +132,7 @@ export function buildMenu() {
 				</span>
 				<span class="list-price">${esc(p.precio)}</span>
 				`;
+				if (conPedido) item.appendChild(botonAgregar(p));
 				list.appendChild(item);
 			});
 			section.appendChild(list);
@@ -111,6 +152,7 @@ export function buildMenu() {
 					<div class="card-name">${esc(p.nombre)}</div>
 					<div class="card-price">${esc(p.precio)}</div>
 					`;
+					if (conPedido) row.appendChild(botonAgregar(p));
 					grid.appendChild(row);
 					return;
 				}
@@ -129,6 +171,7 @@ export function buildMenu() {
 				<div class="card-price">${esc(p.precio)}</div>
 					</div>
 					`;
+					if (conPedido) card.querySelector('.card-body').appendChild(botonAgregar(p));
 					grid.appendChild(card);
 				});
 				section.appendChild(grid);
@@ -206,6 +249,18 @@ export function buildMenu() {
 		if (da) {
 			da.textContent   = p.descripcion_avanzada || '';
 			da.style.display = p.descripcion_avanzada ? 'block' : 'none';
+		}
+
+		// El botón de agregar de la ficha (topnav y sidebar con carrito). Se
+		// rehace en cada plato: al pasar con las flechas cambia el plato y, con él,
+		// si se agrega directo o se personaliza.
+		const agregar = document.getElementById('modalAgregar');
+		if (agregar) {
+			const conPedido = carritoEncendido();
+			agregar.hidden = !conPedido;
+			agregar.classList.remove('agregado');
+			agregar.textContent = tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar al pedido';
+			agregar.onclick = conPedido ? () => agregarAlPedido(p, agregar) : null;
 		}
 
 		const total = currentCategoryProducts.length;
