@@ -233,7 +233,7 @@ export function recargoPremium(premium, marcados = selectedPremium) {
 
 // ── LA SELECCIÓN, DE IDA Y VUELTA ─────────────────────────────
 // Un plato personalizado guarda en el carrito un texto legible con lo que
-// lleva ("Toppings: Queso, Doritos | Premium: Tocineta"), y ese texto es el
+// lleva ("Toppings: Queso, Doritos | Toppings con costo: Tocineta"), y ese texto es el
 // que se le manda al restaurante por WhatsApp. Hasta aquí, bien.
 //
 // El problema estaba en volver atrás: al pulsar "editar" sobre una línea del
@@ -257,7 +257,10 @@ export function describirSeleccion({ platino = [], premium = [], salsas = [] }) 
 	const nombres = lista => (lista || []).map(t => (t && typeof t === 'object') ? t.nombre : t);
 	const partes = [];
 	if (platino.length) partes.push(`Toppings: ${nombres(platino).join(', ')}`);
-	if (premium.length) partes.push(`Premium: ${nombres(premium).join(', ')}`);
+	// «Toppings con costo» y no «Premium» desde el 16/09/2026: lo lee el
+	// restaurante en WhatsApp, y «Platino» y «Premium» eran nombres nuestros que
+	// había que explicarle. Decidido con el usuario, a la vez que el panel.
+	if (premium.length) partes.push(`Toppings con costo: ${nombres(premium).join(', ')}`);
 	if (salsas.length)  partes.push(`Salsas: ${nombres(salsas).join(', ')}`);
 	return partes.join(' | ');
 }
@@ -294,7 +297,9 @@ export function leerSeleccion(item, opciones = null) {
 	};
 	return {
 		platino: aIds(trozo('Toppings'), cat.platino),
-		premium: aIds(trozo('Premium'),  cat.premium),
+		// Los dos nombres: un carrito guardado en el navegador antes del
+		// 16/09/2026 todavía dice «Premium:».
+		premium: aIds([...trozo('Toppings con costo'), ...trozo('Premium')], cat.premium),
 		salsas:  aIds(trozo('Salsas'),   cat.salsas),
 	};
 }
