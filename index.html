@@ -1168,10 +1168,10 @@
 			}
 			.nav-filtros::-webkit-scrollbar { display: none; }
 
-			/* Los modelos de menú lateral no tienen barra fija donde meter los
-			   chips, así que se les pone una fila propia encima del contenido.
-			   No es pegajosa: al no haber nada fijo arriba, quedaría flotando
-			   sobre la carta sin nada que la sujete. */
+			/* Los modelos que no tienen barra de categorías donde meter los chips
+			   llevan una fila propia encima del contenido. Sin nada fijo arriba
+			   no es pegajosa: quedaría flotando sobre la carta sin nada que la
+			   sujete. Con cabecera fija sí lo es, y eso es la regla de abajo. */
 			.nav-filtros-sueltos {
 				border-top: none;
 				border-bottom: 1px solid var(--border);
@@ -1179,6 +1179,22 @@
 				position: relative;
 				z-index: 1;
 			}
+
+			/* Sidebar y Carrito sí tienen barra fija, pero no es sitio para los
+			   chips: mide 60 px y ya lleva hamburguesa, nombre y carrito. La
+			   fila va justo debajo, y se queda pegada ahí al desplazar como la
+			   de categorías en Topnav. Los 60 px los baja ella, así que main
+			   deja de bajarlos: si no, se sumarían dos veces y quedaría un
+			   hueco. Sin chips la fila está vacía, no se pinta, y main vuelve a
+			   encargarse — de ahí el :not(:empty) en las dos reglas. */
+			.nav-filtros-bajo-fijo:not(:empty) {
+				position: sticky;
+				top: 60px;
+				margin-top: 60px;
+				z-index: 99;
+				background: var(--surface);
+			}
+			.nav-filtros-bajo-fijo:not(:empty) + main.with-fixed-header { margin-top: 0; }
 
 			.filtro-chip {
 				flex-shrink: 0;
