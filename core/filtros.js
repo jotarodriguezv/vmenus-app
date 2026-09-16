@@ -48,9 +48,9 @@ export function pasaFiltros(p, activos) {
 export const filtrosActivos = new Set();
 
 // Dónde caben. Los modelos de nav horizontal —topnav, video— tienen sitio
-// reservado bajo las categorías. Los de menú lateral no tienen ninguna barra
-// donde meterlos, así que se les pone una fila propia justo encima del
-// contenido.
+// reservado bajo las categorías. Los de menú lateral no: su cabecera fija mide
+// 60 px y ya lleva hamburguesa, nombre y carrito, así que se les pone una fila
+// propia justo encima del contenido, bajada para que la cabecera no la tape.
 //
 // Un tema puede pasar el suyo y saltarse las dos opciones. Lo hace 'vertical',
 // que no tiene barra ninguna: sus chips van flotando sobre el video. Se
@@ -69,11 +69,19 @@ function contenedorDeChips(propio) {
 	if (!fila) {
 		fila = document.createElement('div');
 		fila.id = 'filtrosSueltos';
-		fila.className = 'nav-filtros nav-filtros-sueltos';
 		// Fuera de mainContent a propósito: buildMenu lo vacía entero cada vez
 		// que se repinta, y la fila se iría con él.
 		main.insertAdjacentElement('beforebegin', fila);
 	}
+
+	// Sidebar y Carrito tienen una cabecera fija de 60 px por encima de todo.
+	// La fila se colocaba debajo de ella y quedaba tapada: los chips existían,
+	// medían lo suyo y no se veían, y un toque en su sitio se lo llevaba el
+	// botón de la hamburguesa. Comprobado el 16/09/2026 en la carta de pruebas
+	// con modelo Sidebar. La clase la baja hasta debajo de la cabecera; el
+	// resto lo hace el CSS.
+	const bajoCabecera = main.classList.contains('with-fixed-header');
+	fila.className = 'nav-filtros nav-filtros-sueltos' + (bajoCabecera ? ' nav-filtros-bajo-fijo' : '');
 	return fila;
 }
 
