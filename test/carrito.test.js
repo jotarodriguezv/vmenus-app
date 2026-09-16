@@ -471,19 +471,26 @@ describe('describirSeleccion · el texto que lee el restaurante', () => {
 	test('arma las tres secciones separadas por barra', () => {
 		assert.equal(
 			describirSeleccion({ platino: obj('Queso', 'Doritos'), premium: obj('Tocineta'), salsas: obj('BBQ') }),
-			'Toppings: Queso, Doritos | Premium: Tocineta | Salsas: BBQ');
+			'Toppings: Queso, Doritos | Toppings con costo: Tocineta | Salsas: BBQ');
+	});
+
+	test('no dice «Premium» ni «Platino»: eran nombres nuestros', () => {
+		// 16/09/2026. El restaurante lee esto en WhatsApp y no tiene por qué
+		// saber qué era un topping «Premium».
+		const texto = describirSeleccion({ platino: obj('Queso'), premium: obj('Tocineta') });
+		assert.doesNotMatch(texto, /Premium|Platino/);
 	});
 
 	test('escribe el NOMBRE, nunca el identificador', () => {
 		// El texto se lo lee una persona por WhatsApp. Mandar lo que se guarda
 		// tal cual le pediría al restaurante "un perro con top_9f21c4a3".
 		const texto = describirSeleccion({ premium: [{ id: 'top_9f21c4a3', nombre: 'Tocineta' }] });
-		assert.equal(texto, 'Premium: Tocineta');
+		assert.equal(texto, 'Toppings con costo: Tocineta');
 		assert.ok(!texto.includes('top_'), 'no puede escaparse un identificador al pedido');
 	});
 
 	test('lo que no se eligió no deja sección vacía', () => {
-		assert.equal(describirSeleccion({ premium: obj('Tocineta') }), 'Premium: Tocineta');
+		assert.equal(describirSeleccion({ premium: obj('Tocineta') }), 'Toppings con costo: Tocineta');
 		assert.equal(describirSeleccion({}), '');
 	});
 });
@@ -534,6 +541,16 @@ describe('leerSeleccion · volver a abrir lo que se eligió', () => {
 		assert.deepEqual([...leido.platino], ['t_que', 't_dor']);
 		assert.deepEqual([...leido.premium], ['t_toc']);
 		assert.deepEqual([...leido.salsas],  ['t_bbq']);
+	});
+
+	test('el texto de hoy también se entiende, y «Toppings:» no se come el de con costo', () => {
+		// «Toppings con costo: Tocineta» contiene la palabra «Toppings». Si la
+		// búsqueda de los sin costo la tomara por suya, la tocineta volvería
+		// marcada como gratis y el pedido saldría sin su recargo.
+		const hoy = { descripcion: 'Toppings: Queso | Toppings con costo: Tocineta | Salsas: BBQ' };
+		const leido = leerSeleccion(hoy, CAT);
+		assert.deepEqual([...leido.platino], ['t_que']);
+		assert.deepEqual([...leido.premium], ['t_toc']);
 	});
 
 	test('lo que ya no está en el catálogo se cae', () => {
