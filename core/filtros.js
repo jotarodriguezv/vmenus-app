@@ -1,7 +1,9 @@
 // ── FILTROS ───────────────────────────────────────────────────
 // El restaurante define qué filtros ofrece (atributos.filtros_disponibles,
-// desde Apariencia) y cada plato dice cuáles cumple (atributos.filtros).
+// desde la pestaña Ajustes) y cada plato dice cuáles cumple (atributos.filtros).
 // Sirven para lo que quiera el negocio: vegetariano, sin gluten, picante.
+// Un interruptor aparte (atributos.filtros_activos) los enciende y los apaga
+// todos de golpe sin borrar esa configuración.
 //
 // Vivía dentro de temas/explorar.js, así que era el único modelo que podía
 // filtrar aunque los datos estuvieran ahí para todos. Es el mismo motivo por
@@ -21,9 +23,21 @@ export function filtrosMap() {
 	return map;
 }
 
+// El interruptor de la pestaña Ajustes. Apagarlo esconde los chips sin borrar
+// nada: el restaurante conserva los filtros que eligió y los platos siguen
+// marcados, así que volver a encenderlo lo deja todo como estaba.
+//
+// Ausente es encendido a propósito: los restaurantes que ya tenían filtros
+// configurados antes del interruptor no pueden perderlos por un dato que nadie
+// escribió nunca. Solo se apaga si alguien lo apagó.
+export function filtrosEncendidos(r = restaurante) {
+	return r?.atributos?.filtros_activos !== false;
+}
+
 // Solo los que aparecen en algún plato. Un filtro configurado que ningún
 // plato cumple es un chip que al pulsarlo vacía la carta: mejor no enseñarlo.
 export function filtrosEnUso() {
+	if (!filtrosEncendidos()) return [];
 	const map = filtrosMap();
 	const usados = new Set();
 	productos.forEach(p => (p.atributos?.filtros || []).forEach(id => { if (map[id]) usados.add(id); }));
