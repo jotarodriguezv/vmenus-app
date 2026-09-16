@@ -48,7 +48,7 @@ export const CLAVES_APARIENCIA = [
 	'nav', 'estilo',
 	// Bloques que se enseñan o se esconden
 	'subtitulo', 'mostrar_hero', 'portada_activa', 'carrito', 'social_bar',
-	'filtros_disponibles',
+	'filtros_disponibles', 'filtros_activos',
 	// Ajustes que solo cambian cómo se presenta lo que ya hay
 	//
 	// 'css_custom' estaba aquí y no debía, por el mismo motivo que 'plan'. Una

@@ -6,7 +6,7 @@ import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 const { setRestaurante, setProductos } = await import('../core/menu.js');
-const { filtrosMap, filtrosEnUso, pasaFiltros } = await import('../core/filtros.js');
+const { filtrosMap, filtrosEnUso, pasaFiltros, filtrosEncendidos } = await import('../core/filtros.js');
 
 const CATALOGO = [
 	{ id: 'veg',    label: 'Vegetariano', emoji: '🌱' },
@@ -78,5 +78,39 @@ describe('filtrosMap · el catálogo indexado', () => {
 		const m = filtrosMap();
 		assert.equal(m.veg.label, 'Vegetariano');
 		assert.equal(m.gluten.emoji, '🌾');
+	});
+});
+
+describe('el interruptor de Ajustes · filtros_activos', () => {
+	test('sin el dato están encendidos: nadie lo escribió nunca', () => {
+		// Bonzas lleva meses con su filtro de picante y su atributos no tiene
+		// esta clave. Tomar la ausencia por «apagado» le quitaría el chip.
+		assert.equal(filtrosEncendidos({ atributos: { filtros_disponibles: CATALOGO } }), true);
+		assert.equal(filtrosEncendidos({ atributos: {} }), true);
+		assert.equal(filtrosEncendidos(undefined), true);
+	});
+
+	test('apagado esconde los chips aunque haya platos marcados', () => {
+		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: { filtros_disponibles: CATALOGO, filtros_activos: false } });
+		setProductos([P('a', ['veg']), P('b', ['gluten'])]);
+		assert.deepEqual(filtrosEnUso(), []);
+	});
+
+	test('apagar no borra: al volver a encender está todo igual', () => {
+		// Es lo que separa el interruptor de quitar los filtros a mano.
+		const at = { filtros_disponibles: CATALOGO, filtros_activos: false };
+		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: at });
+		setProductos([P('a', ['veg'])]);
+		assert.deepEqual(filtrosEnUso(), []);
+
+		setRestaurante({ id: 'r1', slug: 'pruebas', atributos: { ...at, filtros_activos: true } });
+		assert.deepEqual(filtrosEnUso().map(f => f.id), ['veg']);
+	});
+
+	test('solo el false lo apaga, no cualquier valor', () => {
+		// El panel guarda un booleano de verdad; si algún día llegara la cadena
+		// "false" desde otro sitio, apagar la carta por eso sería peor.
+		assert.equal(filtrosEncendidos({ atributos: { filtros_activos: 'false' } }), true);
+		assert.equal(filtrosEncendidos({ atributos: { filtros_activos: false } }), false);
 	});
 });
