@@ -53,12 +53,7 @@ export function buildNav() {
 	});
 
 	// Carrito desde el 15/09/2026, si el plan lo incluye y el restaurante lo
-	// encendió. Sidebar sí tiene cabecera fija, así que el botón va ahí, en el
-	// mismo sitio que en el modelo 'carrito'.
-	//
-	// Ese modelo reutiliza este buildNav y enciende el carrito por su cuenta
-	// después. Llamar aquí a activarCarrito no lo duplica: solo actúa la primera
-	// vez por página (ver core/carrito.js).
+	// encendió. Sidebar sí tiene cabecera fija, así que el botón va ahí.
 	if (!carritoEncendido()) return;
 	activarCarrito();
 	const boton = document.getElementById('cartBtn');

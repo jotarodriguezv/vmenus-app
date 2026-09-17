@@ -2,7 +2,8 @@
 // El carrito de compras: estado, guardado en el navegador, personalización
 // por toppings, checkout y envío por WhatsApp.
 //
-// Vivía entero dentro de temas/carrito.js. Se sacó aquí cuando el modelo de
+// Vivía entero dentro de temas/carrito.js, el modelo Carrito (retirado el
+// 17/09/2026). Se sacó aquí cuando el modelo de
 // video también quiso carrito: la alternativa era copiar seiscientas líneas
 // a otro tema, y eso ya nos costó un fallo una vez — el escapado de HTML
 // vivía dentro de temas/explorar.js y los demás temas se quedaron sin él.
@@ -554,10 +555,8 @@ function removeFromCart(cartKey) {
 // enviar… y solo ahí recibía un alert() diciendo que el restaurante no tenía
 // número. Todo el trabajo hecho y ningún camino hacia adelante.
 //
-// No se resuelve escondiendo el carrito. En el modelo 'carrito' tocar un plato
-// ES añadirlo al pedido —no hay ficha—, así que quitarlo dejaría una carta
-// donde tocar un plato no hace nada (ver temas/carrito.js, que lo advierte).
-// Lo que se hace es avisar ANTES de pedir datos: en lugar de «Hacer Pedido».
+// No se resuelve escondiendo el carrito: el restaurante lo encendió para que se
+// pueda pedir, y quitárselo en silencio le escondería el problema. Lo que se hace es avisar ANTES de pedir datos: en lugar de «Hacer Pedido».
 //
 // Pasa por soloDigitos como el envío, para que «+57 300…» cuente como número y
 // un campo con solo espacios o guiones cuente como vacío.
@@ -567,7 +566,7 @@ export function recibePedidos() {
 
 function updateCartUI() {
 	const count = cart.reduce((sum, i) => sum + i.cantidad, 0);
-	// Un contador por botón: el de la cabecera fija (Sidebar y 'carrito'), el
+	// Un contador por botón: el de la cabecera fija de Sidebar, el
 	// flotante de los temas sin cabecera y el de la barra de Explorar. Cada tema
 	// enseña el suyo; aquí se actualizan los dos sin preguntar cuál existe.
 	const cartCount = document.getElementById('cartCount');
@@ -824,9 +823,7 @@ function mostrarEnlaceManual(url) {
 //
 // La tenían escrita video.js y vertical.js cada uno por su lado; al sumarse
 // topnav y sidebar habrían sido cuatro copias de la misma regla. Queda aquí.
-//
-// El modelo 'carrito' no pregunta: allí el carrito ES la carta (temas/carrito.js
-// explica por qué apagárselo la rompería).
+
 export function carritoEncendido(r = restaurante) {
 	return !!(planDe(r).carrito && r?.atributos?.carrito);
 }
@@ -836,8 +833,9 @@ export function carritoEncendido(r = restaurante) {
 // nav. Engancha los botones del modal de personalización y publica en
 // window lo que el marcado de index.html invoca con onclick.
 export function activarCarrito() {
-	// Una sola vez por página. El modelo 'carrito' reutiliza la navegación de
-	// sidebar, y sidebar enciende el carrito cuando lo tiene: sin esto se
+	// Una sola vez por página. Lo necesitaba el modelo 'carrito' (retirado),
+	// que reutilizaba la navegación de sidebar y encendía el carrito dos veces;
+	// se queda porque llamarlo de más no debe costar nada: sin esto se
 	// encendería dos veces y cada escuchador quedaría duplicado —el «+» de
 	// cantidad sumaría de dos en dos y cerrar el modal lo haría dos veces—.
 	// Va en el documento y no en una variable del módulo: las pruebas montan un
@@ -862,8 +860,8 @@ export function activarCarrito() {
 	});
 
 	// A propósito NO se enseña aquí ningún botón de carrito. Cada tema tiene
-	// el suyo en un sitio distinto —el de 'carrito' lo lleva en su cabecera
-	// fija, y un tema sin cabecera fija necesita otra cosa— así que enseñarlo
+	// el suyo en un sitio distinto —Sidebar en su cabecera fija, Explorar en su
+	// barra de arriba, los demás flotante— así que enseñarlo
 	// es decisión del tema y no de la maquinaria.
 	window.vmToggleCart = toggleCart;
 	window.vmOpenCheckout = openCheckout;

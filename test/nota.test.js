@@ -27,7 +27,6 @@ describe('todos los modelos pintan la nota', () => {
 	// Uno que se olvide deja el aviso fuera justo en las cartas de ese modelo.
 	const MODELOS = {
 		'core/menu.js': /<\/div>\s*\$\{notaDe\(cat\)\}/,
-		'temas/carrito.js': /<\/div>\s*\$\{notaDe\(cat\)\}`/,
 		'temas/explorar.js': /section\.appendChild\(header\);\s*section\.insertAdjacentHTML\('beforeend', notaDe\(cat\)\);/,
 		'temas/video.js': /<div class="vid-cat">[^\n]*<\/div>\s*\$\{notaDe\(cat, 'categoria-nota vid-nota'\)\}/,
 		'temas/vertical.js': /\$\{i === 0 \? notaDe\(cat, 'categoria-nota ver-nota'\) : ''\}/,

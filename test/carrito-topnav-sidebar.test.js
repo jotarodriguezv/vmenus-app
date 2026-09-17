@@ -117,7 +117,7 @@ describe('carritoEncendido · una sola regla para los cuatro modelos', () => {
 });
 
 describe('activarCarrito · una sola vez por página', () => {
-	// El modelo 'carrito' reutiliza el buildNav de sidebar, que ahora también lo
+	// El modelo 'carrito' (retirado el 17/09/2026) reutilizaba el buildNav de sidebar, que también lo
 	// enciende. Dos veces dejaría cada escuchador duplicado: el «+» de cantidad
 	// sumaría de dos en dos.
 	test('la segunda llamada no vuelve a registrar nada', () => {
