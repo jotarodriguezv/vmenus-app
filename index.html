@@ -1005,6 +1005,21 @@
 
 			.exp-unavail { opacity: 0.45; }
 
+			/* Carrito en Explorar (17/09/2026). El «+» reutiliza .menu-add de Topnav
+			   y Sidebar: en la lista cierra la fila, en la tarjeta flota en la
+			   esquina del pie sin empujar el precio. */
+			.exp-item .exp-add { align-self: center; margin-left: 2px; }
+			.exp-card-body { position: relative; }
+			.exp-card-conpedido .exp-card-body { padding-right: 48px; }
+			.exp-card .exp-add { position: absolute; right: 9px; bottom: 9px; }
+			.exp-cartbtn { position: relative; }
+			.exp-cart-count {
+				position: absolute; top: -4px; right: -4px;
+				min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+				background: var(--primary); color: var(--dark);
+				font-size: 11px; font-weight: 700; line-height: 20px; text-align: center;
+			}
+
 			/* Estado vacío */
 			.exp-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
 			.exp-empty-icon { font-size: 38px; margin-bottom: 12px; }

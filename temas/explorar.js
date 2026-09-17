@@ -17,6 +17,7 @@ import { esc, escUrl, notaDe, textoPrecio } from '../core/html.js';
 import { fotosDe, construirCarrusel } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from '../core/teclado.js';
+import { carritoEncendido, activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
 
 // ── ESTADO DEL TEMA ───────────────────────────────────────────
 let viewMode = 'list';        // 'list' | 'grid'
@@ -39,6 +40,7 @@ const IC = {
 	grid: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="4" y="4" width="16" height="9" rx="2"/><line x1="4" y1="17" x2="20" y2="17"/><line x1="4" y1="20" x2="14" y2="20"/></svg>',
 	search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>',
 	filter: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>',
+	cart: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3h2.6l2.5 12.2a1.6 1.6 0 0 0 1.6 1.3h8.6a1.6 1.6 0 0 0 1.6-1.2L21.5 7H6"/></svg>',
 	close: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
 };
 
@@ -82,6 +84,11 @@ export function buildNav() {
 	document.body.classList.add('tema-explorar');
 
 	const hayFiltros = filtrosEnUso().length > 0;
+	// Carrito desde el 17/09/2026, con la misma regla que los demás modelos:
+	// plan que lo incluya e interruptor encendido en Ajustes. Hasta entonces
+	// este era el único modelo que no lo pintaba aunque las dos cosas se
+	// cumplieran.
+	const conPedido = carritoEncendido();
 
 	// ── Controles superiores (fijos) ──
 	const top = document.createElement('div');
@@ -96,6 +103,7 @@ export function buildNav() {
 		<div class="exp-top-right">
 			<button class="exp-iconbtn" id="expSearchToggle" aria-label="Buscar">${IC.search}</button>
 			${hayFiltros ? `<button class="exp-iconbtn" id="expFilterToggle" aria-label="Filtros">${IC.filter}</button>` : ''}
+			${conPedido ? `<button class="exp-iconbtn exp-cartbtn" id="expCartBtn" aria-label="Ver el pedido">${IC.cart}<span class="exp-cart-count" id="expCartCount">0</span></button>` : ''}
 		</div>`;
 	document.body.appendChild(top);
 
@@ -153,6 +161,14 @@ export function buildNav() {
 	searchInput.oninput = () => { searchTerm = searchInput.value; renderDishes(); };
 	document.getElementById('expSearchClear').onclick = () => { searchInput.value = ''; searchTerm = ''; searchInput.focus(); renderDishes(); };
 	if (hayFiltros) document.getElementById('expFilterToggle').onclick = toggleFilterPanel;
+	// El botón va arriba, con la lupa y los filtros, y no flotante abajo como en
+	// Topnav: aquí abajo ya está fija la barra de categorías y lo taparía. Se
+	// enciende después de ponerlo, porque activarCarrito carga el pedido
+	// guardado y pinta su contador.
+	if (conPedido) {
+		document.getElementById('expCartBtn').onclick = () => window.vmToggleCart?.();
+		activarCarrito();
+	}
 
 	modalBg.onclick = closeExpModal;
 	// Esta ficha no es la de core/menu.js y no tenía Escape. Solo si está
@@ -345,6 +361,8 @@ function itemLista(p, cat, map) {
 			${chipsFiltrosProducto(p, map)}
 		</div>`;
 	alFallarImagen(div, '.exp-thumb img', cat.emoji, 'exp-thumb-ph');
+	const mas = botonAgregar(p);
+	if (mas) div.appendChild(mas);
 	div.onclick = () => openExpModal(p, cat, map);
 	hacerActivable(div);
 	return div;
@@ -373,9 +391,43 @@ function itemCard(p, cat, map) {
 			<div class="exp-card-price">${esc(textoPrecio(p))}</div>
 		</div>`;
 	alFallarImagen(div, '.exp-card-img', cat.emoji, 'exp-card-ph');
+	const mas = botonAgregar(p);
+	if (mas) { div.classList.add('exp-card-conpedido'); div.querySelector('.exp-card-body')?.appendChild(mas); }
 	div.onclick = () => openExpModal(p, cat, map);
 	hacerActivable(div);
 	return div;
+}
+
+// ── AGREGAR AL PEDIDO ─────────────────────────────────────────
+// Este tema tiene su propia ficha, así que no puede usar agregarAlPedido de
+// core/menu.js: aquel cierra la ficha compartida, no esta. Lo demás es igual.
+function agregar(p, boton, confirmacion) {
+	if (tienePersonalizacion(p)) {
+		// La ficha de Explorar (z-index 501) va por encima de la personalización
+		// (400): sin cerrarla, esta se abriría detrás, sin verse.
+		closeExpModal();
+		return openCustomModal(p.id);
+	}
+	agregarSimple(p);
+	if (!boton) return;
+	const antes = boton.textContent;
+	boton.textContent = confirmacion;
+	boton.classList.add('agregado');
+	setTimeout(() => { boton.textContent = antes; boton.classList.remove('agregado'); }, 900);
+}
+
+// null sin carrito: la carta queda exactamente como era.
+function botonAgregar(p) {
+	if (!carritoEncendido() || p.disponible === false) return null;
+	const b = document.createElement('button');
+	b.type = 'button';
+	b.className = 'menu-add exp-add';
+	b.textContent = '+';
+	b.setAttribute('aria-label', `${tienePersonalizacion(p) ? 'Personalizar' : 'Agregar'} ${p.nombre} al pedido`);
+	// stopPropagation: el botón vive dentro del plato, y el clic subiría y
+	// abriría la ficha además de agregar.
+	b.onclick = e => { e.stopPropagation(); agregar(p, b, '✓'); };
+	return b;
 }
 
 // ── FOOTER con guía de filtros ────────────────────────────────
@@ -427,6 +479,14 @@ function openExpModal(p, cat, map) {
 			${filtrosBloque}
 		</div>`;
 	alFallarImagen(cont, '.exp-modal-img', cat.emoji, 'exp-modal-ph');
+	if (carritoEncendido() && p.disponible !== false) {
+		const b = document.createElement('button');
+		b.type = 'button';
+		b.className = 'modal-agregar';
+		b.textContent = tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar al pedido';
+		b.onclick = () => agregar(p, b, '✓ Agregado');
+		cont.querySelector('.exp-modal-body')?.appendChild(b);
+	}
 
 	// Sin alAmpliar: este tema no tiene visor de imagen, así que las fotos no
 	// se abren y tampoco muestran el cursor de zoom.

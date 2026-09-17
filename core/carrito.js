@@ -567,13 +567,16 @@ export function recibePedidos() {
 
 function updateCartUI() {
 	const count = cart.reduce((sum, i) => sum + i.cantidad, 0);
-	// Dos contadores porque hay dos botones: el de la cabecera fija del modelo
-	// 'carrito' y el flotante de los temas que no tienen cabecera. Cada tema
+	// Un contador por botón: el de la cabecera fija (Sidebar y 'carrito'), el
+	// flotante de los temas sin cabecera y el de la barra de Explorar. Cada tema
 	// enseña el suyo; aquí se actualizan los dos sin preguntar cuál existe.
 	const cartCount = document.getElementById('cartCount');
 	if (cartCount) cartCount.textContent = count;
 	const fabCount = document.getElementById('cartFabCount');
 	if (fabCount) fabCount.textContent = count;
+	// Y el de Explorar, que va arriba junto a la lupa (17/09/2026).
+	const expCount = document.getElementById('expCartCount');
+	if (expCount) expCount.textContent = count;
 
 	const itemsDiv = document.getElementById('cartItems');
 	const emptyDiv = document.getElementById('cartEmpty');
