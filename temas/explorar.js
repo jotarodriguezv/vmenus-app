@@ -16,6 +16,10 @@ import { trackClic } from '../core/analytics.js';
 import { esc, escUrl, notaDe, textoPrecio } from '../core/html.js';
 import { fotosDe, construirCarrusel } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
+// Este tema tenía su búsqueda desde el principio y conserva su lupa, que es
+// suya; lo que comparte desde el 17/09/2026 es QUÉ coincide, que ahora es lo
+// mismo en los cinco modelos: sin acentos y por palabras sueltas.
+import { coincideBusqueda } from '../core/buscador.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from '../core/teclado.js';
 import { carritoEncendido, activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
 
@@ -265,14 +269,7 @@ function renderDishes() {
 	const term = searchTerm.toLowerCase().trim();
 	const map = filtrosMap();
 
-	const pasa = (p) => {
-		if (term) {
-			const hay = (p.nombre || '').toLowerCase().includes(term) ||
-				(p.descripcion || '').toLowerCase().includes(term);
-			if (!hay) return false;
-		}
-		return pasaFiltros(p, activeFilters);
-	};
+	const pasa = (p) => coincideBusqueda(p, term) && pasaFiltros(p, activeFilters);
 
 	const visibles = productos.filter(pasa);
 

@@ -2,6 +2,7 @@ import { trackClic } from './analytics.js';
 import { esc, escUrl, notaDe, textoPrecio } from './html.js';
 import { fotosDe, construirCarrusel } from './carrusel.js';
 import { montarChips, ocultarNoCoinciden } from './filtros.js';
+import { montarBuscador } from './buscador.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
 import { carritoEncendido, agregarSimple, openCustomModal, tienePersonalizacion } from './carrito.js';
 
@@ -187,7 +188,16 @@ export function buildMenu() {
 	// tarjetas abren su modal por POSICIÓN dentro de la categoría
 	// (openModal(cat.id, idx)). Si se quitaran del DOM, los índices bailarían
 	// y cada tarjeta abriría el plato equivocado.
-	montarChips(() => ocultarNoCoinciden('.list-item, .product-card, .product-noimg'));
+	const repintar = () => ocultarNoCoinciden('.list-item, .product-card, .product-noimg');
+	montarChips(repintar);
+	// El buscador va después de los chips: su fila se coloca encima de la de
+	// ellos, y para eso tiene que existir ya. Igual que los chips, lo tienen
+	// topnav y sidebar con una sola llamada, porque comparten este buildMenu.
+	montarBuscador(repintar);
+	// Repintar la carta no borra lo buscado —la caja vive fuera de mainContent—,
+	// así que hay que volver a esconder lo que no coincide. Pasa al cambiar de
+	// categoría con horario o al volver de la ficha de un plato.
+	repintar();
 	}
 
 	// ── MODAL ─────────────────────────────────────────────────────

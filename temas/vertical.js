@@ -2,6 +2,7 @@ import { restaurante, categorias, productos } from '../core/menu.js';
 import { esc, notaDe, textoPrecio } from '../core/html.js';
 import { mediaDe, activarVideos } from '../core/reproduccion.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
+import { montarBuscador } from '../core/buscador.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion, carritoEncendido } from '../core/carrito.js';
 
 // ── TEMA: VERTICAL ────────────────────────────────────────────
@@ -96,7 +97,8 @@ function montarChrome() {
 		chrome.innerHTML = `
 			<div class="ver-segmentos" id="verSegmentos"></div>
 			<div class="ver-cats" id="verCats"></div>
-			<div class="ver-filtros nav-filtros" id="verFiltros"></div>`;
+			<div class="ver-filtros nav-filtros" id="verFiltros"></div>
+			<div class="ver-buscador" id="verBuscador"></div>`;
 		main.insertAdjacentElement('beforebegin', chrome);
 	}
 	return chrome;
@@ -131,13 +133,17 @@ export function buildNav() {
 
 	// Los chips los pinta core/filtros.js. Aquí se le dice dónde ponerlos,
 	// porque este modelo no tiene ninguna de las dos barras que busca solo.
-	montarChips(
-		// Al filtrar cambia cuántos platos quedan, así que la barra de avance
-		// tiene que rehacerse: si no, marcaría posiciones de una carta que ya
-		// no es la que se está viendo.
-		() => { ocultarNoCoinciden('.ver-plato'); pintarSegmentos(); },
-		document.getElementById('verFiltros')
-	);
+	// Al filtrar o buscar cambia cuántos platos quedan, así que la barra de
+	// avance tiene que rehacerse: si no, marcaría posiciones de una carta que
+	// ya no es la que se está viendo.
+	const repintar = () => { ocultarNoCoinciden('.ver-plato'); pintarSegmentos(); };
+	montarChips(repintar, document.getElementById('verFiltros'));
+	// El buscador va en la barra flotante, por lo mismo: aquí no hay ninguna
+	// barra donde meterlo, cada plato ocupa la pantalla entera. En fila propia y
+	// no en la de los chips porque montarChips vacía la suya al repintar, y se
+	// llevaría por delante lo que se estuviera escribiendo.
+	montarBuscador(repintar, document.getElementById('verBuscador'));
+	repintar();
 
 	if (!conCarrito()) return;
 	activarCarrito();

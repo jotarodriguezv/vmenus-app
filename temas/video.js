@@ -2,6 +2,7 @@ import { restaurante, categorias, productos } from '../core/menu.js';
 import { esc, notaDe, textoPrecio } from '../core/html.js';
 import { mediaDe, activarVideos } from '../core/reproduccion.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
+import { montarBuscador } from '../core/buscador.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion, carritoEncendido } from '../core/carrito.js';
 
 // ── TEMA: VIDEO ───────────────────────────────────────────────
@@ -66,8 +67,12 @@ export function buildNav() {
 		primero = false;
 	});
 
-	// Los chips los pinta core/filtros.js; aquí solo se dice qué esconder.
-	montarChips(() => ocultarNoCoinciden('.vid-plato'));
+	// Los chips los pinta core/filtros.js; aquí solo se dice qué esconder. El
+	// buscador es lo mismo con la caja de texto (core/buscador.js).
+	const repintar = () => ocultarNoCoinciden('.vid-plato');
+	montarChips(repintar);
+	montarBuscador(repintar);
+	repintar();
 
 	if (!conCarrito()) return;
 	activarCarrito();
