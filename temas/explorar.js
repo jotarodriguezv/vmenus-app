@@ -13,7 +13,7 @@
 
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { trackClic } from '../core/analytics.js';
-import { esc, escUrl, notaDe } from '../core/html.js';
+import { esc, escUrl, notaDe, textoPrecio } from '../core/html.js';
 import { fotosDe, construirCarrusel } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from '../core/teclado.js';
@@ -338,7 +338,7 @@ function itemLista(p, cat, map) {
 		<div class="exp-item-info">
 			<div class="exp-item-row">
 				<span class="exp-item-name">${esc(p.nombre)}</span>
-				<span class="exp-item-price">${esc(p.precio)}</span>
+				<span class="exp-item-price">${esc(textoPrecio(p))}</span>
 			</div>
 			${badgesHtml(p) ? `<div class="exp-badges">${badgesHtml(p)}</div>` : ''}
 			${p.descripcion ? `<p class="exp-item-desc">${esc(p.descripcion)}</p>` : ''}
@@ -370,7 +370,7 @@ function itemCard(p, cat, map) {
 		<div class="exp-card-body">
 			<div class="exp-card-name">${esc(p.nombre)}</div>
 			${p.descripcion ? `<div class="exp-card-desc">${esc(p.descripcion)}</div>` : ''}
-			<div class="exp-card-price">${esc(p.precio)}</div>
+			<div class="exp-card-price">${esc(textoPrecio(p))}</div>
 		</div>`;
 	alFallarImagen(div, '.exp-card-img', cat.emoji, 'exp-card-ph');
 	div.onclick = () => openExpModal(p, cat, map);
@@ -421,7 +421,7 @@ function openExpModal(p, cat, map) {
 		<div class="exp-modal-body">
 			${badgesHtml(p) ? `<div class="exp-badges">${badgesHtml(p)}</div>` : ''}
 			<div class="exp-modal-title">${esc(p.nombre)}</div>
-			<div class="exp-modal-price">${esc(p.precio)}</div>
+			<div class="exp-modal-price">${esc(textoPrecio(p))}</div>
 			${p.descripcion ? `<p class="exp-modal-desc">${esc(p.descripcion)}</p>` : ''}
 			${p.descripcion_avanzada ? `<p class="exp-modal-desc-adv">${esc(p.descripcion_avanzada)}</p>` : ''}
 			${filtrosBloque}

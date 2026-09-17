@@ -155,7 +155,7 @@ function openCustomModal(productId, editingCartKey = null) {
 	}
 
 	document.getElementById('customName').textContent = p.nombre;
-	document.getElementById('customBasePrice').textContent = `Precio base: ${p.precio}`;
+	document.getElementById('customBasePrice').textContent = `Precio base: ${p.atributos?.precio_gratis === true ? 'Gratis' : p.precio}`;
 	updateCustomQtyUI();
 	document.getElementById('btnAgregarCarrito').textContent = editingCartKey ? '✏ GUARDAR CAMBIOS' : '🛒 AGREGAR AL CARRITO';
 
