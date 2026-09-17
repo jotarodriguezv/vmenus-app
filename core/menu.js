@@ -1,5 +1,5 @@
 import { trackClic } from './analytics.js';
-import { esc, escUrl, notaDe } from './html.js';
+import { esc, escUrl, notaDe, textoPrecio } from './html.js';
 import { fotosDe, construirCarrusel } from './carrusel.js';
 import { montarChips, ocultarNoCoinciden } from './filtros.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
@@ -130,7 +130,7 @@ export function buildMenu() {
 				? `<span class="list-desc-avanzada">${esc(p.descripcion_avanzada)}</span>`
 					: ''}
 				</span>
-				<span class="list-price">${esc(p.precio)}</span>
+				<span class="list-price">${esc(textoPrecio(p))}</span>
 				`;
 				if (conPedido) item.appendChild(botonAgregar(p));
 				list.appendChild(item);
@@ -150,7 +150,7 @@ export function buildMenu() {
 					hacerActivable(row);
 					row.innerHTML = `
 					<div class="card-name">${esc(p.nombre)}</div>
-					<div class="card-price">${esc(p.precio)}</div>
+					<div class="card-price">${esc(textoPrecio(p))}</div>
 					`;
 					if (conPedido) row.appendChild(botonAgregar(p));
 					grid.appendChild(row);
@@ -168,7 +168,7 @@ export function buildMenu() {
 				</div>
 				<div class="card-body">
 				<div class="card-name">${esc(p.nombre)}</div>
-				<div class="card-price">${esc(p.precio)}</div>
+				<div class="card-price">${esc(textoPrecio(p))}</div>
 					</div>
 					`;
 					if (conPedido) card.querySelector('.card-body').appendChild(botonAgregar(p));
@@ -242,7 +242,7 @@ export function buildMenu() {
 
 		// Datos del producto
 		document.getElementById('modalName').textContent = p.nombre;
-		document.getElementById('modalPrice').textContent = p.precio;
+		document.getElementById('modalPrice').textContent = textoPrecio(p);
 		document.getElementById('modalDesc').textContent = p.descripcion || '';
 
 		const da = document.getElementById('modalDescAvanzada');

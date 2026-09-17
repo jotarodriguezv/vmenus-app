@@ -14,6 +14,13 @@ export function esc(s) {
 	}[c]));
 }
 
+// Un cero no basta para decir que algo es gratis: muchas cartas antiguas lo
+// usaban como valor provisional. Solo la marca explícita del panel cambia lo
+// que ve el comensal; el importe numérico sigue siendo 0 para el carrito.
+export function textoPrecio(producto) {
+	return producto?.atributos?.precio_gratis === true ? 'Gratis' : (producto?.precio || '');
+}
+
 // Para lo que va dentro de href/src. Escapar evita salirse del atributo pero
 // no impide un href="javascript:...", así que aquí se exige además que el
 // destino sea una URL de verdad. Lo que no lo sea se queda en '#'.

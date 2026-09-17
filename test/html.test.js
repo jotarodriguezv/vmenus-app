@@ -2,7 +2,7 @@
 // dominio de la plataforma, así que lo que se cuele aquí corre con su origen.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { esc, escUrl } from '../core/html.js';
+import { esc, escUrl, textoPrecio } from '../core/html.js';
 
 describe('esc', () => {
 	test('neutraliza los cinco caracteres que rompen el HTML', () => {
@@ -72,5 +72,12 @@ describe('escUrl', () => {
 	test('mailto y tel siguen valiendo', () => {
 		assert.equal(escUrl('mailto:hola@ejemplo.com'), 'mailto:hola@ejemplo.com');
 		assert.equal(escUrl('tel:+573001234567'), 'tel:+573001234567');
+	});
+});
+
+describe('textoPrecio', () => {
+	test('solo muestra Gratis cuando el restaurante lo marcó de forma explícita', () => {
+		assert.equal(textoPrecio({ precio: '$ 0', atributos: { precio_gratis: true } }), 'Gratis');
+		assert.equal(textoPrecio({ precio: '$ 0', atributos: {} }), '$ 0');
 	});
 });

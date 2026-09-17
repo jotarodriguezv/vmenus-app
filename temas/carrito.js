@@ -9,7 +9,7 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { buildNav as buildSidebarNav } from './sidebar.js';
 import { trackClic } from '../core/analytics.js';
-import { esc, escUrl, notaDe } from '../core/html.js';
+import { esc, escUrl, notaDe, textoPrecio } from '../core/html.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
 import { hacerActivable } from '../core/teclado.js';
@@ -74,7 +74,7 @@ export function buildMenu() {
 					${tieneOpciones ? '<div class="card-hint">Toca para personalizar</div>' : ''}
 				</div>
 				<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-					<div class="card-price">${esc(p.precio)}</div>
+					<div class="card-price">${esc(textoPrecio(p))}</div>
 					<span class="noimg-add-indicator">+</span>
 				</div>`;
 				hacerActivable(row);
@@ -105,7 +105,7 @@ export function buildMenu() {
 			</div>
 			<div class="card-body">
 				<div class="card-name">${esc(p.nombre)}</div>
-				<div class="card-price">${esc(p.precio)}</div>
+				<div class="card-price">${esc(textoPrecio(p))}</div>
 				${tieneOpciones ? '<div class="card-hint">Toca para personalizar</div>' : ''}
 			</div>`;
 
