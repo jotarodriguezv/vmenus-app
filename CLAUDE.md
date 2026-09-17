@@ -61,10 +61,23 @@ instalar: no ejecutar `npm install` esperando que haga algo.
   (`core/planes.js`). El modelo `carrito` se retiró el 17/09/2026: el carrito
   es un interruptor en los cinco.
 
-Un restaurante se identifica por su slug, y se aceptan **las dos formas a la
-vez**: `menu.vmenus.co/bonzas` y `bonzas.vmenus.co`. Que ambas respondan es lo
-que permite cambiar la forma oficial en el panel sin invalidar los QR ya
-repartidos. No romper ninguna de las dos.
+Un restaurante se identifica por su slug, y el código acepta **las dos formas**
+(`leerSlug` en `core/loader.js`): el slug en la ruta —`menu.vmenus.co/bonzas`—
+y el slug en el subdominio —`bonzas.vmenus.co`—. No romper ninguna de las dos:
+es lo que permitiría cambiar la forma oficial sin invalidar un QR repartido.
+
+**Pero hoy en producción solo responde la de la ruta**, comprobado el
+17/09/2026. No hay DNS comodín para `*.vmenus.co`, así que `bonzas.vmenus.co`
+devuelve el 404 de Traefik; el código está listo para el día que se configure,
+no antes. Esto no deja a nadie sin carta: **ningún QR impreso usa esa forma.**
+
+Los dos restaurantes que tienen su carta en un subdominio son los dos primeros
+clientes, y ese subdominio es de **otro dominio**, `verificame.click`, de antes
+de que existiera el panel: `bonzaburgergrill.verificame.click` y
+`malparados.verificame.click`. No sirven esta aplicación — son dos páginas de
+nueve líneas que redirigen a `menu.vmenus.co/<slug>`, y siguen vivas porque sus
+QR ya estaban impresos. La historia completa está en
+`adminmenus_restaurantes/docs/servidor.md` §1.
 
 ## Seguridad
 
