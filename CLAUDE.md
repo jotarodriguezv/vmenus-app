@@ -42,9 +42,11 @@ instalar: no ejecutar `npm install` esperando que haga algo.
   - `menu.js`, `carrito.js`, `filtros.js`, `carrusel.js`, `horarios.js`,
     `planes.js`, `preview.js`, `analytics.js`, `aviso.js`, `html.js`,
     `reproduccion.js`.
-- `temas/` — variantes de navegación: `sidebar`, `topnav`, `explorar`,
-  `vertical`, `carrito`, `video`. Cuál se usa lo decide la configuración del
-  restaurante.
+- `temas/` — variantes de navegación. De fotos: `topnav`, `sidebar` y
+  `explorar`; de video: `video` y `vertical`. Cuál se usa lo decide la
+  configuración del restaurante, y qué modelos se ofrecen, su plan
+  (`core/planes.js`). El modelo `carrito` se retiró el 17/09/2026: el carrito
+  es un interruptor en los cinco.
 
 Un restaurante se identifica por su slug, y se aceptan **las dos formas a la
 vez**: `menu.vmenus.co/bonzas` y `bonzas.vmenus.co`. Que ambas respondan es lo

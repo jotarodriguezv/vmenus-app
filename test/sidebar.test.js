@@ -1,5 +1,4 @@
-// El lateral del modelo Sidebar. Lo reutiliza también el modelo Carrito
-// (temas/carrito.js importa su buildNav), así que un fallo aquí sale en dos.
+// El lateral del modelo Sidebar.
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 

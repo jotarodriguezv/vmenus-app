@@ -214,7 +214,6 @@ describe('dónde se usa', () => {
 		const casos = {
 			'core/menu.js': /(item|row|card)\.onclick = \(\) => openModal/g,
 			'temas/explorar.js': /div\.onclick = \(\) => openExpModal/g,
-			'temas/carrito.js': /(row|card)\.onclick = \(\) => \{/g,
 		};
 		for (const [f, re] of Object.entries(casos)) {
 			const src = leer(f);
@@ -231,11 +230,11 @@ describe('dónde se usa', () => {
 	});
 
 	test('quien usa las funciones de teclado las importa', () => {
-		// Pasó al aplicar V2: temas/carrito.js llamaba a hacerActivable sin
+		// Pasó al aplicar V2: temas/carrito.js (el modelo Carrito, ya retirado) llamaba a hacerActivable sin
 		// importarla, y la carta del modelo Carrito entera dejaba de cargar con
 		// «No se pudo cargar el menú». La prueba de arriba lee el texto y no lo
 		// vio; se cazó abriendo la carta en un navegador.
-		const archivos = ['core/menu.js', 'core/carrusel.js', 'core/carrito.js', 'temas/carrito.js', 'temas/explorar.js',
+		const archivos = ['core/menu.js', 'core/carrusel.js', 'core/carrito.js', 'temas/explorar.js',
 			'temas/sidebar.js', 'temas/topnav.js', 'temas/vertical.js', 'temas/video.js'];
 		for (const f of archivos) {
 			const src = leer(f);

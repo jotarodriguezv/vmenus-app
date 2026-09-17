@@ -37,21 +37,18 @@ export const PLANES = {
 	video: { nombre: 'Video', modelos: ['video', 'vertical'], videos: true, ...TODO_INCLUIDO },
 };
 
-// Los planes de antes del 17/09/2026. Se siguen entendiendo mientras haya
-// restaurantes guardados con ellos: si no, la carta caería en el de por
-// defecto y, peor, se podría mostrar con lo que no le toca. Se borra cuando
-// ninguno quede en la base.
-const PLANES_ANTIGUOS = { vitrina: 'fotos', pedidos: 'fotos', completo: 'fotos' };
-
 // Sin plan —o con uno que no existe— manda el modelo: una carta de video es
 // del plan de video. Antes caía en 'pedidos', que ya no existe.
+//
+// Los nombres de antes (vitrina, pedidos, completo) se entendieron como 'fotos'
+// hasta que sql/24 migró la base el 17/09/2026; ya no queda ninguno, y uno que
+// apareciera cae aquí igualmente en 'fotos' por su modelo.
 export const PLAN_POR_DEFECTO = 'fotos';
 const MODELOS_DE_VIDEO = ['video', 'vertical'];
 
 export function nombrePlanDe(restaurante) {
 	const at = restaurante?.atributos;
-	const nombre = PLANES_ANTIGUOS[at?.plan] || at?.plan;
-	if (PLANES[nombre]) return nombre;
+	if (PLANES[at?.plan]) return at.plan;
 	return MODELOS_DE_VIDEO.includes(at?.nav) ? 'video' : PLAN_POR_DEFECTO;
 }
 
@@ -75,11 +72,10 @@ export function planDe(restaurante) {
 // molesto pero se puede pedir y arreglar. Una carta que no carga no se puede
 // ni enseñar.
 //
-// 'carrito' ya no está en ningún plan (se retira: el carrito es un interruptor
-// en los otros cinco), pero dos restaurantes de prueba lo siguen teniendo
-// guardado hasta que se migren. Se sigue sabiendo pintar hasta entonces.
-const MODELOS_RETIRADOS_EN_USO = ['carrito'];
-export const MODELOS = [...new Set([...Object.values(PLANES).flatMap(p => p.modelos), ...MODELOS_RETIRADOS_EN_USO])];
+// El modelo 'carrito' se retiró el 17/09/2026: el carrito es un interruptor en
+// los otros cinco. Un restaurante que aún lo tuviera guardado cae aquí en el de
+// por defecto en vez de quedarse sin carta.
+export const MODELOS = [...new Set(Object.values(PLANES).flatMap(p => p.modelos))];
 
 export const MODELO_POR_DEFECTO = 'topnav';
 

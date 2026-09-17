@@ -262,9 +262,9 @@
 			.overlay.open { opacity: 1; pointer-events: all; }
 
 			/* ══════════════════════════════════════════════════════════
-			   TEMA: CARRITO  (header fijo + sidebar + carrito → WhatsApp)
-			   Se activa cuando atributos.nav = 'carrito'
-			   Reutiliza header-fixed / sidebar / overlay del tema SIDEBAR.
+			   CARRITO  (botón, carrito lateral, checkout → WhatsApp)
+			   Lo enciende cualquier modelo con el interruptor puesto. Hasta el
+			   17/09/2026 había además un modelo 'carrito' propio; se retiró.
 			══════════════════════════════════════════════════════════ */
 
 			.cart-btn {
@@ -288,16 +288,6 @@
 				font-size: 11px; font-weight: 700;
 			}
 
-			.card-add-btn {
-				position: absolute; bottom: 10px; right: 10px;
-				width: 32px; height: 32px; border-radius: 50%;
-				background: var(--secondary); color: #fff;
-				border: none; font-size: 18px; font-weight: 700;
-				cursor: pointer; display: flex; align-items: center; justify-content: center;
-				transition: transform 0.18s;
-			}
-			.card-add-btn:active { transform: scale(0.92); }
-			.card-hint { font-size: 10px; color: var(--primary); margin-top: 4px; letter-spacing: 0.5px; }
 
 			/* Carrito lateral */
 			.cart-sidebar {
@@ -571,12 +561,6 @@
 				transition: background 0.2s;
 			}
 			.product-noimg:hover { background: var(--card-hover); }
-			.noimg-add-indicator {
-				width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
-				background: var(--accent2); color: #fff;
-				display: flex; align-items: center; justify-content: center;
-				font-size: 15px; font-weight: 700;
-			}
 
 			/* Lista (sin fotos) */
 			.products-list {
@@ -1857,15 +1841,15 @@
 
 		<!--
 			════════════════════════════════════════════════════════
-			TEMA: CARRITO — carrito lateral, checkout y personalización.
+			CARRITO — carrito lateral, checkout y personalización.
 			Siempre en el DOM (igual que modal/lightbox/promo); solo se
-			abren si el tema activo es 'carrito'.
+			abren si el tema activo encendió el carrito.
 			════════════════════════════════════════════════════════
 		-->
 
-		<!-- Botón flotante del carrito. El modelo 'carrito' lleva el suyo en la
-		     cabecera fija; los que no tienen cabecera fija —el de video— usan
-		     este. Lo enseña el tema que encienda el carrito, no la maquinaria. -->
+		<!-- Botón flotante del carrito. Sidebar lleva el suyo en la cabecera
+		     fija y Explorar en su barra de arriba; los demás usan este. Lo
+		     enseña el tema que encienda el carrito, no la maquinaria. -->
 		<button class="cart-fab" id="cartFab" style="display:none" onclick="window.vmToggleCart()" aria-label="Ver el pedido">
 			🛒<span class="cart-fab-count" id="cartFabCount">0</span>
 		</button>
@@ -2073,16 +2057,13 @@
 					document.body.classList.add('reels');
 					return;
 				}
-				if (tema === 'sidebar' || tema === 'carrito') {
+				if (tema === 'sidebar') {
 					document.getElementById('headerFixed').style.display = 'flex';
 					document.getElementById('sidebar').style.display = 'block';
 					document.getElementById('mainContent').classList.add('with-fixed-header');
 					// Rellenar nombre en header fijo
 					document.getElementById('logoHeader').textContent = restaurante.nombre.toUpperCase();
 					document.querySelector('.footer').textContent = `© ${new Date().getFullYear()} ${restaurante.nombre.toUpperCase()} · Todos los derechos reservados`;
-					if (tema === 'carrito') {
-						document.getElementById('cartBtn').style.display = 'flex';
-					}
 					// Mensaje de bienvenida opcional debajo del header fijo
 					// (logo + nombre + frase) — solo si el restaurante lo activa.
 					if (restaurante.atributos?.mostrar_hero) {

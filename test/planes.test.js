@@ -99,9 +99,10 @@ describe('modeloDe · qué plantilla se carga', () => {
 				assert.ok(MODELOS.includes(m), `${m} está en un plan pero no en MODELOS`);
 	});
 
-	test('el modelo Carrito se sigue pintando mientras haya restaurantes con él', () => {
-		// aojocerrado y perroscriollos, de prueba, hasta que se migren a Sidebar.
-		assert.equal(modeloDe({ atributos: { nav: 'carrito' } }), 'carrito');
+	test('un restaurante con el modelo Carrito guardado cae en el de por defecto', () => {
+		// Se retiró el 17/09/2026 y sql/24 migró a los dos que lo usaban. Si
+		// apareciera otro, ve una carta con otro aspecto en vez de un error.
+		assert.equal(modeloDe({ atributos: { nav: 'carrito' } }), MODELO_POR_DEFECTO);
 	});
 
 	test('un modelo válido se respeta', () => {
