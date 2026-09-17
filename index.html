@@ -1216,6 +1216,56 @@
 				color: var(--primary);
 			}
 
+			/* ── Buscador de platos (core/buscador.js) ────────────── */
+			/* Su fila va encima de la de chips y, con cabecera fija, es ella la
+			   que baja los 60 px —los chips ya no, o se sumarían dos veces—. */
+			.buscador-fila { padding: 8px 12px 4px; }
+			.buscador-bajo-fijo { margin-top: 60px; }
+			.buscador-bajo-fijo + .nav-filtros-bajo-fijo:not(:empty) { margin-top: 0; }
+			.buscador-bajo-fijo + main.with-fixed-header { margin-top: 0; }
+			.buscador-caja { position: relative; display: flex; }
+			.buscador-input {
+				width: 100%;
+				min-height: 40px;
+				padding: 8px 36px 8px 14px;
+				border: 1px solid var(--border);
+				border-radius: 999px;
+				background: transparent;
+				color: var(--text);
+				font-family: var(--font-cuerpo, inherit);
+				font-size: 14px;
+			}
+			.buscador-input::placeholder { color: var(--text-muted); }
+			.buscador-input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+			/* La lupa que pinta el navegador en un type=search desentona con el
+			   resto y no se puede dar estilo; el aspa la pone el módulo. */
+			.buscador-input::-webkit-search-decoration,
+			.buscador-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+			.buscador-aspa {
+				position: absolute;
+				right: 4px;
+				top: 50%;
+				transform: translateY(-50%);
+				width: 32px;
+				height: 32px;
+				border: none;
+				border-radius: 50%;
+				background: transparent;
+				color: var(--text-muted);
+				font-size: 14px;
+				cursor: pointer;
+			}
+
+			/* Se escribió algo y no queda nada que enseñar. Sin esto, la carta
+			   entera escondida se ve igual que una que no cargó. */
+			.sin-resultados {
+				padding: 48px 20px;
+				text-align: center;
+				color: var(--text-muted);
+				font-size: 14px;
+				line-height: 1.6;
+			}
+
 			.vid-desc {
 				margin-top: 7px;
 				font-size: 13.5px;
@@ -1515,6 +1565,29 @@
 			.ver-filtros .filtro-chip.activo {
 				background: var(--primary);
 				color: var(--dark);
+			}
+
+			/* El buscador flota sobre el video, como los chips: mismo fondo
+			   translúcido, porque el suyo se apoya en --border y ahí no se ve. */
+			.ver-buscador:empty { display: none; }
+			.ver-buscador { padding: 4px 14px 8px; }
+			.ver-buscador .buscador-input {
+				border-color: transparent;
+				background: rgba(0,0,0,.42);
+				-webkit-backdrop-filter: blur(10px);
+				backdrop-filter: blur(10px);
+				color: #fff;
+			}
+			.ver-buscador .buscador-input::placeholder { color: rgba(255,255,255,.7); }
+			.ver-buscador .buscador-aspa { color: rgba(255,255,255,.8); }
+			/* En este modelo cada plato ocupa la pantalla entera, así que el
+			   aviso también: dentro del carrete, un bloque bajo no se vería. */
+			.ver-reels .sin-resultados {
+				height: 100dvh;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: rgba(255,255,255,.85);
 			}
 
 			/* ══════════════════════════════════════════════════════════

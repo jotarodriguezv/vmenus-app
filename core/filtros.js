@@ -15,6 +15,7 @@
 // uno tiene su aspecto y ahí no hay nada que compartir.
 
 import { restaurante, productos } from './menu.js';
+import { coincideBusqueda, terminoBusqueda, textoSinResultados } from './buscador.js';
 
 // Mapa id → {id, label, emoji} de lo que el restaurante activó.
 export function filtrosMap() {
@@ -129,16 +130,47 @@ export function montarChips(alCambiar, host) {
 // repintar recrearía los <video> y el que estuviera sonando volvería a
 // empezar; se perdería el sitio del scroll; y los modelos que abren su modal
 // por POSICIÓN dentro de la categoría empezarían a abrir el plato equivocado.
+//
+// Los chips y el buscador esconden por el mismo sitio a propósito: son dos
+// formas de acotar la misma carta, y quien escribe una palabra con un filtro
+// puesto espera que se cumplan las dos cosas, no que la última gane.
 export function ocultarNoCoinciden(selectorPlato) {
+	let enTodaLaCarta = 0;
 	document.querySelectorAll('#mainContent .category-section').forEach(seccion => {
 		let visibles = 0;
 		seccion.querySelectorAll(selectorPlato).forEach(el => {
 			const p = productos.find(x => x.id === el.dataset.plato);
-			const pasa = !p || pasaFiltros(p, filtrosActivos);
+			const pasa = !p || (pasaFiltros(p, filtrosActivos) && coincideBusqueda(p));
 			el.style.display = pasa ? '' : 'none';
 			if (pasa) visibles++;
 		});
 		// Una categoría vacía es un título suelto en mitad de la carta.
 		seccion.style.display = visibles ? '' : 'none';
+		enTodaLaCarta += visibles;
 	});
+	pintarSinResultados(enTodaLaCarta);
+}
+
+// Una carta entera escondida, sin una línea que lo diga, se ve igual que una
+// carta que no cargó. Y hay que decir por qué está vacía: con un filtro puesto
+// y una palabra escrita, «sin resultados» no dice cuál de las dos quitar.
+function pintarSinResultados(visibles) {
+	const main = document.getElementById('mainContent');
+	if (!main) return;
+	let aviso = document.getElementById('sinResultados');
+	if (visibles || (!filtrosActivos.size && !terminoBusqueda().trim())) {
+		aviso?.remove();
+		return;
+	}
+	if (!aviso) {
+		aviso = document.createElement('div');
+		aviso.id = 'sinResultados';
+		aviso.className = 'sin-resultados';
+		// Se lee en cuanto aparece, sin tener que buscarlo: es la respuesta a lo
+		// que la persona acaba de escribir.
+		aviso.setAttribute('role', 'status');
+		main.appendChild(aviso);
+	}
+	// textContent y no innerHTML: lo escribió el comensal en su teclado.
+	aviso.textContent = textoSinResultados(filtrosActivos.size > 0);
 }

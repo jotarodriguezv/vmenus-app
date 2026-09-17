@@ -39,9 +39,22 @@ instalar: no ejecutar `npm install` esperando que haga algo.
     donde empezar a leer.
   - `supabase.js` — el **único** lugar donde viven la URL y la clave
     publicable. No repetirlas en ninguna página.
-  - `menu.js`, `carrito.js`, `filtros.js`, `carrusel.js`, `horarios.js`,
-    `planes.js`, `preview.js`, `analytics.js`, `aviso.js`, `html.js`,
-    `reproduccion.js`.
+  - `menu.js`, `carrito.js`, `filtros.js`, `buscador.js`, `carrusel.js`,
+    `horarios.js`, `planes.js`, `preview.js`, `analytics.js`, `aviso.js`,
+    `html.js`, `reproduccion.js`.
+
+  `filtros.js` y `buscador.js` acotan la misma carta y esconden por el mismo
+  sitio (`ocultarNoCoinciden`): con un filtro puesto y una palabra escrita se
+  cumplen las dos cosas. Los dos nacieron dentro de `temas/explorar.js`, que
+  era el único modelo que podía filtrar y buscar aunque los datos estuvieran
+  ahí para todos; el buscador salió el 17/09/2026. Explorar conserva su lupa
+  —es suya— y comparte qué coincide.
+
+  **El buscador se puede apagar por restaurante** con `atributos.buscador`
+  (ausente es encendido, como los filtros), y no se ofrece en cartas de menos
+  de `MINIMO_PLATOS_BUSCADOR` platos: una carta corta se lee de un vistazo. El
+  panel todavía no tiene el interruptor; el día que lo ponga, la carta ya lo
+  respeta.
 - `temas/` — variantes de navegación. De fotos: `topnav`, `sidebar` y
   `explorar`; de video: `video` y `vertical`. Cuál se usa lo decide la
   configuración del restaurante, y qué modelos se ofrecen, su plan
