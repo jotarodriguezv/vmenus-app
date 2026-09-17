@@ -471,7 +471,14 @@ describe('describirSeleccion · el texto que lee el restaurante', () => {
 	test('arma las tres secciones separadas por barra', () => {
 		assert.equal(
 			describirSeleccion({ platino: obj('Queso', 'Doritos'), premium: obj('Tocineta'), salsas: obj('BBQ') }),
-			'Toppings: Queso, Doritos | Toppings con costo: Tocineta | Salsas: BBQ');
+			'Adicionales: Queso, Doritos | Adicionales con costo: Tocineta | Salsas: BBQ');
+	});
+
+	test('no dice «topping»: la palabra es «adicionales» desde el 17/09/2026', () => {
+		// Unos restaurantes decían una y otros la otra, y «topping» es prestada
+		// del inglés: natural en una hamburguesería, rara en un corrientazo.
+		const texto = describirSeleccion({ platino: obj('Queso'), premium: obj('Tocineta'), salsas: obj('BBQ') });
+		assert.doesNotMatch(texto, /[Tt]opping/);
 	});
 
 	test('no dice «Premium» ni «Platino»: eran nombres nuestros', () => {
@@ -485,12 +492,12 @@ describe('describirSeleccion · el texto que lee el restaurante', () => {
 		// El texto se lo lee una persona por WhatsApp. Mandar lo que se guarda
 		// tal cual le pediría al restaurante "un perro con top_9f21c4a3".
 		const texto = describirSeleccion({ premium: [{ id: 'top_9f21c4a3', nombre: 'Tocineta' }] });
-		assert.equal(texto, 'Toppings con costo: Tocineta');
+		assert.equal(texto, 'Adicionales con costo: Tocineta');
 		assert.ok(!texto.includes('top_'), 'no puede escaparse un identificador al pedido');
 	});
 
 	test('lo que no se eligió no deja sección vacía', () => {
-		assert.equal(describirSeleccion({ premium: obj('Tocineta') }), 'Toppings con costo: Tocineta');
+		assert.equal(describirSeleccion({ premium: obj('Tocineta') }), 'Adicionales con costo: Tocineta');
 		assert.equal(describirSeleccion({}), '');
 	});
 });
@@ -790,5 +797,45 @@ describe('el formulario del pedido', () => {
 		assert.match(regla, /font-size: 16px/);
 		const buscador = html.match(/color: var\(--text\); font-size: (\d+)px; font-family: var\(--font-cuerpo, inherit\);\s+\/\* 16/);
 		assert.ok(buscador && Number(buscador[1]) >= 16, 'el buscador de Explorar baja de 16 px');
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('un carrito guardado con los nombres viejos se sigue leyendo', () => {
+	// La línea del pedido cambió de palabras dos veces: «Premium» hasta el
+	// 16/09/2026, «Toppings» hasta el 17/09/2026. Quien dejó el carrito a medias
+	// en su navegador vuelve con el texto de entonces, y quitarle un nombre le
+	// vaciaría la selección sin avisar.
+	const CAT = {
+		platino: [{ id: 't1', nombre: 'Queso' }],
+		premium: [{ id: 't2', nombre: 'Tocineta' }],
+		salsas: [{ id: 's1', nombre: 'BBQ' }],
+	};
+	const leer = descripcion => leerSeleccion({ descripcion }, CAT);
+
+	test('el texto de hoy', () => {
+		const sel = leer('Adicionales: Queso | Adicionales con costo: Tocineta | Salsas: BBQ');
+		assert.deepEqual([...sel.platino], ['t1']);
+		assert.deepEqual([...sel.premium], ['t2']);
+		assert.deepEqual([...sel.salsas], ['s1']);
+	});
+
+	test('el de antes del 17/09/2026, con «Toppings»', () => {
+		const sel = leer('Toppings: Queso | Toppings con costo: Tocineta | Salsas: BBQ');
+		assert.deepEqual([...sel.platino], ['t1']);
+		assert.deepEqual([...sel.premium], ['t2']);
+	});
+
+	test('y el de antes del 16/09/2026, con «Premium»', () => {
+		const sel = leer('Toppings: Queso | Premium: Tocineta');
+		assert.deepEqual([...sel.platino], ['t1']);
+		assert.deepEqual([...sel.premium], ['t2']);
+	});
+
+	test('«Adicionales con costo» no se cuela en los sin costo', () => {
+		// El corte es por «: », así que la etiqueta larga no casa con la corta.
+		const sel = leer('Adicionales con costo: Tocineta');
+		assert.deepEqual([...sel.platino], []);
+		assert.deepEqual([...sel.premium], ['t2']);
 	});
 });

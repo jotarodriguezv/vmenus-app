@@ -257,11 +257,16 @@ export function recargoPremium(premium, marcados = selectedPremium) {
 export function describirSeleccion({ platino = [], premium = [], salsas = [] }) {
 	const nombres = lista => (lista || []).map(t => (t && typeof t === 'object') ? t.nombre : t);
 	const partes = [];
-	if (platino.length) partes.push(`Toppings: ${nombres(platino).join(', ')}`);
-	// «Toppings con costo» y no «Premium» desde el 16/09/2026: lo lee el
-	// restaurante en WhatsApp, y «Platino» y «Premium» eran nombres nuestros que
-	// había que explicarle. Decidido con el usuario, a la vez que el panel.
-	if (premium.length) partes.push(`Toppings con costo: ${nombres(premium).join(', ')}`);
+	// «Adicionales» y no «Toppings» desde el 17/09/2026, decidido con el usuario:
+	// unos restaurantes usaban una palabra y otros la otra, y «topping» es
+	// prestada del inglés —natural en una hamburguesería, rara en un menú de
+	// corrientazo—. Esto lo lee el restaurante en su WhatsApp y lo ve el comensal
+	// en la carta, así que manda la palabra que se entiende sin traducir.
+	//
+	// «con costo» y no «Premium» venía del 16/09/2026, por lo mismo: «Platino» y
+	// «Premium» eran nombres nuestros que había que explicar.
+	if (platino.length) partes.push(`Adicionales: ${nombres(platino).join(', ')}`);
+	if (premium.length) partes.push(`Adicionales con costo: ${nombres(premium).join(', ')}`);
 	if (salsas.length)  partes.push(`Salsas: ${nombres(salsas).join(', ')}`);
 	return partes.join(' | ');
 }
@@ -296,11 +301,13 @@ export function leerSeleccion(item, opciones = null) {
 		const m = desc.match(new RegExp(`${etiqueta}: ([^|]+)`));
 		return m ? m[1].trim().split(', ') : [];
 	};
+	// Se leen TODOS los nombres que esta línea ha tenido, no solo el de hoy: un
+	// carrito guardado en el navegador antes del 17/09/2026 dice «Toppings:», y
+	// uno de antes del 16/09/2026 dice «Premium:». Quitar uno le vaciaría la
+	// selección a quien volviera con el carrito a medias.
 	return {
-		platino: aIds(trozo('Toppings'), cat.platino),
-		// Los dos nombres: un carrito guardado en el navegador antes del
-		// 16/09/2026 todavía dice «Premium:».
-		premium: aIds([...trozo('Toppings con costo'), ...trozo('Premium')], cat.premium),
+		platino: aIds([...trozo('Adicionales'), ...trozo('Toppings')], cat.platino),
+		premium: aIds([...trozo('Adicionales con costo'), ...trozo('Toppings con costo'), ...trozo('Premium')], cat.premium),
 		salsas:  aIds(trozo('Salsas'),   cat.salsas),
 	};
 }
