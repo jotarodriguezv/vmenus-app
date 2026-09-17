@@ -2,83 +2,61 @@
 // Qué incluye cada plan. Se guarda en restaurantes.atributos.plan y solo
 // lo cambia el superadmin desde el panel.
 //
-// Esta tabla es la única fuente: para reempaquetar la oferta se mueven
-// estas líneas y no hay que tocar nada más. La misma tabla existe en el
-// panel de administración; son dos aplicaciones desplegadas por separado
-// y deben mantenerse iguales.
+// Desde el 17/09/2026 hay DOS, que son los dos tipos de carta que existen:
+// fotos y video. Un modelo de fotos no sirve para video ni al revés —las
+// cuadrículas y las proporciones son distintas—, así que el plan decide qué
+// modelos se ofrecen. Todo lo demás (destacados, TV, filtros, carrito, QR,
+// estadísticas, horarios) va incluido en los dos, y cada restaurante enciende
+// lo que usa. Decidido con el usuario: vender todo incluido hasta tener base
+// de clientes, y poner niveles después si hace falta. Por eso las banderas
+// siguen existiendo aunque hoy digan lo mismo: son las que se moverán.
 //
-// El plan por defecto es 'pedidos' a propósito: es exactamente lo que
-// hace hoy la plataforma, así que un restaurante sin plan asignado no
-// nota ningún cambio.
-
-export const PLANES = {
-	vitrina: {
-		nombre: 'Vitrina',
-		modelos: ['topnav', 'sidebar', 'explorar'],
-		marca: true,           // se muestra el crédito "Hecho con VMenus"
-		qr_disenador: false,   // el QR se genera igual; lo que no hay es personalizarlo
-		estadisticas: false,
-		horarios: false,
-		videos: false,
-		carrito: false,
-		tv: false,
-	},
-	pedidos: {
-		nombre: 'Pedidos',
-		modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
-		marca: true,
-		qr_disenador: true,
-		estadisticas: true,
-		horarios: true,
-		videos: false,
-		carrito: true,
-		tv: false,
-	},
-	completo: {
-		nombre: 'Completo',
-		modelos: ['topnav', 'sidebar', 'explorar', 'carrito'],
-		marca: false,
-		qr_disenador: true,
-		estadisticas: true,
-		horarios: true,
-		videos: false,
-		carrito: true,
-		tv: true,           // la cartelera para televisores
-	},
-	// 'carrito' era solo un modelo de página; ahora es además una capacidad
-	// que otros modelos pueden encender —el de video, el primero— sin copiar
-	// las seiscientas líneas del carrito a cada tema. El modelo sigue en la
-	// lista de 'modelos' para los que lo usan como página entera.
-	//
-	// La carta en video va en su propio plan porque su coste no se parece
-	// al de los demás: cada plato es un archivo que hay que almacenar,
-	// convertir y servir muchas veces. 'videos' es lo que abre la subida
-	// en el panel; los modelos 'video' y 'vertical' son las dos formas que
-	// la carta sabe pintar. Las tres cosas van juntas y solo aquí.
-	//
-	// 'video' es apaisado, una columna de tarjetas 16:9. 'vertical' es a
-	// pantalla completa, 9:16, un plato por deslizamiento. El mismo plan da
-	// los dos porque el coste es el mismo; lo que cambia es el encuadre con
-	// el que se graba, y eso lo decide el restaurante. Ojo: el formato de
-	// corte se deriva de este modelo en el servidor, así que cambiarlo no
-	// re-corta los videos ya procesados — hay que volver a subirlos.
-	video: {
-		nombre: 'Video',
-		modelos: ['topnav', 'sidebar', 'explorar', 'carrito', 'video', 'vertical'],
-		marca: false,
-		qr_disenador: true,
-		estadisticas: true,
-		horarios: true,
-		videos: true,
-		carrito: true,
-		tv: true,
-	},
+// Video va aparte porque es lo único que de verdad cuesta: cada plato es un
+// archivo que hay que almacenar, convertir y servir muchas veces. 'videos' es
+// lo que abre la subida en el panel.
+//
+// 'video' es apaisado, una columna de tarjetas 16:9. 'vertical' es a pantalla
+// completa, 9:16, un plato por deslizamiento. Ojo: el formato de corte se
+// deriva del modelo en el servidor, así que cambiarlo no re-corta los videos
+// ya procesados — hay que volver a subirlos.
+//
+// Esta misma tabla existe en el panel y en el servidor de
+// adminmenus_restaurantes; son aplicaciones desplegadas por separado y deben
+// decir lo mismo.
+const TODO_INCLUIDO = {
+	marca: false,          // el pie «Hecho con VMenus» no sale
+	qr_disenador: true,
+	estadisticas: true,
+	horarios: true,
+	carrito: true,
+	tv: true,              // la cartelera para televisores
 };
 
-export const PLAN_POR_DEFECTO = 'pedidos';
+export const PLANES = {
+	fotos: { nombre: 'Fotos', modelos: ['topnav', 'sidebar', 'explorar'], videos: false, ...TODO_INCLUIDO },
+	video: { nombre: 'Video', modelos: ['video', 'vertical'], videos: true, ...TODO_INCLUIDO },
+};
+
+// Los planes de antes del 17/09/2026. Se siguen entendiendo mientras haya
+// restaurantes guardados con ellos: si no, la carta caería en el de por
+// defecto y, peor, se podría mostrar con lo que no le toca. Se borra cuando
+// ninguno quede en la base.
+const PLANES_ANTIGUOS = { vitrina: 'fotos', pedidos: 'fotos', completo: 'fotos' };
+
+// Sin plan —o con uno que no existe— manda el modelo: una carta de video es
+// del plan de video. Antes caía en 'pedidos', que ya no existe.
+export const PLAN_POR_DEFECTO = 'fotos';
+const MODELOS_DE_VIDEO = ['video', 'vertical'];
+
+export function nombrePlanDe(restaurante) {
+	const at = restaurante?.atributos;
+	const nombre = PLANES_ANTIGUOS[at?.plan] || at?.plan;
+	if (PLANES[nombre]) return nombre;
+	return MODELOS_DE_VIDEO.includes(at?.nav) ? 'video' : PLAN_POR_DEFECTO;
+}
 
 export function planDe(restaurante) {
-	return PLANES[restaurante?.atributos?.plan] || PLANES[PLAN_POR_DEFECTO];
+	return PLANES[nombrePlanDe(restaurante)];
 }
 
 // ── MODELOS QUE EXISTEN ───────────────────────────────────────
@@ -96,7 +74,12 @@ export function planDe(restaurante) {
 // Cayendo al modelo por defecto se ve una carta con otro aspecto, que es
 // molesto pero se puede pedir y arreglar. Una carta que no carga no se puede
 // ni enseñar.
-export const MODELOS = [...new Set(Object.values(PLANES).flatMap(p => p.modelos))];
+//
+// 'carrito' ya no está en ningún plan (se retira: el carrito es un interruptor
+// en los otros cinco), pero dos restaurantes de prueba lo siguen teniendo
+// guardado hasta que se migren. Se sigue sabiendo pintar hasta entonces.
+const MODELOS_RETIRADOS_EN_USO = ['carrito'];
+export const MODELOS = [...new Set([...Object.values(PLANES).flatMap(p => p.modelos), ...MODELOS_RETIRADOS_EN_USO])];
 
 export const MODELO_POR_DEFECTO = 'topnav';
 

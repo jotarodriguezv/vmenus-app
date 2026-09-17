@@ -101,7 +101,9 @@ describe('carritoEncendido · una sola regla para los cuatro modelos', () => {
 		assert.equal(carritoEncendido({ atributos: { plan: 'completo', carrito: true } }), true);
 		assert.equal(carritoEncendido({ atributos: { plan: 'completo', carrito: false } }), false, 'el restaurante no lo quiere');
 		assert.equal(carritoEncendido({ atributos: { plan: 'completo' } }), false, 'sin decir nada, apagado');
-		assert.equal(carritoEncendido({ atributos: { plan: 'vitrina', carrito: true } }), false, 'Vitrina no incluye pedidos');
+		// Desde el 17/09/2026 los dos planes lo incluyen, así que lo que queda es
+		// el interruptor. La bandera del plan sigue mirándose: es la que se
+		// moverá el día que haya niveles.
 	});
 
 	test('los temas de video la usan en vez de su copia', async () => {
@@ -154,10 +156,12 @@ describe('Topnav y Sidebar enseñan su botón del pedido', () => {
 		}
 	});
 
-	test('con el plan Vitrina, aunque el interruptor diga que sí, tampoco', () => {
+	test('un restaurante guardado con el plan Vitrina, que ya no existe, cuenta como Fotos', () => {
+		// Vitrina no traía carrito; su sucesor sí. Con el interruptor puesto se
+		// pinta, en vez de quedarse con la regla de un plan retirado.
 		restaurante({ carrito: true, plan: 'vitrina' });
 		topnav.buildNav();
-		assert.notEqual(nodos.cartFab?.style.display, 'block');
+		assert.equal(nodos.cartFab.style.display, 'block');
 	});
 });
 
