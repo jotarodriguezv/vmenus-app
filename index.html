@@ -447,6 +447,21 @@
 				transition: all 0.18s, visibility 0s; white-space: nowrap;
 			}
 			.custom-chip.active { border-color: var(--secondary); background: rgba(255,255,255,0.06); color: var(--primary); }
+			/* El «− 2 +» de un adicional que se puede repetir, dentro del propio
+			   chip: el número va donde está lo que cuenta. Los pasos son áreas
+			   de toque de 28 px, que es lo mínimo cómodo en un móvil. */
+			.custom-chip.active .custom-chip-paso,
+			.custom-chip.active .custom-chip-cuenta { display: inline-flex; }
+			.custom-chip-paso, .custom-chip-cuenta {
+				display: none; align-items: center; justify-content: center;
+				min-width: 28px; height: 28px; margin-left: 6px; vertical-align: middle;
+			}
+			.custom-chip-paso {
+				border-radius: 50%; background: rgba(255,255,255,0.10);
+				font-size: 15px; line-height: 1; cursor: pointer; user-select: none;
+			}
+			.custom-chip-paso:hover { background: rgba(255,255,255,0.18); }
+			.custom-chip-cuenta { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 16px; }
 			.custom-qty-row {
 				display: flex; align-items: center; justify-content: center; gap: 16px;
 				margin-bottom: 20px; padding: 12px; background: var(--card); border-radius: 8px;
