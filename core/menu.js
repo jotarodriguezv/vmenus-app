@@ -1,6 +1,6 @@
 import { trackClic } from './analytics.js';
 import { esc, escUrl, notaDe, textoPrecio } from './html.js';
-import { fotosDe, construirCarrusel } from './carrusel.js';
+import { fotosDe, construirCarrusel, noLlevaFoto } from './carrusel.js';
 import { montarChips, ocultarNoCoinciden } from './filtros.js';
 import { montarBuscador } from './buscador.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
@@ -245,8 +245,9 @@ export function buildMenu() {
 			};
 			wrap.insertAdjacentElement('afterbegin', img);
 
-		} else {
-			// Sin imagen
+		} else if (!noLlevaFoto(p)) {
+			// Sin imagen. Si el restaurante marcó que este plato no la lleva, ni
+			// eso: la ficha empieza directamente por el nombre.
 			wrap.insertAdjacentHTML('afterbegin', `<div class="modal-no-img">${noImgHtml()}</div>`);
 		}
 

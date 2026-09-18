@@ -14,7 +14,7 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { trackClic } from '../core/analytics.js';
 import { esc, escUrl, notaDe, textoPrecio } from '../core/html.js';
-import { fotosDe, construirCarrusel } from '../core/carrusel.js';
+import { fotosDe, construirCarrusel, noLlevaFoto } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
 // Este tema tenía su búsqueda desde el principio y conserva su lupa, que es
 // suya; lo que comparte desde el 17/09/2026 es QUÉ coincide, que ahora es lo
@@ -339,7 +339,9 @@ function badgesHtml(p) {
 function itemLista(p, cat, map) {
 	const div = document.createElement('div');
 	div.className = 'exp-item' + (!p.disponible ? ' exp-unavail' : '');
-	const sinFoto = cat.sin_fotos;
+	// Sin hueco de foto si la categoría es de lista o si el plato no la lleva a
+	// propósito: en los dos casos el recuadro con el emoji diría que falta algo.
+	const sinFoto = cat.sin_fotos || noLlevaFoto(p);
 	let thumb = '';
 	if (!sinFoto) {
 		thumb = p.imagen_url
@@ -368,7 +370,9 @@ function itemLista(p, cat, map) {
 function itemCard(p, cat, map) {
 	const div = document.createElement('div');
 	div.className = 'exp-card' + (!p.disponible ? ' exp-unavail' : '');
-	const sinFoto = cat.sin_fotos;
+	// Sin hueco de foto si la categoría es de lista o si el plato no la lleva a
+	// propósito: en los dos casos el recuadro con el emoji diría que falta algo.
+	const sinFoto = cat.sin_fotos || noLlevaFoto(p);
 	let img = '';
 	if (!sinFoto) {
 		img = p.imagen_url
@@ -447,7 +451,9 @@ function renderFooter() {
 function openExpModal(p, cat, map) {
 	trackClic(restaurante?.id, p.id);
 	const cont = document.getElementById('expModalContent');
-	const sinFoto = cat.sin_fotos;
+	// Sin hueco de foto si la categoría es de lista o si el plato no la lleva a
+	// propósito: en los dos casos el recuadro con el emoji diría que falta algo.
+	const sinFoto = cat.sin_fotos || noLlevaFoto(p);
 	// Con varias fotos se usa el mismo carrusel que el modal compartido; con
 	// una sola, la imagen suelta de siempre. El hueco se deja vacío aquí y el
 	// carrusel se inserta después, porque es un elemento con sus propios
