@@ -151,3 +151,24 @@ describe('construirCarrusel', () => {
 		assert.equal(pista.style.transform, 'translateX(-0%)', 'se queda en la primera');
 	});
 });
+
+describe('noLlevaFoto · un plato que no lleva foto a propósito', () => {
+	// 18/09/2026: el restaurante lo marca en la ficha del panel, y la carta deja
+	// de pintar el recuadro que diría que falta algo.
+	test('marcado y sin foto: no se pinta hueco', async () => {
+		const { noLlevaFoto } = await import('../core/carrusel.js');
+		assert.equal(noLlevaFoto({ atributos: { sin_foto: true } }), true);
+	});
+
+	test('si luego se le sube una foto, se usa igual', async () => {
+		const { noLlevaFoto } = await import('../core/carrusel.js');
+		assert.equal(noLlevaFoto({ imagen_url: 'https://x/f.jpg', atributos: { sin_foto: true } }), false);
+		assert.equal(noLlevaFoto({ atributos: { sin_foto: true, imagenes: ['https://x/2.jpg'] } }), false);
+	});
+
+	test('sin marcar, todo como siempre', async () => {
+		const { noLlevaFoto } = await import('../core/carrusel.js');
+		assert.equal(noLlevaFoto({ atributos: {} }), false);
+		assert.equal(noLlevaFoto({ atributos: { sin_foto: 'true' } }), false, 'solo el booleano de verdad');
+	});
+});

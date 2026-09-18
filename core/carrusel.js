@@ -19,6 +19,16 @@ export function fotosDe(producto) {
 	return fotos;
 }
 
+// ¿El restaurante dijo que este plato no lleva foto? (18/09/2026, casilla de
+// la ficha en el panel.) Entonces no se pinta el recuadro que ocupa su sitio:
+// ese recuadro dice «aquí falta algo», y aquí no falta nada.
+//
+// Solo mientras NO tenga foto: la casilla es opcional, y si luego se le sube
+// una, se enseña como a cualquier otro plato.
+export function noLlevaFoto(producto) {
+	return producto?.atributos?.sin_foto === true && !fotosDe(producto).length;
+}
+
 // Devuelve el elemento del carrusel, o null si hay menos de dos fotos: con
 // una sola no hay nada que deslizar y cada tema la pinta a su manera.
 //
