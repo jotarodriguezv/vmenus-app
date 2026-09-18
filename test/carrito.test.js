@@ -18,6 +18,7 @@ globalThis.document = { getElementById: () => null };
 const { setRestaurante, setProductos, soloDigitos } = await import('../core/menu.js');
 const { revalidarCarrito, recargoPremium, loadCartFromStorage, opcionesDe,
         describirSeleccion, leerSeleccion, catalogoDe,
+        topeDeAdicional, cuantasDe, TOPE_MAXIMO_ADICIONAL,
         recibePedidos, activarCarrito } = await import('../core/carrito.js');
 
 const P = (id, nombre, precio) => ({ id, nombre, precio_numerico: precio, categoria_id: 'c1' });
@@ -317,7 +318,9 @@ describe('catalogoDe · las tres formas dan lo mismo', () => {
 
 	test('un premium sin identificador también cae de pie', () => {
 		const c = catalogoDe({ toppings_premium: [{ nombre: 'Tocineta', precio: 4000 }] });
-		assert.deepEqual(c.premium, [{ id: 'Tocineta', nombre: 'Tocineta', precio: 4000 }]);
+		// Desde el 17/09/2026 los de costo llevan también si se pueden repetir y
+		// hasta cuántas veces. Sin el dato: no se repiten.
+		assert.deepEqual(c.premium, [{ id: 'Tocineta', nombre: 'Tocineta', precio: 4000, repetible: false, max: 2 }]);
 	});
 
 	test('con identificador, manda el identificador', () => {
@@ -837,5 +840,77 @@ describe('un carrito guardado con los nombres viejos se sigue leyendo', () => {
 		const sel = leer('Adicionales con costo: Tocineta');
 		assert.deepEqual([...sel.platino], []);
 		assert.deepEqual([...sel.premium], ['t2']);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════
+describe('adicionales con cantidad · doble tocineta', () => {
+	// 17/09/2026, decidido con el usuario. Solo los de COSTO, y solo si el
+	// restaurante enciende «se puede repetir» en ese adicional: repetir los
+	// gratis no cambia la cuenta y sí invita a pedir cinco de cebolla.
+	const CAT = catalogoDe({
+		toppings_premium: [
+			{ id: 't_toc', nombre: 'Tocineta', precio: 4000, repetible: true, max: 3 },
+			{ id: 't_hue', nombre: 'Huevo', precio: 2000 },
+		],
+	});
+
+	test('el catálogo distingue lo repetible de lo que no', () => {
+		assert.equal(CAT.premium[0].repetible, true);
+		assert.equal(CAT.premium[0].max, 3);
+		assert.equal(CAT.premium[1].repetible, false);
+	});
+
+	test('el tope se sanea: nunca menos de dos ni más del techo', () => {
+		assert.equal(topeDeAdicional(0), 2, 'un tope de cero no puede desactivar el chip');
+		assert.equal(topeDeAdicional('tres'), 2);
+		assert.equal(topeDeAdicional(999), TOPE_MAXIMO_ADICIONAL);
+		assert.equal(topeDeAdicional(3), 3);
+	});
+
+	test('el recargo cuenta las unidades', () => {
+		const marcados = new Set(['t_toc']);
+		assert.equal(recargoPremium(CAT.premium, marcados, new Map([['t_toc', 2]])), 8000);
+		assert.equal(recargoPremium(CAT.premium, marcados, new Map()), 4000, 'sin cantidad es una');
+	});
+
+	test('uno que no se repite cobra una aunque le pidan dos', () => {
+		// Es lo que protege al restaurante si una línea vieja trae una cantidad
+		// de cuando sí se repetía.
+		assert.equal(recargoPremium(CAT.premium, new Set(['t_hue']), new Map([['t_hue', 3]])), 2000);
+	});
+
+	test('y el tope manda sobre lo guardado', () => {
+		assert.equal(recargoPremium(CAT.premium, new Set(['t_toc']), new Map([['t_toc', 9]])), 12000, 'tope 3');
+	});
+
+	test('el pedido dice «x2», no el nombre repetido', () => {
+		const texto = describirSeleccion({ premium: [{ id: 't_toc', nombre: 'Tocineta', cantidad: 2 }] });
+		assert.equal(texto, 'Adicionales con costo: Tocineta x2');
+	});
+
+	test('una sola unidad se escribe como siempre', () => {
+		// Lo que ya estaba en un carrito tiene que seguir leyéndose igual.
+		assert.equal(describirSeleccion({ premium: [{ id: 't_toc', nombre: 'Tocineta', cantidad: 1 }] }),
+			'Adicionales con costo: Tocineta');
+	});
+
+	test('volver a abrir la línea recupera las unidades', () => {
+		const sel = leerSeleccion({ sel: { premium: ['t_toc'], cantidades: { t_toc: 2 } } }, CAT);
+		assert.deepEqual([...sel.premium], ['t_toc']);
+		assert.equal(sel.cantidades.get('t_toc'), 2);
+	});
+
+	test('y también desde el texto, para un carrito viejo', () => {
+		// «Tocineta x2» es un nombre y un dos, no un adicional que se llama así.
+		const sel = leerSeleccion({ descripcion: 'Adicionales con costo: Tocineta x2' }, CAT);
+		assert.deepEqual([...sel.premium], ['t_toc']);
+		assert.equal(sel.cantidades.get('t_toc'), 2);
+	});
+
+	test('una línea sin cantidades no inventa ninguna', () => {
+		const sel = leerSeleccion({ sel: { premium: ['t_toc'] } }, CAT);
+		assert.equal(sel.cantidades.size, 0);
+		assert.equal(cuantasDe(sel.cantidades, 't_toc'), 1);
 	});
 });

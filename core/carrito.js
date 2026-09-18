@@ -43,6 +43,10 @@ let customQty = 1;
 let selectedPlatino = new Set();
 let selectedPremium = new Set();
 let selectedSalsas  = new Set();
+// id → unidades, solo para los de costo repetibles. Aparte del conjunto de
+// marcados y no dentro: todo lo que ya existía sigue preguntando «¿está
+// marcado?» y no tiene que aprender a leer pares.
+let cantidadesPremium = new Map();
 
 // ── QUÉ OFRECE CADA PLATO ─────────────────────────────────────
 // El catálogo de toppings vive en el restaurante y cada plato dice cuáles
@@ -84,7 +88,18 @@ export function catalogoDe(attr) {
 		const nombre = String(obj.nombre ?? '').trim();
 		if (!nombre) return null;
 		const base = { id: String(obj.id || nombre), nombre };
-		return conPrecio ? { ...base, precio: Number(obj.precio) || 0 } : base;
+		if (!conPrecio) return base;
+		// Repetir solo existe en los de costo, y solo si el restaurante lo
+		// enciende para ESE adicional: doble tocineta sí, doble punto de la carne
+		// no. Los gratis quedan fuera a propósito —repetirlos no cambia la cuenta
+		// y sí invita a pedir cinco de cebolla— (decidido con el usuario el
+		// 17/09/2026).
+		return {
+			...base,
+			precio: Number(obj.precio) || 0,
+			repetible: obj.repetible === true,
+			max: topeDeAdicional(obj.max),
+		};
 	}).filter(Boolean);
 
 	return {
@@ -92,6 +107,24 @@ export function catalogoDe(attr) {
 		premium: norm(attr?.toppings_premium, true),
 		salsas:  norm(attr?.salsas, false),
 	};
+}
+
+// Cuántas veces se puede repetir uno. El tope lo pone el restaurante; este
+// techo es de la plataforma y está para que un cero mal puesto o un 999 no
+// conviertan un chip en una cuenta imposible de preparar.
+export const TOPE_MAXIMO_ADICIONAL = 20;
+export function topeDeAdicional(valor) {
+	const n = Math.floor(Number(valor));
+	if (!Number.isFinite(n) || n < 2) return 2;
+	return Math.min(n, TOPE_MAXIMO_ADICIONAL);
+}
+
+// Cuántas unidades lleva un adicional en una selección. Uno es lo de siempre:
+// todo lo marcado antes de que esto existiera va sin cantidad, y sin cantidad
+// significa una.
+export function cuantasDe(cantidades, id) {
+	const n = Math.floor(Number(cantidades?.get?.(id) ?? cantidades?.[id] ?? 1));
+	return Number.isFinite(n) && n > 1 ? n : 1;
 }
 
 // ¿Está este elemento del catálogo entre los marcados? Acepta identificador
@@ -146,13 +179,14 @@ function openCustomModal(productId, editingCartKey = null) {
 	if (editingCartKey) {
 		const item = cart.find(i => i.cartKey === editingCartKey);
 		customQty = item ? item.cantidad : 1;
-		({ platino: selectedPlatino, premium: selectedPremium, salsas: selectedSalsas } =
-			leerSeleccion(item, customOpciones));
+		({ platino: selectedPlatino, premium: selectedPremium, salsas: selectedSalsas,
+		   cantidades: cantidadesPremium } = leerSeleccion(item, customOpciones));
 	} else {
 		customQty = 1;
 		selectedPlatino = new Set();
 		selectedPremium = new Set();
 		selectedSalsas  = new Set();
+		cantidadesPremium = new Map();
 	}
 
 	document.getElementById('customName').textContent = p.nombre;
@@ -164,9 +198,12 @@ function openCustomModal(productId, editingCartKey = null) {
 	fillChipSection('secToppingsPlatino', 'listToppingsPlatino', customOpciones.platino,
 		t => t.nombre, selectedPlatino,
 		t => toggleInSet(selectedPlatino, t.id), t => t.id);
+	// Los de costo son los únicos que pueden ir por unidades, así que tienen su
+	// propia pintada: un chip normal cuando no se repiten y un chip con «− 2 +»
+	// cuando sí. Ver chipConUnidades.
 	fillChipSection('secToppingsPremium', 'listToppingsPremium', customOpciones.premium,
 		t => `${t.nombre} (+$${t.precio.toLocaleString('es-CO')})`, selectedPremium,
-		t => toggleInSet(selectedPremium, t.id), t => t.id);
+		t => toggleInSet(selectedPremium, t.id), t => t.id, chipConUnidades);
 	fillChipSection('secSalsas', 'listSalsas', customOpciones.salsas,
 		s => s.nombre, selectedSalsas,
 		s => toggleInSet(selectedSalsas, s.id), s => s.id);
@@ -187,19 +224,66 @@ function toggleInSet(set, key) {
 	updateCustomTotal();
 }
 
-function fillChipSection(secId, listId, items, label, selectedSet, onToggle, keyOf) {
+// Un adicional que se puede repetir: el chip se marca como siempre y, una vez
+// marcado, le sale «− 2 +» dentro para subir y bajar unidades. Se decidió así
+// y no con un selector aparte porque el chip ya es donde se toca; poner el
+// número en otro sitio obligaría a mirar dos cosas para entender una.
+//
+// El «+» no pasa del tope del restaurante, y bajar de uno lo desmarca: es la
+// forma natural de quitarlo y evita el estado «marcado, cero unidades», que
+// habría que explicar.
+function chipConUnidades(chip, item, selectedSet, refrescar) {
+	if (!item.repetible || !selectedSet.has(item.id)) return;
+	const cuantas = Math.min(cuantasDe(cantidadesPremium, item.id), item.max);
+	const paso = (texto, aria, alPulsar) => {
+		const b = document.createElement('span');
+		b.className = 'custom-chip-paso';
+		b.setAttribute('role', 'button');
+		b.setAttribute('tabindex', '0');
+		b.setAttribute('aria-label', `${aria} ${item.nombre}`);
+		b.textContent = texto;
+		// El chip entero es un <button>: sin parar el clic aquí, tocar «+» lo
+		// desmarcaría además de sumar.
+		const hacer = e => { e.preventDefault(); e.stopPropagation(); alPulsar(); refrescar(); };
+		b.onclick = hacer;
+		b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') hacer(e); };
+		return b;
+	};
+	const cuenta = document.createElement('span');
+	cuenta.className = 'custom-chip-cuenta';
+	cuenta.textContent = String(cuantas);
+	chip.append(
+		paso('−', 'Quitar una unidad de', () => {
+			if (cuantas <= 1) { selectedSet.delete(item.id); cantidadesPremium.delete(item.id); }
+			else cantidadesPremium.set(item.id, cuantas - 1);
+		}),
+		cuenta,
+		paso('+', 'Añadir una unidad de', () => {
+			if (cuantas < item.max) cantidadesPremium.set(item.id, cuantas + 1);
+		}),
+	);
+}
+
+function fillChipSection(secId, listId, items, label, selectedSet, onToggle, keyOf, adornar) {
 	const sec = document.getElementById(secId);
 	const list = document.getElementById(listId);
 	list.innerHTML = '';
 	if (!items?.length) { sec.style.display = 'none'; return; }
 	sec.style.display = 'block';
+	// Repintar la sección entera y no solo el chip tocado: al marcar uno
+	// repetible aparece su «− 1 +», y al bajar de uno desaparece.
+	const refrescar = () => {
+		fillChipSection(secId, listId, items, label, selectedSet, onToggle, keyOf, adornar);
+		updateCustomTotal();
+	};
 	items.forEach(item => {
 		const key = keyOf ? keyOf(item) : item;
 		const chip = document.createElement('button');
 		chip.type = 'button';
 		chip.className = 'custom-chip' + (selectedSet.has(key) ? ' active' : '');
 		chip.textContent = label(item);
-		chip.onclick = () => { onToggle(item); chip.classList.toggle('active'); };
+		chip.onclick = () => { onToggle(item); refrescar(); };
+		adornar?.(chip, item, selectedSet, refrescar);
 		list.appendChild(chip);
 	});
 }
@@ -222,13 +306,17 @@ function updateCustomQtyUI() {
 // crudos: así hay un solo sitio en el archivo que sabe de qué forma vienen
 // los datos. 'marcados' se puede pasar en las pruebas; en producción son los
 // toppings que el cliente tiene seleccionados ahora mismo en el modal.
-export function recargoPremium(premium, marcados = selectedPremium) {
+export function recargoPremium(premium, marcados = selectedPremium, cantidades = cantidadesPremium) {
 	const yaSumados = new Set();
 	const esta = marcadoPor([...(marcados || [])]);
 	return (Array.isArray(premium) ? premium : []).reduce((sum, t) => {
 		if (!esta(t) || yaSumados.has(t.id)) return sum;
 		yaSumados.add(t.id);
-		return sum + (Number(t.precio) || 0);
+		// Las unidades solo cuentan donde se pueden pedir: si el restaurante
+		// apagó «se puede repetir», una selección vieja de dos no puede seguir
+		// cobrando dos. El tope, por lo mismo.
+		const cuantas = t.repetible ? Math.min(cuantasDe(cantidades, t.id), t.max) : 1;
+		return sum + (Number(t.precio) || 0) * cuantas;
 	}, 0);
 }
 
@@ -255,7 +343,13 @@ export function recargoPremium(premium, marcados = selectedPremium) {
 // desde que la selección son identificadores, mandar lo guardado tal cual le
 // enviaría al restaurante un pedido de "top_9f21c4a3, top_be0517dd".
 export function describirSeleccion({ platino = [], premium = [], salsas = [] }) {
-	const nombres = lista => (lista || []).map(t => (t && typeof t === 'object') ? t.nombre : t);
+	// «Tocineta x2» y no «Tocineta, Tocineta»: lo lee una persona en WhatsApp y
+	// tiene que poder contarlo de un vistazo para prepararlo.
+	const nombres = lista => (lista || []).map(t => {
+		if (!t || typeof t !== 'object') return t;
+		const cuantas = Math.floor(Number(t.cantidad)) || 1;
+		return cuantas > 1 ? `${t.nombre} x${cuantas}` : t.nombre;
+	});
 	const partes = [];
 	// «Adicionales» y no «Toppings» desde el 17/09/2026, decidido con el usuario:
 	// unos restaurantes usaban una palabra y otros la otra, y «topping» es
@@ -285,31 +379,58 @@ export function leerSeleccion(item, opciones = null) {
 		return new Set((disponibles || []).filter(esta).map(t => t.id));
 	};
 
+	// Las unidades de los de costo. Van aparte de los identificadores, así que
+	// una línea sin ellas —todas las de antes del 17/09/2026— se lee igual que
+	// siempre: sin cantidad es una.
+	const cantidadesDe = fuente => {
+		const m = new Map();
+		for (const [id, n] of Object.entries(fuente || {})) {
+			const cuantas = Math.floor(Number(n));
+			if (Number.isFinite(cuantas) && cuantas > 1) m.set(String(id), cuantas);
+		}
+		return m;
+	};
+
 	// Camino normal: lo guardado tal cual se eligió, sin interpretar nada.
 	const sel = item?.sel;
 	if (sel && typeof sel === 'object') return {
 		platino: aIds(sel.platino, cat.platino),
 		premium: aIds(sel.premium, cat.premium),
 		salsas:  aIds(sel.salsas,  cat.salsas),
+		cantidades: cantidadesDe(sel.cantidades),
 	};
 
 	// Carritos de antes de que se guardara la selección aparte: solo tienen el
 	// texto. Se lee como se leía, con su límite conocido —un nombre con coma no
 	// se recupera—, porque la alternativa es perderles la línea entera.
 	const desc = item?.descripcion || '';
+	// Del texto se recupera también la cantidad: «Tocineta x2» es un nombre y un
+	// dos, no un adicional llamado «Tocineta x2».
+	const unidades = new Map();
+	const sinCuantas = nombre => {
+		const m = String(nombre).match(/^(.*) x(\d+)$/);
+		if (!m) return nombre;
+		unidades.set(m[1], Number(m[2]));
+		return m[1];
+	};
 	const trozo = etiqueta => {
 		const m = desc.match(new RegExp(`${etiqueta}: ([^|]+)`));
-		return m ? m[1].trim().split(', ') : [];
+		return m ? m[1].trim().split(', ').map(sinCuantas) : [];
 	};
 	// Se leen TODOS los nombres que esta línea ha tenido, no solo el de hoy: un
 	// carrito guardado en el navegador antes del 17/09/2026 dice «Toppings:», y
 	// uno de antes del 16/09/2026 dice «Premium:». Quitar uno le vaciaría la
 	// selección a quien volviera con el carrito a medias.
-	return {
+	const leido = {
 		platino: aIds([...trozo('Adicionales'), ...trozo('Toppings')], cat.platino),
 		premium: aIds([...trozo('Adicionales con costo'), ...trozo('Toppings con costo'), ...trozo('Premium')], cat.premium),
 		salsas:  aIds(trozo('Salsas'),   cat.salsas),
 	};
+	// Las unidades vienen por NOMBRE —es lo que dice el texto— y aquí se pasan a
+	// identificador, que es con lo que trabaja todo lo demás.
+	const porId = new Map();
+	for (const t of cat.premium) if (unidades.has(t.nombre)) porId.set(t.id, unidades.get(t.nombre));
+	return { ...leido, cantidades: porId };
 }
 
 function updateCustomTotal() {
@@ -331,18 +452,20 @@ function closeCustomModal() {
 
 function addCustomToCart() {
 	if (!customProduct) return;
-	const extras = recargoPremium(customOpciones.premium);
+	const extras = recargoPremium(customOpciones.premium, selectedPremium, cantidadesPremium);
 	const precioUnit = customProduct.precio_numerico + extras;
 
 	// Lo elegido, como objetos del catálogo. Mismo ayudante que usa la
 	// revalidación, para que dar de alta una línea y recalcularla después no
 	// puedan divergir.
 	const elegidos = elegidosDe(customOpciones,
-		{ platino: selectedPlatino, premium: selectedPremium, salsas: selectedSalsas });
+		{ platino: selectedPlatino, premium: selectedPremium, salsas: selectedSalsas,
+		  cantidades: cantidadesPremium });
 	const sel = {
 		platino: elegidos.platino.map(t => t.id),
 		premium: elegidos.premium.map(t => t.id),
 		salsas:  elegidos.salsas.map(t => t.id),
+		cantidades: cantidadesGuardables(elegidos.premium),
 	};
 	const descripcion = describirSeleccion(elegidos);
 	const cartKey = `${customProduct.id}__${descripcion}`;
@@ -429,7 +552,8 @@ export function revalidarCarrito(guardado) {
 		const opciones = personalizada ? opcionesDe(p) : null;
 		const elegidos = personalizada ? elegidosDe(opciones, leerSeleccion(item, opciones)) : null;
 		const extras = personalizada
-			? recargoPremium(opciones.premium, new Set(elegidos.premium.map(t => t.id)))
+			? recargoPremium(opciones.premium, new Set(elegidos.premium.map(t => t.id)),
+				new Map(elegidos.premium.map(t => [t.id, t.cantidad])))
 			: (Number(item.extras) || 0);
 		const precioHoy = p.precio_numerico + extras;
 
@@ -450,6 +574,11 @@ export function revalidarCarrito(guardado) {
 				platino: elegidos.platino.map(t => t.id),
 				premium: elegidos.premium.map(t => t.id),
 				salsas:  elegidos.salsas.map(t => t.id),
+				// Si el restaurante apagó «se puede repetir» o bajó el tope, aquí se
+				// recorta: elegidosDe ya lo hizo, y el precio de arriba se recalculó
+				// con lo mismo. El cliente lo ve como un cambio de precio, que es lo
+				// que es, y no como una línea que pide algo que ya no se puede.
+				cantidades: cantidadesGuardables(elegidos.premium),
 			};
 			item.descripcion = describirSeleccion(elegidos);
 			// La clave lleva la descripción dentro, así que hay que rehacerla o dos
@@ -474,9 +603,23 @@ export function revalidarCarrito(guardado) {
 function elegidosDe(opciones, sets) {
 	return {
 		platino: opciones.platino.filter(t => sets.platino.has(t.id)),
-		premium: opciones.premium.filter(t => sets.premium.has(t.id)),
+		// La cantidad viaja DENTRO del elegido, no aparte: de aquí salen a la vez
+		// el texto que lee el restaurante y lo que se guarda, y separarlas es
+		// cómo se llega a una línea que dice «x2» y cobra una.
+		premium: opciones.premium.filter(t => sets.premium.has(t.id)).map(t => ({
+			...t,
+			cantidad: t.repetible ? Math.min(cuantasDe(sets.cantidades, t.id), t.max) : 1,
+		})),
 		salsas:  opciones.salsas.filter(t => sets.salsas.has(t.id)),
 	};
+}
+
+// Lo que se guarda de las unidades: solo lo que no sea una, para que una línea
+// sin repeticiones quede exactamente igual que antes de que esto existiera.
+function cantidadesGuardables(premium) {
+	const cant = {};
+	for (const t of premium) if (t.cantidad > 1) cant[t.id] = t.cantidad;
+	return Object.keys(cant).length ? cant : undefined;
 }
 
 function avisarCambiosCarrito({ retirados, reprecio }) {
