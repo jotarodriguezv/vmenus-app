@@ -159,6 +159,31 @@
 	#sinRed { position: absolute; bottom: 2vmin; right: 2vmin; display: none;
 	          font-size: 1.8vmin; opacity: 0.45; }
 	#sinRed.visible { display: block; }
+
+	/* Las cintas son avisos del restaurante, no otro slide: siguen visibles
+	   mientras cambia el plato. Cada una se mueve sin parar, de modo que no
+	   queda texto fijo que pueda marcar un panel OLED. */
+	.cinta { position: absolute; left: 0; width: 100%; height: 4.4vmin;
+	          overflow: hidden; display: none; white-space: nowrap;
+	          font-size: 2vmin; font-weight: 600; letter-spacing: 0.03em;
+	          line-height: 4.4vmin; z-index: 5; }
+	.cinta.visible { display: block; }
+	#cintaArriba { top: 0; }
+	#cintaAbajo { bottom: 0; }
+	.cinta-pista { display: inline-block; min-width: 100%; padding-left: 100%;
+	                animation: correr-cinta linear infinite; }
+	@keyframes correr-cinta { from { transform: translateX(0); }
+	                          to { transform: translateX(-50%); } }
+
+	/* El reloj queda abajo, lejos de la marca que va sobre las fotos. Cambia de
+	   esquina con cada plato por la misma razón que la marca: una TV puede vivir
+	   encendida toda una jornada. */
+	#reloj { position: absolute; bottom: 2.2vmin; left: 2.4vmin; display: none;
+	          text-align: left; z-index: 4; text-shadow: 0 1px 3px #000; }
+	#reloj.visible { display: block; }
+	#reloj.derecha { left: auto; right: 2.4vmin; text-align: right; }
+	#hora { display: block; font-size: 3.2vmin; font-weight: 700; line-height: 1; }
+	#fecha { display: block; margin-top: 0.35vmin; font-size: 1.55vmin; }
 </style>
 <!-- Lo rellena aplicarFuentes() cuando ya se sabe qué eligió el restaurante.
      Vacía no pinta nada, así que si nunca llega la configuracion la cartelera
@@ -171,6 +196,9 @@
 		<div id="reposo"><img id="reposoLogo" alt=""><div id="reposoNombre"></div></div>
 		<img id="marca" alt="">
 		<div id="sinRed">sin conexión</div>
+		<div id="cintaArriba" class="cinta"><div class="cinta-pista"></div></div>
+		<div id="cintaAbajo" class="cinta"><div class="cinta-pista"></div></div>
+		<div id="reloj"><span id="hora"></span><span id="fecha"></span></div>
 	</div>
 
 <script>
@@ -224,6 +252,11 @@ var POR_DEFECTO = {
 	activa: true, orientacion: 'horizontal', por_slide: 2,
 	segundos: 8, modo: 'todos', categoria_id: null, productos: [], aleatorio: false,
 	animacion: 'suave', mostrar_categoria: false, color_categoria: 'oscuro',
+	/* La descripción se reserva para un plato protagonista. En una cuadrícula
+	   roba espacio a las fotos y se vuelve ilegible desde una mesa. */
+	mostrar_descripcion: false,
+	/* Hasta cinco avisos, cada uno en su propia franja (arriba o abajo). */
+	cintas: [], reloj: false,
 	tema: 'oscuro',
 	/* Si la cartelera obedece los horarios de categoría. Por defecto SÍ, que es
 	   lo que hacía antes de existir esta clave: un restaurante que no vuelva a
@@ -354,6 +387,18 @@ function config() {
 		c.color_categoria = 'oscuro';
 	}
 	if (c.tema !== 'carta') c.tema = 'oscuro';
+	c.mostrar_descripcion = !!c.mostrar_descripcion;
+	c.reloj = !!c.reloj;
+	/* Se tolera cualquier dato viejo o escrito a mano, pero nunca se pinta más
+	   de lo que el panel deja configurar. */
+	var cintas = [], originales = Object.prototype.toString.call(c.cintas) === '[object Array]' ? c.cintas : [];
+	for (var ci = 0; ci < originales.length && cintas.length < 5; ci++) {
+		var entrada = originales[ci] || {};
+		var textoCinta = String(entrada.texto == null ? '' : entrada.texto).replace(/^\s+|\s+$/g, '');
+		if (!textoCinta) continue;
+		cintas.push({ texto: textoCinta.slice(0, 160), posicion: entrada.posicion === 'abajo' ? 'abajo' : 'arriba' });
+	}
+	c.cintas = cintas;
 	return c;
 }
 
@@ -1155,6 +1200,22 @@ function pintarSlide(s) {
 		nom.textContent = p.nombre || '';
 		texto.appendChild(nom);
 
+		/* El interruptor solo tiene efecto con un plato. La comprobación vive
+		   también aquí —y no solo en el panel— porque una configuración puede
+		   llegar escrita a mano o desde una versión anterior del panel. */
+		if (c.mostrar_descripcion && c.por_slide === 1 && p.descripcion) {
+			var desc = nuevoNodo('div', 'descripcion');
+			desc.style.fontSize = '2.25vmin';
+			desc.style.lineHeight = '1.3';
+			desc.style.marginTop = '0.7vmin';
+			desc.style.maxHeight = '3.9em';
+			desc.style.overflow = 'hidden';
+			desc.style.color = pag.texto;
+			desc.style.opacity = '0.78';
+			desc.textContent = p.descripcion;
+			texto.appendChild(desc);
+		}
+
 		var pre = nuevoNodo('div', 'precio');
 		pre.style.fontSize = (tamNombre * 0.92) + 'vmin';
 		pre.style.color = pag.acento;
@@ -1181,6 +1242,51 @@ function mostrarReposo(activo) {
 	} else {
 		r.className = '';
 	}
+}
+
+/* Una cinta puede llevar varios avisos. Se repite el texto dentro de la pista
+   para que el final enlace con el principio, sin un hueco negro entre vueltas. */
+function pintarCinta(id, mensajes, pag) {
+	var caja = document.getElementById(id);
+	var pista = caja && caja.firstChild;
+	if (!caja || !pista) return;
+	if (!mensajes.length) { caja.className = 'cinta'; return; }
+	var texto = mensajes.join('   ★   ');
+	pista.textContent = texto + '   ★   ' + texto + '   ★   ';
+	pista.style.color = pag.texto;
+	pista.style.background = pag.placa;
+	pista.style.animationDuration = Math.max(18, Math.min(60, texto.length * 0.24)) + 's';
+	caja.style.background = pag.placa;
+	caja.className = 'cinta visible';
+}
+
+function pintarCintas() {
+	var c = config(), arriba = [], abajo = [];
+	for (var i = 0; i < c.cintas.length; i++) {
+		if (c.cintas[i].posicion === 'abajo') abajo.push(c.cintas[i].texto);
+		else arriba.push(c.cintas[i].texto);
+	}
+	var pag = paletaPagina();
+	pintarCinta('cintaArriba', arriba, pag);
+	pintarCinta('cintaAbajo', abajo, pag);
+}
+
+function pintarReloj() {
+	var c = config(), caja = document.getElementById('reloj');
+	if (!c.reloj || !caja) { if (caja) caja.className = ''; return; }
+	var at = (datos && datos.restaurante && datos.restaurante.atributos) || {};
+	var ahora = ahoraEnZona(at.zona_horaria || 'America/Bogota');
+	var h = Math.floor(ahora.minutos / 60), m = ahora.minutos % 60;
+	var dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+	var meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+		'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+	var partes = String(ahora.fecha).split('-');
+	document.getElementById('hora').textContent = ('0' + h).slice(-2) + ':' + ('0' + m).slice(-2);
+	document.getElementById('fecha').textContent = dias[ahora.dia] + ' ' +
+		(parseInt(partes[2], 10) || '') + ' de ' + meses[(parseInt(partes[1], 10) || 1) - 1];
+	var pag = paletaPagina();
+	caja.style.color = pag.texto;
+	caja.className = marcaDerecha ? 'visible derecha' : 'visible';
 }
 
 function avanzar() {
@@ -1217,6 +1323,7 @@ function avanzar() {
 	   se colocan en la esquina contraria y necesitan saber dónde va a caer. */
 	marcaDerecha = !marcaDerecha;
 	document.getElementById('marca').className = marcaDerecha ? 'derecha' : '';
+	pintarReloj();
 
 	var cont = document.getElementById('slides');
 	var nodo = pintarSlide(slides[indice]);
@@ -1270,6 +1377,8 @@ function aplicar(primeraVez) {
 	marca.style.background = pag.placa;
 	if (logo) { marca.src = logo; marca.style.display = ''; } else { marca.style.display = 'none'; }
 	document.title = datos.restaurante.nombre || 'Carta';
+	pintarCintas();
+	pintarReloj();
 
 	construirSlides();
 	if (primeraVez) { indice = -1; avanzar(); }
@@ -1318,7 +1427,7 @@ function cargar(alTerminar) {
 			pedir('categorias?restaurante_id=eq.' + r.id + '&select=id,nombre,atributos', function (cats) {
 				if (!cats) { alTerminar(false); return; }
 				pedir('productos?restaurante_id=eq.' + r.id + '&disponible=is.true' +
-					'&select=id,nombre,precio,imagen_url,categoria_id,disponible&order=orden.asc',
+					'&select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible&order=orden.asc',
 					function (prods) {
 						if (!prods) { alTerminar(false); return; }
 						/* Las promociones NO cortan la carga si fallan. Los platos son el
@@ -1410,6 +1519,11 @@ if (document.addEventListener) {
 		mantenerEncendida(window.navigator, document);
 	}, false);
 }
+
+/* El reloj también cambia si el restaurante tiene un solo plato durante un
+   minuto entero. No depende del intervalo del carrusel, que puede llegar a
+   sesenta segundos. */
+setInterval(pintarReloj, 20000);
 
 if (!slug) {
 	mostrarReposo(true);
