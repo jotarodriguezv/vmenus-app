@@ -126,7 +126,8 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 	const conTv = tv => extraer(['config'], {
 		POR_DEFECTO: { activa: true, orientacion: 'horizontal', por_slide: 2,
 		               segundos: 8, modo: 'todos', categoria_id: null,
-		               productos: [], aleatorio: false },
+		               productos: [], aleatorio: false, mostrar_descripcion: false,
+		               cintas: [], reloj: false },
 		datos: { restaurante: { atributos: { tv } } },
 		Math,
 		parseInt,
@@ -162,6 +163,24 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 		assert.equal(c.segundos, 8);
 		assert.equal(c.por_slide, 2);
 		assert.equal(c.orientacion, 'horizontal');
+	});
+
+	test('las cintas se limpian, se acotan y no aceptan una posición inventada', () => {
+		const c = conTv({ cintas: [
+			{ texto: '  Hoy hay dos por uno  ', posicion: 'abajo' },
+			{ texto: '', posicion: 'arriba' },
+			{ texto: 'Segundo aviso', posicion: 'en medio' },
+			{ texto: '3' }, { texto: '4' }, { texto: '5' }, { texto: '6' },
+		] });
+		assert.equal(c.cintas.length, 5, 'el sexto no cabe aunque venga escrito a mano');
+		assert.equal(c.cintas[0].texto, 'Hoy hay dos por uno');
+		assert.equal(c.cintas[0].posicion, 'abajo');
+		assert.equal(c.cintas[1].posicion, 'arriba', 'un valor raro cae en arriba');
+	});
+
+	test('la descripción y el reloj solo se encienden con verdadero explícito', () => {
+		assert.equal(conTv({ mostrar_descripcion: 1, reloj: 'sí' }).mostrar_descripcion, true);
+		assert.equal(conTv({ mostrar_descripcion: 0, reloj: null }).reloj, false);
 	});
 });
 
