@@ -79,15 +79,17 @@
 	   la foto queda a la derecha, completa y contenida en vez de recortada para
 	   llenar toda la pantalla. */
 	.plato.editorial { flex-direction: row-reverse; align-items: stretch;
-	                   gap: 3vmin; margin: 3.2vmin 4.2vmin; }
+	                   justify-content: space-between; gap: 3vmin; margin: 3.2vmin 4.2vmin; }
 	/* Un círculo establece el límite de la foto incluso con imágenes muy
 	   panorámicas: es una figura, no una columna que vuelva a adueñarse del
 	   lado derecho. Sus 76vmin dejan el reparto casi mitad y mitad en una TV
 	   horizontal corriente. */
 	.plato.editorial .marco-foto { flex: 0 0 76vmin; width: 76vmin; height: 76vmin;
 	                               align-self: center; border-radius: 50%; }
-	.plato.editorial .foto { background-size: contain; }
-	.plato.editorial .texto { flex: 1 1 0; min-width: 0; padding: 0;
+	/* 'cover' llena el círculo también con una foto vertical. Pierde solo los
+	   bordes menos importantes, en lugar de dejar dos barras negras a los lados. */
+	.plato.editorial .foto { background-size: cover; }
+	.plato.editorial .texto { flex: 0 0 44%; max-width: 44%; min-width: 0; padding: 0;
 	                          display: flex; flex-direction: column;
 	                          align-items: flex-start; justify-content: center;
 	                          text-align: left; }
@@ -1452,6 +1454,11 @@ function aplicar(primeraVez) {
 	var logo = urlSegura(datos.restaurante.logo_url);
 	var marca = document.getElementById('marca');
 	marca.style.background = pag.placa;
+	/* La cinta tiene prioridad cuando está arriba: mover la marca debajo evita
+	   que el aviso le pase por encima y la deje parcialmente tapada. */
+	var cintaArriba = false;
+	for (var ci = 0; ci < c0.cintas.length; ci++) if (c0.cintas[ci].posicion !== 'abajo') cintaArriba = true;
+	marca.style.top = cintaArriba ? '8.4vmin' : '2.4vmin';
 	if (logo) { marca.src = logo; marca.style.display = ''; } else { marca.style.display = 'none'; }
 	document.title = datos.restaurante.nombre || 'Carta';
 	pintarCintas();
