@@ -163,10 +163,11 @@
 	/* Las cintas son avisos del restaurante, no otro slide: siguen visibles
 	   mientras cambia el plato. Cada una se mueve sin parar, de modo que no
 	   queda texto fijo que pueda marcar un panel OLED. */
-	.cinta { position: absolute; left: 0; width: 100%; height: 4.4vmin;
+	.cinta { position: absolute; left: 0; width: 100%; height: 5.6vmin;
 	          overflow: hidden; display: none; white-space: nowrap;
-	          font-size: 2vmin; font-weight: 600; letter-spacing: 0.03em;
-	          line-height: 4.4vmin; z-index: 5; }
+	          font-size: 2.35vmin; font-weight: 700; letter-spacing: 0.045em;
+	          line-height: 5vmin; z-index: 5; border-style: solid;
+	          border-width: 0.3vmin 0; }
 	.cinta.visible { display: block; }
 	#cintaArriba { top: 0; }
 	#cintaAbajo { bottom: 0; }
@@ -256,7 +257,7 @@ var POR_DEFECTO = {
 	   roba espacio a las fotos y se vuelve ilegible desde una mesa. */
 	mostrar_descripcion: false,
 	/* Hasta cinco avisos, cada uno en su propia franja (arriba o abajo). */
-	cintas: [], reloj: false,
+	cintas: [], velocidad_cintas: 'normal', reloj: false,
 	tema: 'oscuro',
 	/* Si la cartelera obedece los horarios de categoría. Por defecto SÍ, que es
 	   lo que hacía antes de existir esta clave: un restaurante que no vuelva a
@@ -389,6 +390,9 @@ function config() {
 	if (c.tema !== 'carta') c.tema = 'oscuro';
 	c.mostrar_descripcion = !!c.mostrar_descripcion;
 	c.reloj = !!c.reloj;
+	if (c.velocidad_cintas !== 'lenta' && c.velocidad_cintas !== 'rapida') {
+		c.velocidad_cintas = 'normal';
+	}
 	/* Se tolera cualquier dato viejo o escrito a mano, pero nunca se pinta más
 	   de lo que el panel deja configurar. */
 	var cintas = [], originales = Object.prototype.toString.call(c.cintas) === '[object Array]' ? c.cintas : [];
@@ -1246,7 +1250,7 @@ function mostrarReposo(activo) {
 
 /* Una cinta puede llevar varios avisos. Se repite el texto dentro de la pista
    para que el final enlace con el principio, sin un hueco negro entre vueltas. */
-function pintarCinta(id, mensajes, pag) {
+function pintarCinta(id, mensajes, pag, velocidad) {
 	var caja = document.getElementById(id);
 	var pista = caja && caja.firstChild;
 	if (!caja || !pista) return;
@@ -1255,8 +1259,15 @@ function pintarCinta(id, mensajes, pag) {
 	pista.textContent = texto + '   ★   ' + texto + '   ★   ';
 	pista.style.color = pag.texto;
 	pista.style.background = pag.placa;
-	pista.style.animationDuration = Math.max(18, Math.min(60, texto.length * 0.24)) + 's';
+	/* No se guarda una duración fija: dos mensajes cortos no deberían tardar un
+	   minuto ni cinco largos desaparecer en un suspiro. La velocidad elegida
+	   conserva la sensación al cambiar la cantidad de texto. */
+	var ritmo = velocidad === 'lenta' ? 0.38 : (velocidad === 'rapida' ? 0.15 : 0.24);
+	var minimo = velocidad === 'lenta' ? 28 : (velocidad === 'rapida' ? 12 : 18);
+	var maximo = velocidad === 'lenta' ? 90 : (velocidad === 'rapida' ? 40 : 60);
+	pista.style.animationDuration = Math.max(minimo, Math.min(maximo, texto.length * ritmo)) + 's';
 	caja.style.background = pag.placa;
+	caja.style.borderColor = pag.acento;
 	caja.className = 'cinta visible';
 }
 
@@ -1267,8 +1278,8 @@ function pintarCintas() {
 		else arriba.push(c.cintas[i].texto);
 	}
 	var pag = paletaPagina();
-	pintarCinta('cintaArriba', arriba, pag);
-	pintarCinta('cintaAbajo', abajo, pag);
+	pintarCinta('cintaArriba', arriba, pag, c.velocidad_cintas);
+	pintarCinta('cintaAbajo', abajo, pag, c.velocidad_cintas);
 }
 
 function pintarReloj() {
