@@ -79,8 +79,13 @@
 	   la foto queda a la derecha, completa y contenida en vez de recortada para
 	   llenar toda la pantalla. */
 	.plato.editorial { flex-direction: row-reverse; align-items: stretch;
-	                   gap: 4vmin; margin: 3.2vmin 4.2vmin; }
-	.plato.editorial .marco-foto { flex: 0 0 44%; width: auto; border-radius: 2vmin; }
+	                   gap: 3vmin; margin: 3.2vmin 4.2vmin; }
+	/* Un círculo establece el límite de la foto incluso con imágenes muy
+	   panorámicas: es una figura, no una columna que vuelva a adueñarse del
+	   lado derecho. Sus 76vmin dejan el reparto casi mitad y mitad en una TV
+	   horizontal corriente. */
+	.plato.editorial .marco-foto { flex: 0 0 76vmin; width: 76vmin; height: 76vmin;
+	                               align-self: center; border-radius: 50%; }
 	.plato.editorial .foto { background-size: contain; }
 	.plato.editorial .texto { flex: 1 1 0; min-width: 0; padding: 0;
 	                          display: flex; flex-direction: column;
@@ -88,7 +93,7 @@
 	                          text-align: left; }
 	.plato.editorial .categoria { position: static; display: inline-block;
 	                               max-width: 100%; margin: 0 0 2vmin; }
-	.plato.editorial .descripcion { margin-top: 1.4vmin; max-height: 7.8em;
+	.plato.editorial .descripcion { margin-top: 1.2vmin; max-height: 6.5em;
 	                                 overflow: hidden; }
 	.plato.editorial .precio { margin-top: 1.8vmin; }
 
@@ -189,8 +194,15 @@
 	.cinta.visible { display: block; }
 	#cintaArriba { top: 0; }
 	#cintaAbajo { bottom: 0; }
-	.cinta-pista { display: inline-block; min-width: 100%; padding-left: 100%;
-	                animation: correr-cinta linear infinite; }
+	/* La pista lleva dos grupos idénticos. Al terminar el primero ya empieza el
+	   segundo, y el -50% cae exactamente entre ambos: no hay salto al reiniciar
+	   ni un tramo vacío entre mensajes. */
+	.cinta-pista { display: inline-flex; min-width: 0; padding-left: 0;
+	                white-space: nowrap; animation: correr-cinta linear infinite; }
+	.cinta-grupo { display: inline-flex; flex: 0 0 auto; align-items: center; }
+	.cinta-mensaje { display: inline-block; margin: 0 0.45vmin;
+	                 padding: 0 1.1vmin; border-radius: 0.5em; }
+	.cinta-separador { display: inline-block; padding: 0 0.65vmin; opacity: 0.56; }
 	@keyframes correr-cinta { from { transform: translateX(0); }
 	                          to { transform: translateX(-50%); } }
 
@@ -1182,7 +1194,8 @@ function pintarSlide(s) {
 
 		var marcoFoto = nuevoNodo('div', 'marco-foto');
 		marcoFoto.style.background = pag.caja;
-		if (pag.borde) marcoFoto.style.border = pag.borde;
+		if (editorial) marcoFoto.style.border = '0.45vmin solid ' + pag.acento;
+		else if (pag.borde) marcoFoto.style.border = pag.borde;
 		var foto = nuevoNodo('div', 'foto');
 		foto.style.backgroundImage = 'url("' + urlSegura(p.imagen_url).replace(/"/g, '%22') + '")';
 		/* El acercamiento dura lo que dura el slide, así que va desde aquí y no
@@ -1235,10 +1248,10 @@ function pintarSlide(s) {
 		   llegar escrita a mano o desde una versión anterior del panel. */
 		if (editorial) {
 			var desc = nuevoNodo('div', 'descripcion');
-			desc.style.fontSize = '2.55vmin';
+			desc.style.fontSize = '2.25vmin';
 			desc.style.lineHeight = '1.3';
-			desc.style.marginTop = '1.4vmin';
-			desc.style.maxHeight = '7.8em';
+			desc.style.marginTop = '1.2vmin';
+			desc.style.maxHeight = '6.5em';
 			desc.style.overflow = 'hidden';
 			desc.style.color = pag.texto;
 			desc.style.opacity = '0.78';
@@ -1274,16 +1287,38 @@ function mostrarReposo(activo) {
 	}
 }
 
-/* Una cinta puede llevar varios avisos. Se repite el texto dentro de la pista
-   para que el final enlace con el principio, sin un hueco negro entre vueltas. */
+/* Una cinta puede llevar varios avisos. Dos grupos idénticos hacen que el
+   final enlace con el principio sin hueco ni salto visible. */
 function pintarCinta(id, mensajes, pag, velocidad) {
 	var caja = document.getElementById(id);
 	var pista = caja && caja.firstChild;
 	if (!caja || !pista) return;
 	if (!mensajes.length) { caja.className = 'cinta'; return; }
-	var texto = mensajes.join('   ★   ');
-	pista.textContent = texto + '   ★   ' + texto + '   ★   ';
-	pista.style.color = pag.texto;
+	var texto = mensajes.join('   ★   '), veces = 1;
+	pista.textContent = '';
+	/* Un aviso muy corto se repite dentro de cada grupo hasta cruzar la pantalla.
+	   Así tampoco deja una franja vacía antes de que entre la copia idéntica. */
+	while (texto.length * veces < 120) veces++;
+	function grupo() {
+		var g = nuevoNodo('span', 'cinta-grupo');
+		for (var vuelta = 0; vuelta < veces; vuelta++) {
+			for (var i = 0; i < mensajes.length; i++) {
+				var aviso = nuevoNodo('span', 'cinta-mensaje');
+				aviso.textContent = mensajes[i];
+				if (i % 2) {
+					aviso.style.background = pag.acento;
+					aviso.style.color = textoSobre(canalHex(pag.acento));
+				} else aviso.style.color = pag.texto;
+				g.appendChild(aviso);
+				var separador = nuevoNodo('span', 'cinta-separador');
+				separador.textContent = '★';
+				g.appendChild(separador);
+			}
+		}
+		return g;
+	}
+	pista.appendChild(grupo());
+	pista.appendChild(grupo());
 	pista.style.background = pag.placa;
 	/* No se guarda una duración fija: dos mensajes cortos no deberían tardar un
 	   minuto ni cinco largos desaparecer en un suspiro. La velocidad elegida
@@ -1291,7 +1326,7 @@ function pintarCinta(id, mensajes, pag, velocidad) {
 	var ritmo = velocidad === 'lenta' ? 0.38 : (velocidad === 'rapida' ? 0.15 : 0.24);
 	var minimo = velocidad === 'lenta' ? 28 : (velocidad === 'rapida' ? 12 : 18);
 	var maximo = velocidad === 'lenta' ? 90 : (velocidad === 'rapida' ? 40 : 60);
-	pista.style.animationDuration = Math.max(minimo, Math.min(maximo, texto.length * ritmo)) + 's';
+	pista.style.animationDuration = Math.max(minimo, Math.min(maximo, texto.length * veces * ritmo)) + 's';
 	caja.style.background = pag.placa;
 	caja.style.borderColor = pag.acento;
 	caja.className = 'cinta visible';
@@ -1323,6 +1358,11 @@ function pintarReloj() {
 		(parseInt(partes[2], 10) || '') + ' de ' + meses[(parseInt(partes[1], 10) || 1) - 1];
 	var pag = paletaPagina();
 	caja.style.color = pag.texto;
+	/* La cinta inferior tiene prioridad visual. Reservarle su altura evita que
+	   cubra la fecha, incluso cuando el reloj cambia de esquina entre slides. */
+	var abajo = false;
+	for (var i = 0; i < c.cintas.length; i++) if (c.cintas[i].posicion === 'abajo') abajo = true;
+	caja.style.bottom = abajo ? '8.4vmin' : '2.2vmin';
 	caja.className = marcaDerecha ? 'visible derecha' : 'visible';
 }
 
