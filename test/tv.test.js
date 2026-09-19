@@ -127,7 +127,7 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 		POR_DEFECTO: { activa: true, orientacion: 'horizontal', por_slide: 2,
 		               segundos: 8, modo: 'todos', categoria_id: null,
 		               productos: [], aleatorio: false, mostrar_descripcion: false,
-		               cintas: [], reloj: false },
+		               cintas: [], velocidad_cintas: 'normal', reloj: false },
 		datos: { restaurante: { atributos: { tv } } },
 		Math,
 		parseInt,
@@ -181,6 +181,12 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 	test('la descripción y el reloj solo se encienden con verdadero explícito', () => {
 		assert.equal(conTv({ mostrar_descripcion: 1, reloj: 'sí' }).mostrar_descripcion, true);
 		assert.equal(conTv({ mostrar_descripcion: 0, reloj: null }).reloj, false);
+	});
+
+	test('la velocidad de la cinta solo acepta los tres ritmos del panel', () => {
+		assert.equal(conTv({ velocidad_cintas: 'lenta' }).velocidad_cintas, 'lenta');
+		assert.equal(conTv({ velocidad_cintas: 'rapida' }).velocidad_cintas, 'rapida');
+		assert.equal(conTv({ velocidad_cintas: 'turbo' }).velocidad_cintas, 'normal');
 	});
 });
 
