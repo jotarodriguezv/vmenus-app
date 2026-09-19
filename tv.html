@@ -74,6 +74,24 @@
 	          overflow: hidden; }
 	.precio { margin-top: 0.6vmin; font-weight: 700; color: #ffd521; }
 
+	/* Un solo plato con descripción es una pieza editorial, no una tarjeta
+	   gigantesca. La información ocupa la izquierda, donde se lee en orden, y
+	   la foto queda a la derecha, completa y contenida en vez de recortada para
+	   llenar toda la pantalla. */
+	.plato.editorial { flex-direction: row-reverse; align-items: stretch;
+	                   gap: 4vmin; margin: 3.2vmin 4.2vmin; }
+	.plato.editorial .marco-foto { flex: 0 0 44%; width: auto; border-radius: 2vmin; }
+	.plato.editorial .foto { background-size: contain; }
+	.plato.editorial .texto { flex: 1 1 0; min-width: 0; padding: 0;
+	                          display: flex; flex-direction: column;
+	                          align-items: flex-start; justify-content: center;
+	                          text-align: left; }
+	.plato.editorial .categoria { position: static; display: inline-block;
+	                               max-width: 100%; margin: 0 0 2vmin; }
+	.plato.editorial .descripcion { margin-top: 1.4vmin; max-height: 7.8em;
+	                                 overflow: hidden; }
+	.plato.editorial .precio { margin-top: 1.8vmin; }
+
 	/* ── ANIMACIÓN ─────────────────────────────────────────────
 	   Solo 'transform' y 'opacity': son las dos que el navegador puede pasarle
 	   a la GPU. Cualquier otra —blur, box-shadow, width— obliga a repintar en
@@ -1157,6 +1175,10 @@ function pintarSlide(s) {
 	for (var i = 0; i < s.platos.length; i++) {
 		var p = s.platos[i];
 		var plato = nuevoNodo('div', 'plato');
+		/* Con descripción hay suficiente contenido para que un solo plato deje
+		   de ser una foto enorme y se convierta en una ficha de lectura. */
+		var editorial = c.mostrar_descripcion && c.por_slide === 1 && p.descripcion;
+		if (editorial) plato.className = 'plato editorial';
 
 		var marcoFoto = nuevoNodo('div', 'marco-foto');
 		marcoFoto.style.background = pag.caja;
@@ -1173,12 +1195,13 @@ function pintarSlide(s) {
 		foto.style.animationDelay = (i * 220) + 'ms';
 		marcoFoto.appendChild(foto);
 
+		var cat = null;
 		if (c.mostrar_categoria) {
 			var nomCat = nombreCategoria(p.categoria_id);
 			if (nomCat) {
 				/* A la esquina contraria del logo, que se dibuja encima de la
 				   primera foto. Ver el comentario de '.categoria.derecha'. */
-				var cat = nuevoNodo('div', marcaDerecha ? 'categoria' : 'categoria derecha');
+				cat = nuevoNodo('div', marcaDerecha ? 'categoria' : 'categoria derecha');
 				/* Más pequeña cuanto más se reparte la pantalla, igual que el
 				   nombre del plato: si no, con cuatro platos tapa media foto.
 				   Pero con suelo. Por debajo de 1,9vmin —unos 20 px en un
@@ -1188,7 +1211,9 @@ function pintarSlide(s) {
 				cat.style.background = pal.fondo;
 				cat.style.color = pal.texto;
 				cat.textContent = nomCat;
-				marcoFoto.appendChild(cat);
+				/* En la ficha editorial la categoría pertenece al bloque de lectura;
+				   en la rejilla se queda sobre la foto, como siempre. */
+				if (!editorial) marcoFoto.appendChild(cat);
 			}
 		}
 
@@ -1196,6 +1221,7 @@ function pintarSlide(s) {
 
 		var texto = nuevoNodo('div', 'texto');
 		texto.style.animationDelay = (i * 220) + 'ms';
+		if (editorial && cat) texto.appendChild(cat);
 		var nom = nuevoNodo('div', 'nombre');
 		nom.style.fontSize = tamNombre + 'vmin';
 		nom.style.color = pag.texto;
@@ -1207,12 +1233,12 @@ function pintarSlide(s) {
 		/* El interruptor solo tiene efecto con un plato. La comprobación vive
 		   también aquí —y no solo en el panel— porque una configuración puede
 		   llegar escrita a mano o desde una versión anterior del panel. */
-		if (c.mostrar_descripcion && c.por_slide === 1 && p.descripcion) {
+		if (editorial) {
 			var desc = nuevoNodo('div', 'descripcion');
-			desc.style.fontSize = '2.25vmin';
+			desc.style.fontSize = '2.55vmin';
 			desc.style.lineHeight = '1.3';
-			desc.style.marginTop = '0.7vmin';
-			desc.style.maxHeight = '3.9em';
+			desc.style.marginTop = '1.4vmin';
+			desc.style.maxHeight = '7.8em';
 			desc.style.overflow = 'hidden';
 			desc.style.color = pag.texto;
 			desc.style.opacity = '0.78';

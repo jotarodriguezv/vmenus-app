@@ -370,6 +370,42 @@ describe('tv.html · la etiqueta no se pelea con el logo del negocio', () => {
 	});
 });
 
+describe('tv.html · un plato con descripción se lee como ficha', () => {
+	function ficha(tv) {
+		const ctx = extraer(PARA_PINTAR, {
+			document: domFalso(), marcaDerecha: false, NEUTRO,
+			POR_DEFECTO: { por_slide: 1, segundos: 8, mostrar_categoria: true,
+				color_categoria: 'oscuro', tema: 'oscuro', mostrar_descripcion: false },
+			datos: {
+				restaurante: { color_primario: '#3dd68c', atributos: { tv } },
+				categorias: [{ id: 'c1', nombre: 'Hamburguesas' }],
+			},
+			Math, parseInt, String,
+		});
+		return todos(ctx.pintarSlide({ platos: [{
+			nombre: 'La Descarada', precio: '$28.000', descripcion: 'Carne, queso y salsa de la casa.',
+			imagen_url: 'https://x/1.jpg', categoria_id: 'c1',
+		}] }));
+	}
+
+	test('mueve categoría, nombre, descripción y precio al bloque de lectura', () => {
+		const nodos = ficha({ mostrar_descripcion: true, mostrar_categoria: true });
+		const plato = nodos.find(n => n.className === 'plato editorial');
+		assert.ok(plato, 'un plato descrito debe usar el diseño dividido');
+		const texto = plato.hijos[1];
+		assert.deepEqual(texto.hijos.map(n => n.className),
+			['categoria derecha', 'nombre', 'descripcion', 'precio']);
+		assert.equal(plato.hijos[0].hijos.some(n => /categoria/.test(n.className)), false,
+			'la categoría no debe quedar encima de la foto');
+	});
+
+	test('sin el interruptor conserva la tarjeta de foto de siempre', () => {
+		const nodos = ficha({ mostrar_descripcion: false, mostrar_categoria: true });
+		assert.ok(nodos.some(n => n.className === 'plato'));
+		assert.equal(nodos.some(n => n.className === 'plato editorial'), false);
+	});
+});
+
 describe('tv.html · la página con los colores del restaurante', () => {
 	// El tema 'carta' toma los colores que el restaurante ya guardó para su
 	// menú. Lo que se prueba es que nunca acabe ilegible: esto se cuelga en una
