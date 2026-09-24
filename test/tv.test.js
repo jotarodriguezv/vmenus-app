@@ -127,7 +127,7 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 		POR_DEFECTO: { activa: true, orientacion: 'horizontal', por_slide: 2,
 		               segundos: 8, modo: 'todos', categoria_id: null,
 		               productos: [], aleatorio: false, mostrar_descripcion: false,
-		               cintas: [], velocidad_cintas: 'normal', reloj: false },
+		               mostrar_sin_foto_lista: false, cintas: [], velocidad_cintas: 'normal', reloj: false },
 		datos: { restaurante: { atributos: { tv } } },
 		Math,
 		parseInt,
@@ -187,6 +187,11 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 		assert.equal(conTv({ velocidad_cintas: 'lenta' }).velocidad_cintas, 'lenta');
 		assert.equal(conTv({ velocidad_cintas: 'rapida' }).velocidad_cintas, 'rapida');
 		assert.equal(conTv({ velocidad_cintas: 'turbo' }).velocidad_cintas, 'normal');
+	});
+
+	test('la lista de productos sin foto empieza apagada y acepta activarse', () => {
+		assert.equal(conTv({}).mostrar_sin_foto_lista, false);
+		assert.equal(conTv({ mostrar_sin_foto_lista: true }).mostrar_sin_foto_lista, true);
 	});
 });
 
@@ -370,7 +375,7 @@ describe('tv.html · la etiqueta no se pelea con el logo del negocio', () => {
 	});
 });
 
-describe('tv.html · un plato con descripción se lee como ficha', () => {
+describe('tv.html · un plato se lee como ficha', () => {
 	function ficha(tv) {
 		const ctx = extraer(PARA_PINTAR, {
 			document: domFalso(), marcaDerecha: false, NEUTRO,
@@ -399,10 +404,33 @@ describe('tv.html · un plato con descripción se lee como ficha', () => {
 			'la categoría no debe quedar encima de la foto');
 	});
 
-	test('sin el interruptor conserva la tarjeta de foto de siempre', () => {
+	test('sin descripción conserva el diseño dividido, sin inventar texto', () => {
 		const nodos = ficha({ mostrar_descripcion: false, mostrar_categoria: true });
-		assert.ok(nodos.some(n => n.className === 'plato'));
-		assert.equal(nodos.some(n => n.className === 'plato editorial'), false);
+		const plato = nodos.find(n => n.className === 'plato editorial');
+		assert.ok(plato, 'una foto sola no debe volver a ocupar toda la pantalla');
+		assert.equal(plato.hijos[1].hijos.some(n => n.className === 'descripcion'), false);
+	});
+
+});
+
+describe('tv.html · productos sin foto en lista', () => {
+	test('agrupa los nombres y precios bajo la categoría', () => {
+		const ctx = extraer(PARA_PINTAR, {
+			document: domFalso(), marcaDerecha: false, NEUTRO,
+			POR_DEFECTO: { tema: 'oscuro', por_slide: 2, segundos: 8 },
+			datos: {
+				restaurante: { atributos: { tv: {} } },
+				categorias: [{ id: 'beb', nombre: 'Bebidas' }],
+			},
+			Math, parseInt, String,
+		});
+		const nodos = todos(ctx.pintarSlide({ lista: { categoria_id: 'beb', platos: [
+			{ nombre: 'Gaseosa', precio: '$6.000' }, { nombre: 'Limonada', precio: '$8.000' },
+		] } }));
+		assert.ok(nodos.some(n => n.className === 'lista-tv'));
+		assert.ok(nodos.some(n => n.textContent === 'Bebidas'));
+		assert.ok(nodos.some(n => n.textContent === 'Gaseosa'));
+		assert.ok(nodos.some(n => n.textContent === '$8.000'));
 	});
 });
 
