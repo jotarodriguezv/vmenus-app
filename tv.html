@@ -73,6 +73,11 @@
 	.nombre { font-weight: 700; line-height: 1.15; letter-spacing: 0.02em;
 	          overflow: hidden; }
 	.precio { margin-top: 0.6vmin; font-weight: 700; color: #ffd521; }
+	/* Para cuántas personas alcanza el plato. Solo se pinta a partir de dos: uno
+	   es lo normal en una carta y decirlo en cada plato sería ruido. Sutil a
+	   propósito, como la etiqueta de categoría: es un dato de apoyo, no algo
+	   que compita con el nombre o el precio por la atención de la mesa. */
+	.personas { margin-top: 0.5vmin; font-weight: 500; opacity: 0.62; }
 
 	/* Un solo plato con descripción es una pieza editorial, no una tarjeta
 	   gigantesca. La información ocupa la izquierda, donde se lee en orden, y
@@ -1339,6 +1344,17 @@ function pintarSlide(s) {
 		pre.textContent = p.precio || '';
 		texto.appendChild(pre);
 
+		/* Por defecto un plato es para una persona, y eso no se dice. A partir
+		   de dos, sí: es la respuesta a la pregunta que hace la mesa antes de
+		   pedir una salchipapa grande. */
+		if (p.personas && p.personas > 1) {
+			var pers = nuevoNodo('div', 'personas');
+			pers.style.fontSize = (tamNombre * 0.4) + 'vmin';
+			pers.style.color = pag.texto;
+			pers.textContent = 'Para ' + p.personas + ' personas';
+			texto.appendChild(pers);
+		}
+
 		plato.appendChild(texto);
 		fila.appendChild(plato);
 	}
@@ -1583,7 +1599,7 @@ function cargar(alTerminar) {
 			pedir('categorias?restaurante_id=eq.' + r.id + '&select=id,nombre,atributos', function (cats) {
 				if (!cats) { alTerminar(false); return; }
 				pedir('productos?restaurante_id=eq.' + r.id + '&disponible=is.true' +
-					'&select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible&order=orden.asc',
+					'&select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible,personas&order=orden.asc',
 					function (prods) {
 						if (!prods) { alTerminar(false); return; }
 						/* Las promociones NO cortan la carga si fallan. Los platos son el

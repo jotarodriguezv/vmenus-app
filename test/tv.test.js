@@ -120,6 +120,15 @@ describe('tv.html · nada de sintaxis que un televisor viejo no entienda', () =>
 		// nada que escapar: el problema de inyección no existe.
 		assert.equal(/innerHTML/.test(CODIGO), false, 'usa textContent');
 	});
+
+	test('pide "personas" al traer los productos', () => {
+		// Las columnas se piden una por una y nunca con asterisco (11.bis de
+		// pantalla-tv.md): pedir una que no existe en la tabla no deja un hueco,
+		// tumba la petición entera con un 400 que la pantalla lee como "sin
+		// conexión". Sin este nombre en el select, la nota de personas nunca
+		// llegaría aunque el resto del código estuviera bien.
+		assert.match(CODIGO, /select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible,personas/);
+	});
 });
 
 describe('tv.html · la configuración no puede dejar la pantalla inservible', () => {
@@ -411,6 +420,49 @@ describe('tv.html · un plato se lee como ficha', () => {
 		assert.equal(plato.hijos[1].hijos.some(n => n.className === 'descripcion'), false);
 	});
 
+});
+
+describe('tv.html · para cuántas personas alcanza un plato', () => {
+	function slideDe(platos) {
+		const ctx = extraer(PARA_PINTAR, {
+			document: domFalso(), marcaDerecha: false, NEUTRO,
+			POR_DEFECTO: { por_slide: 2, segundos: 8, mostrar_categoria: false,
+				color_categoria: 'oscuro', tema: 'oscuro' },
+			datos: {
+				restaurante: { color_primario: '#3dd68c', atributos: { tv: {} } },
+				categorias: [{ id: 'c1', nombre: 'Hamburguesas' }],
+			},
+			Math, parseInt, String,
+		});
+		return todos(ctx.pintarSlide({ platos }));
+	}
+
+	test('con una persona no se dice nada: es lo normal en la carta', () => {
+		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 1 };
+		assert.equal(slideDe([plato]).some(n => n.className === 'personas'), false);
+	});
+
+	test('sin el campo tampoco se dice nada: los platos de siempre no cambian', () => {
+		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1' };
+		assert.equal(slideDe([plato]).some(n => n.className === 'personas'), false);
+	});
+
+	test('a partir de dos, sale la nota', () => {
+		const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
+		const nota = slideDe([plato]).find(n => n.className === 'personas');
+		assert.ok(nota, 'un plato para 3 personas debe llevar la nota');
+		assert.equal(nota.textContent, 'Para 3 personas');
+	});
+
+	test('cada plato dice lo suyo, no lo del vecino', () => {
+		const platos = [
+			{ nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 1 },
+			{ nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/2.jpg', categoria_id: 'c1', personas: 4 },
+		];
+		const notas = slideDe(platos).filter(n => n.className === 'personas');
+		assert.equal(notas.length, 1);
+		assert.equal(notas[0].textContent, 'Para 4 personas');
+	});
 });
 
 describe('tv.html · productos sin foto en lista', () => {
