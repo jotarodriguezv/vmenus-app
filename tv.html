@@ -1346,12 +1346,20 @@ function pintarSlide(s) {
 
 		/* Por defecto un plato es para una persona, y eso no se dice. A partir
 		   de dos, sí: es la respuesta a la pregunta que hace la mesa antes de
-		   pedir una salchipapa grande. */
-		if (p.personas && p.personas > 1) {
+		   pedir una salchipapa grande.
+
+		   Dos interruptores del panel deciden por encima del número (sql/27,
+		   24/09/2026): 'mostrar_personas' puede apagar la nota aunque el plato
+		   sea para diez, y 'mostrar_personas_uno' puede encenderla aunque sea
+		   para uno. La misma regla vive en productos-marcas.js del panel; no se
+		   puede compartir el código porque este archivo no importa nada. */
+		var numPersonas = p.personas || 1;
+		var mostrarPersonas = p.mostrar_personas !== false && (numPersonas > 1 || p.mostrar_personas_uno === true);
+		if (mostrarPersonas) {
 			var pers = nuevoNodo('div', 'personas');
 			pers.style.fontSize = (tamNombre * 0.4) + 'vmin';
 			pers.style.color = pag.texto;
-			pers.textContent = 'Para ' + p.personas + ' personas';
+			pers.textContent = 'Para ' + numPersonas + ' ' + (numPersonas === 1 ? 'persona' : 'personas');
 			texto.appendChild(pers);
 		}
 
@@ -1599,7 +1607,7 @@ function cargar(alTerminar) {
 			pedir('categorias?restaurante_id=eq.' + r.id + '&select=id,nombre,atributos', function (cats) {
 				if (!cats) { alTerminar(false); return; }
 				pedir('productos?restaurante_id=eq.' + r.id + '&disponible=is.true' +
-					'&select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible,personas&order=orden.asc',
+					'&select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible,personas,mostrar_personas,mostrar_personas_uno&order=orden.asc',
 					function (prods) {
 						if (!prods) { alTerminar(false); return; }
 						/* Las promociones NO cortan la carga si fallan. Los platos son el
