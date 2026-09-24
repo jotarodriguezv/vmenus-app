@@ -84,7 +84,8 @@
 	   panorámicas: es una figura, no una columna que vuelva a adueñarse del
 	   lado derecho. Sus 76vmin dejan el reparto casi mitad y mitad en una TV
 	   horizontal corriente. */
-	.plato.editorial .marco-foto { flex: 0 0 76vmin; width: 76vmin; height: 76vmin;
+	.plato.editorial .marco-foto { position: relative; right: 10vmin;
+	                               flex: 0 0 76vmin; width: 76vmin; height: 76vmin;
 	                               align-self: center; border-radius: 50%; }
 	/* 'cover' llena el círculo también con una foto vertical. Pierde solo los
 	   bordes menos importantes, en lugar de dejar dos barras negras a los lados. */
@@ -174,8 +175,8 @@
 	   Lleva fondo propio porque va POR ENCIMA de las fotos: sin él, un logo
 	   claro sobre un plato claro no se lee, y con las fotos de verdad —no las
 	   de la prueba— eso pasa la mitad de las veces. */
-	#marca { position: absolute; top: 2.4vmin; left: 2.4vmin; height: 6vmin;
-	         padding: 0.9vmin 1.3vmin; border-radius: 1vmin;
+	#marca { position: absolute; top: 2.4vmin; left: 2.4vmin; height: 9vmin;
+	         padding: 1.1vmin 1.5vmin; border-radius: 1vmin;
 	         background: rgba(10, 10, 15, 0.62);
 	         opacity: 0.95; transition: all 900ms ease-in-out; }
 	#marca.derecha { left: auto; right: 2.4vmin; }
