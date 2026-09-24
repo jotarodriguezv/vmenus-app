@@ -100,6 +100,22 @@
 	                                 overflow: hidden; }
 	.plato.editorial .precio { margin-top: 1.8vmin; }
 
+	/* Las bebidas y complementos sin fotografía no intentan fingir que la
+	   tienen. Salen juntos, por categoría, en una lista que se lee de lejos. */
+	.lista-tv { width: 100%; height: 100%; padding: 6vmin; box-sizing: border-box;
+	            display: flex; flex-direction: column; }
+	.lista-tv-titulo { flex: 0 0 auto; margin-bottom: 2.2vmin; font-weight: 700;
+	                   letter-spacing: 0.04em; text-transform: uppercase; }
+	.lista-tv-columnas { flex: 1 1 auto; min-height: 0; display: flex; gap: 3.5vmin; }
+	.lista-tv-columna { flex: 1 1 0; min-width: 0; }
+	.lista-tv-fila { min-height: 7.2vmin; display: flex; align-items: center;
+	                 padding: 0.7vmin 1.4vmin; margin-bottom: 0.9vmin;
+	                 border-left: 0.45vmin solid; border-bottom: 0.14vmin solid;
+	                 box-sizing: border-box; }
+	.lista-tv-nombre { flex: 1 1 auto; min-width: 0; overflow: hidden;
+	                  white-space: nowrap; text-overflow: ellipsis; font-weight: 700; }
+	.lista-tv-precio { flex: 0 0 auto; margin-left: 2vmin; font-weight: 700; }
+
 	/* ── ANIMACIÓN ─────────────────────────────────────────────
 	   Solo 'transform' y 'opacity': son las dos que el navegador puede pasarle
 	   a la GPU. Cualquier otra —blur, box-shadow, width— obliga a repintar en
@@ -289,6 +305,8 @@ var POR_DEFECTO = {
 	/* La descripción se reserva para un plato protagonista. En una cuadrícula
 	   roba espacio a las fotos y se vuelve ilegible desde una mesa. */
 	mostrar_descripcion: false,
+	/* Incluye las bebidas y extras sin foto, agrupados como lista por categoría. */
+	mostrar_sin_foto_lista: false,
 	/* Hasta cinco avisos, cada uno en su propia franja (arriba o abajo). */
 	cintas: [], velocidad_cintas: 'normal', reloj: false,
 	tema: 'oscuro',
@@ -422,6 +440,7 @@ function config() {
 	}
 	if (c.tema !== 'carta') c.tema = 'oscuro';
 	c.mostrar_descripcion = !!c.mostrar_descripcion;
+	c.mostrar_sin_foto_lista = !!c.mostrar_sin_foto_lista;
 	c.reloj = !!c.reloj;
 	if (c.velocidad_cintas !== 'lenta' && c.velocidad_cintas !== 'rapida') {
 		c.velocidad_cintas = 'normal';
@@ -557,9 +576,9 @@ function platosElegidos() {
 	for (var j = 0; j < datos.productos.length; j++) {
 		var p = datos.productos[j];
 		if (!p.disponible) continue;
-		/* Sin foto no hay slide: esto es un medio visual y un hueco gris se ve
-		   peor que un plato de menos. */
-		if (!urlSegura(p.imagen_url)) continue;
+		/* Sin foto no hay ficha. Solo se admiten cuando el restaurante pidió
+		   expresamente la lista de bebidas y complementos sin fotografía. */
+		if (!urlSegura(p.imagen_url) && !c.mostrar_sin_foto_lista) continue;
 		if (!visibles[p.categoria_id]) continue;
 		var dentro = entraEnSeleccion(p, sel);
 		/* Con la mezcla encendida, lo de siempre NO se apaga: la excepción suma.
@@ -590,14 +609,18 @@ function barajar(lista, ultimoPrevio) {
 function construirSlides() {
 	if (!tvActiva()) { slides = []; return; }
 	var c = config();
-	var platos = platosElegidos();
+	var platos = platosElegidos(), conFoto = [], sinFoto = [];
+	for (var pf = 0; pf < platos.length; pf++) {
+		if (urlSegura(platos[pf].imagen_url)) conFoto.push(platos[pf]);
+		else sinFoto.push(platos[pf]);
+	}
 	var ultimo = (slides.length && slides[slides.length - 1].platos)
 		? slides[slides.length - 1].platos[slides[slides.length - 1].platos.length - 1] : null;
-	if (c.aleatorio) platos = barajar(platos, ultimo);
+	if (c.aleatorio) conFoto = barajar(conFoto, ultimo);
 
 	var nuevos = [];
-	for (var i = 0; i < platos.length; i += c.por_slide) {
-		nuevos.push({ platos: platos.slice(i, i + c.por_slide) });
+	for (var i = 0; i < conFoto.length; i += c.por_slide) {
+		nuevos.push({ platos: conFoto.slice(i, i + c.por_slide) });
 	}
 
 	/* La última pantalla no puede quedarse coja. Con 13 hamburguesas de tres en
@@ -611,8 +634,20 @@ function construirSlides() {
 	   DENTRO del mismo slide sí se vería roto. */
 	if (nuevos.length > 1) {
 		var cola = nuevos[nuevos.length - 1].platos;
-		if (cola.length < c.por_slide && platos.length >= c.por_slide) {
-			nuevos[nuevos.length - 1] = { platos: platos.slice(platos.length - c.por_slide) };
+		if (cola.length < c.por_slide && conFoto.length >= c.por_slide) {
+			nuevos[nuevos.length - 1] = { platos: conFoto.slice(conFoto.length - c.por_slide) };
+		}
+	}
+
+	/* Doce filas dan seis por columna; si hay más bebidas, la categoría sigue
+	   junta en otra pantalla en vez de hacerse ilegible. */
+	for (var ci = 0; ci < datos.categorias.length; ci++) {
+		var catId = datos.categorias[ci].id, deCategoria = [];
+		for (var si = 0; si < sinFoto.length; si++) {
+			if (sinFoto[si].categoria_id === catId) deCategoria.push(sinFoto[si]);
+		}
+		for (var li = 0; li < deCategoria.length; li += 12) {
+			nuevos.push({ lista: { categoria_id: catId, platos: deCategoria.slice(li, li + 12) } });
 		}
 	}
 
@@ -1161,6 +1196,41 @@ function pintarSlide(s) {
 		return div;
 	}
 
+	if (s.lista) {
+		var listaTv = nuevoNodo('div', 'lista-tv');
+		var tituloLista = nuevoNodo('div', 'lista-tv-titulo');
+		tituloLista.style.fontSize = '4.2vmin';
+		tituloLista.style.color = pag.acento;
+		tituloLista.textContent = nombreCategoria(s.lista.categoria_id) || 'Carta';
+		listaTv.appendChild(tituloLista);
+		var columnas = nuevoNodo('div', 'lista-tv-columnas');
+		var mitad = Math.ceil(s.lista.platos.length / 2);
+		for (var col = 0; col < 2; col++) {
+			var columna = nuevoNodo('div', 'lista-tv-columna');
+			var desde = col === 0 ? 0 : mitad;
+			var hasta = col === 0 ? mitad : s.lista.platos.length;
+			for (var lp = desde; lp < hasta; lp++) {
+				var filaLista = nuevoNodo('div', 'lista-tv-fila');
+				filaLista.style.borderColor = pag.acento;
+				var nombreLista = nuevoNodo('div', 'lista-tv-nombre');
+				nombreLista.style.fontSize = '2.7vmin';
+				nombreLista.style.color = pag.texto;
+				nombreLista.textContent = s.lista.platos[lp].nombre || '';
+				var precioLista = nuevoNodo('div', 'lista-tv-precio');
+				precioLista.style.fontSize = '2.7vmin';
+				precioLista.style.color = pag.acento;
+				precioLista.textContent = s.lista.platos[lp].precio || '';
+				filaLista.appendChild(nombreLista);
+				filaLista.appendChild(precioLista);
+				columna.appendChild(filaLista);
+			}
+			columnas.appendChild(columna);
+		}
+		listaTv.appendChild(columnas);
+		div.appendChild(listaTv);
+		return div;
+	}
+
 	if (s.marca) {
 		var mc = nuevoNodo('div', 'marca');
 		if (s.marca.logo) {
@@ -1190,9 +1260,10 @@ function pintarSlide(s) {
 	for (var i = 0; i < s.platos.length; i++) {
 		var p = s.platos[i];
 		var plato = nuevoNodo('div', 'plato');
-		/* Con descripción hay suficiente contenido para que un solo plato deje
-		   de ser una foto enorme y se convierta en una ficha de lectura. */
-		var editorial = c.mostrar_descripcion && c.por_slide === 1 && p.descripcion;
+		/* Un plato por pantalla siempre es una ficha: si no tiene descripción,
+		   categoría, nombre y precio equilibran el lado izquierdo en vez de dejar
+		   la foto sola ocupando toda la televisión. */
+		var editorial = c.por_slide === 1;
 		if (editorial) plato.className = 'plato editorial';
 
 		var marcoFoto = nuevoNodo('div', 'marco-foto');
@@ -1249,7 +1320,7 @@ function pintarSlide(s) {
 		/* El interruptor solo tiene efecto con un plato. La comprobación vive
 		   también aquí —y no solo en el panel— porque una configuración puede
 		   llegar escrita a mano o desde una versión anterior del panel. */
-		if (editorial) {
+		if (editorial && c.mostrar_descripcion && p.descripcion) {
 			var desc = nuevoNodo('div', 'descripcion');
 			desc.style.fontSize = '2.25vmin';
 			desc.style.lineHeight = '1.3';
