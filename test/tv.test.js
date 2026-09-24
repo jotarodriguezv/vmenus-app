@@ -121,14 +121,17 @@ describe('tv.html · nada de sintaxis que un televisor viejo no entienda', () =>
 		assert.equal(/innerHTML/.test(CODIGO), false, 'usa textContent');
 	});
 
-	test('pide "personas" y sus dos interruptores al traer los productos', () => {
+	test('pide "personas" al traer los productos', () => {
 		// Las columnas se piden una por una y nunca con asterisco (11.bis de
 		// pantalla-tv.md): pedir una que no existe en la tabla no deja un hueco,
 		// tumba la petición entera con un 400 que la pantalla lee como "sin
-		// conexión". Sin estos tres nombres en el select, la nota de personas
-		// nunca llegaría —o nunca se podría apagar— aunque el resto del código
-		// estuviera bien.
-		assert.match(CODIGO, /select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible,personas,mostrar_personas,mostrar_personas_uno/);
+		// conexión". Sin este nombre en el select, la nota de personas nunca
+		// llegaría aunque el resto del código estuviera bien.
+		//
+		// Los dos interruptores de si se enseña NO son columnas de 'productos'
+		// (24/09/2026, sql/28): son del restaurante, en atributos.tv, que ya
+		// viaja completo en el select de 'restaurantes' de más abajo.
+		assert.match(CODIGO, /select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible,personas&/);
 	});
 });
 
@@ -424,13 +427,14 @@ describe('tv.html · un plato se lee como ficha', () => {
 });
 
 describe('tv.html · para cuántas personas alcanza un plato', () => {
-	function slideDe(platos) {
+	function slideDe(platos, tv) {
 		const ctx = extraer(PARA_PINTAR, {
 			document: domFalso(), marcaDerecha: false, NEUTRO,
 			POR_DEFECTO: { por_slide: 2, segundos: 8, mostrar_categoria: false,
-				color_categoria: 'oscuro', tema: 'oscuro' },
+				color_categoria: 'oscuro', tema: 'oscuro',
+				mostrar_personas: true, mostrar_personas_uno: false },
 			datos: {
-				restaurante: { color_primario: '#3dd68c', atributos: { tv: {} } },
+				restaurante: { color_primario: '#3dd68c', atributos: { tv: tv || {} } },
 				categorias: [{ id: 'c1', nombre: 'Hamburguesas' }],
 			},
 			Math, parseInt, String,
@@ -465,26 +469,35 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 		assert.equal(notas[0].textContent, 'Para 4 personas');
 	});
 
-	// 24/09/2026 (sql/27): dos interruptores del panel deciden por encima del
-	// número. Antes era automático a partir de 2 y no se podía apagar.
-	test('con el interruptor apagado no se dice nada, aunque sean varias personas', () => {
+	// 24/09/2026 (sql/28): el interruptor es del RESTAURANTE, en la pestaña
+	// Pantalla TV (atributos.tv) — no de cada plato. Pedido tras probar la
+	// primera versión: marcar plato por plato cansaría a un restaurante con
+	// una carta grande, para algo que casi siempre se quiere igual en toda ella.
+	test('con el interruptor general apagado no se dice nada, ni para un plato de varias personas', () => {
 		const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg',
-			categoria_id: 'c1', personas: 4, mostrar_personas: false };
-		assert.equal(slideDe([plato]).some(n => n.className === 'personas'), false);
+			categoria_id: 'c1', personas: 4 };
+		assert.equal(slideDe([plato], { mostrar_personas: false }).some(n => n.className === 'personas'), false);
+	});
+
+	test('afecta a todos los platos por igual, no plato por plato', () => {
+		const platos = [
+			{ nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 2 },
+			{ nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/2.jpg', categoria_id: 'c1', personas: 4 },
+		];
+		assert.equal(slideDe(platos, { mostrar_personas: false }).some(n => n.className === 'personas'), false);
 	});
 
 	test('con "también con una" se dice en singular', () => {
-		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg',
-			categoria_id: 'c1', personas: 1, mostrar_personas_uno: true };
-		const nota = slideDe([plato]).find(n => n.className === 'personas');
+		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 1 };
+		const nota = slideDe([plato], { mostrar_personas_uno: true }).find(n => n.className === 'personas');
 		assert.ok(nota, 'con el interruptor encendido, un plato de 1 debe llevar la nota');
 		assert.equal(nota.textContent, 'Para 1 persona');
 	});
 
 	test('el interruptor general manda por encima del de "también con una"', () => {
-		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg',
-			categoria_id: 'c1', personas: 1, mostrar_personas: false, mostrar_personas_uno: true };
-		assert.equal(slideDe([plato]).some(n => n.className === 'personas'), false);
+		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 1 };
+		assert.equal(slideDe([plato], { mostrar_personas: false, mostrar_personas_uno: true })
+			.some(n => n.className === 'personas'), false);
 	});
 });
 

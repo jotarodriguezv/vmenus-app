@@ -312,6 +312,14 @@ var POR_DEFECTO = {
 	mostrar_descripcion: false,
 	/* Incluye las bebidas y extras sin foto, agrupados como lista por categoría. */
 	mostrar_sin_foto_lista: false,
+	/* Para cuántas personas alcanza cada plato (sql/26 de adminmenus_restaurantes,
+	   columna 'personas' de cada producto). Es UN interruptor por restaurante y
+	   no uno por plato: con muchos platos, marcar cada uno a mano cansaría al
+	   restaurante para algo que casi siempre quiere lo mismo en toda la carta.
+	   'mostrar_personas' en true porque ya se enseñaba antes de existir esta
+	   clave (24/09/2026); 'mostrar_personas_uno' en false: 1 es el caso normal
+	   de casi toda la carta y decirlo siempre sería ruido. */
+	mostrar_personas: true, mostrar_personas_uno: false,
 	/* Hasta cinco avisos, cada uno en su propia franja (arriba o abajo). */
 	cintas: [], velocidad_cintas: 'normal', reloj: false,
 	tema: 'oscuro',
@@ -446,6 +454,8 @@ function config() {
 	if (c.tema !== 'carta') c.tema = 'oscuro';
 	c.mostrar_descripcion = !!c.mostrar_descripcion;
 	c.mostrar_sin_foto_lista = !!c.mostrar_sin_foto_lista;
+	c.mostrar_personas = c.mostrar_personas !== false;
+	c.mostrar_personas_uno = !!c.mostrar_personas_uno;
 	c.reloj = !!c.reloj;
 	if (c.velocidad_cintas !== 'lenta' && c.velocidad_cintas !== 'rapida') {
 		c.velocidad_cintas = 'normal';
@@ -1348,14 +1358,12 @@ function pintarSlide(s) {
 		   de dos, sí: es la respuesta a la pregunta que hace la mesa antes de
 		   pedir una salchipapa grande.
 
-		   Dos interruptores del panel deciden por encima del número (sql/27,
-		   24/09/2026): 'mostrar_personas' puede apagar la nota aunque el plato
-		   sea para diez, y 'mostrar_personas_uno' puede encenderla aunque sea
-		   para uno. La misma regla vive en productos-marcas.js del panel; no se
-		   puede compartir el código porque este archivo no importa nada. */
+		   Los dos interruptores son del RESTAURANTE, en la pestaña Pantalla TV
+		   (atributos.tv, leídos arriba por config()), no de cada plato: pedirle
+		   a un restaurante con muchos platos que marque uno por uno cansaría
+		   para algo que casi siempre se quiere igual en toda la carta. */
 		var numPersonas = p.personas || 1;
-		var mostrarPersonas = p.mostrar_personas !== false && (numPersonas > 1 || p.mostrar_personas_uno === true);
-		if (mostrarPersonas) {
+		if (c.mostrar_personas && (numPersonas > 1 || c.mostrar_personas_uno)) {
 			var pers = nuevoNodo('div', 'personas');
 			pers.style.fontSize = (tamNombre * 0.4) + 'vmin';
 			pers.style.color = pag.texto;
@@ -1607,7 +1615,7 @@ function cargar(alTerminar) {
 			pedir('categorias?restaurante_id=eq.' + r.id + '&select=id,nombre,atributos', function (cats) {
 				if (!cats) { alTerminar(false); return; }
 				pedir('productos?restaurante_id=eq.' + r.id + '&disponible=is.true' +
-					'&select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible,personas,mostrar_personas,mostrar_personas_uno&order=orden.asc',
+					'&select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible,personas&order=orden.asc',
 					function (prods) {
 						if (!prods) { alTerminar(false); return; }
 						/* Las promociones NO cortan la carga si fallan. Los platos son el
