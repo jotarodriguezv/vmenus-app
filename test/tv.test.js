@@ -305,6 +305,42 @@ describe('tv.html · el color de la etiqueta de categoría', () => {
 	});
 });
 
+describe('tv.html · la placa de la marca de agua, solo cuando hace falta', () => {
+	// Pedido el 25/09/2026: con los logos ya sin fondo propio, la placa detrás
+	// de la marca de agua se notaba como el mismo recuadro que se acababa de
+	// quitar. marcaNecesitaPlaca() decide si esta pantalla puede tener detrás
+	// una foto de brillo impredecible (plato o promoción) o el fondo propio de
+	// la carta, donde el logo ya se lee solo.
+	const necesita = s => extraer(['marcaNecesitaPlaca']).marcaNecesitaPlaca(s);
+
+	test('un plato, que trae foto, sí la necesita', () => {
+		assert.equal(necesita({ platos: [{ nombre: 'Arepa' }] }), true);
+	});
+
+	test('una promoción, que es una imagen, también', () => {
+		assert.equal(necesita({ promo: { imagen: 'x.jpg' } }), true);
+	});
+
+	test('la pantalla de marca no: su fondo es el propio de la carta', () => {
+		assert.equal(necesita({ marca: { logo: 'x.png' } }), false);
+	});
+
+	test('una lista de platos sin foto, tampoco', () => {
+		assert.equal(necesita({ lista: { categoria_id: 'c1', platos: [] } }), false);
+	});
+
+	test('sin slide todavía (arranque), tampoco truena', () => {
+		assert.equal(necesita(null), false);
+		assert.equal(necesita(undefined), false);
+	});
+
+	test('el reposo también la quita: su fondo es el mismo de la carta', () => {
+		const cuerpo = GUION.slice(GUION.indexOf('function mostrarReposo('), GUION.indexOf('\nfunction pintarCinta('));
+		assert.match(cuerpo, /getElementById\('marca'\)\.style\.background = 'transparent'/,
+			'mostrarReposo(true) debe apagar la placa de la marca');
+	});
+});
+
 describe('tv.html · la etiqueta no se pelea con el logo del negocio', () => {
 	// El logo del negocio se dibuja ENCIMA de la primera foto, y la etiqueta de
 	// categoría vivía siempre en el mismo rincón de esa misma foto. Con el logo
@@ -1247,6 +1283,13 @@ describe('tv.html · la vuelta que rota los intercalados', () => {
 		const pinta = cuerpo.indexOf('pintarSlide(');
 		assert.notEqual(rota, -1);
 		assert.ok(rota < pinta, 'hay que rotar antes de pintar');
+	});
+
+	test('avanzar() decide la placa de la marca por cada slide, no una vez', () => {
+		// Si se decidiera fuera de avanzar() —en aplicar(), por ejemplo—, la
+		// placa se quedaría fija del primer slide para todo el turno.
+		assert.match(cuerpo, /marcaNecesitaPlaca\(slides\[indice\]\)/,
+			'avanzar() debe consultar marcaNecesitaPlaca() con el slide actual');
 	});
 });
 

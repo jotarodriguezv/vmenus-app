@@ -1177,6 +1177,22 @@ function paletaCategoria(c) {
 	};
 }
 
+/* ── LA PLACA DE LA MARCA DE AGUA, SOLO CUANDO HACE FALTA ──────────────
+ * Pedido el 25/09/2026: con los logos ya sin fondo propio (ver
+ * adminmenus_restaurantes, quitarFondoDelLogo), la placa oscura que llevaba
+ * detrás para leerse sobre una foto clara se notaba como el mismo recuadro
+ * que se acababa de quitar — pero ahora puesto por la cartelera, no por el
+ * logo.
+ *
+ * La placa sigue haciendo falta donde el fondo puede ser una foto de verdad
+ * y su brillo no se puede prever: un plato o una pieza de promoción. Sobre
+ * el fondo propio de la carta —la pantalla de marca, la lista de platos sin
+ * foto, o el reposo, ver mostrarReposo()— el logo ya se lee solo, y ahí la
+ * placa sobra. */
+function marcaNecesitaPlaca(s) {
+	return !!(s && (s.platos || s.promo));
+}
+
 function pintarSlide(s) {
 	var c = config();
 	var pag = paletaPagina();
@@ -1387,6 +1403,9 @@ function mostrarReposo(activo) {
 		var titulo = document.getElementById('reposoNombre');
 		titulo.textContent = (datos && datos.restaurante && datos.restaurante.nombre) || '';
 		titulo.style.color = paletaPagina().acento;
+		// El fondo del reposo lo pone la propia página, no una foto: la marca de
+		// agua no necesita su placa aquí. Ver marcaNecesitaPlaca().
+		document.getElementById('marca').style.background = 'transparent';
 		r.className = 'visible';
 	} else {
 		r.className = '';
@@ -1505,7 +1524,9 @@ function avanzar() {
 	   Se decide ANTES de pintar, no después, porque las etiquetas de categoría
 	   se colocan en la esquina contraria y necesitan saber dónde va a caer. */
 	marcaDerecha = !marcaDerecha;
-	document.getElementById('marca').className = marcaDerecha ? 'derecha' : '';
+	var marcaImg = document.getElementById('marca');
+	marcaImg.className = marcaDerecha ? 'derecha' : '';
+	marcaImg.style.background = marcaNecesitaPlaca(slides[indice]) ? paletaPagina().placa : 'transparent';
 	pintarReloj();
 
 	var cont = document.getElementById('slides');
