@@ -812,6 +812,47 @@
 			/* cuando hay barra social, subir scroll-top */
 			body:has(.social-bar) .scroll-top { bottom: 90px; }
 
+			/* ── PANTALLA DE BIENVENIDA (INTRO, opcional) ──────────────
+			   core/intro.js. Encima de todo lo demás: se quita del medio al
+			   pulsar "Ver carta", que para entonces ya está lista debajo. */
+			.intro-pantalla {
+				position: fixed; inset: 0; z-index: 1000;
+				display: flex; align-items: center; justify-content: center;
+				background: var(--dark);
+				padding: 32px 20px;
+				overflow-y: auto;
+			}
+			.intro-contenido {
+				display: flex; flex-direction: column; align-items: center;
+				gap: 14px; max-width: 380px; text-align: center;
+			}
+			.intro-logo {
+				width: 96px; height: 96px; object-fit: contain;
+				border-radius: 50%; border: 2px solid var(--primary);
+				box-shadow: 0 0 28px rgba(205,254,254,0.18);
+			}
+			.intro-nombre {
+				font-family: var(--font-titulo, inherit);
+				font-size: 26px; color: var(--primary);
+			}
+			.intro-eslogan { color: var(--text-muted); font-size: 14px; margin-top: -6px; }
+			.intro-boton {
+				margin-top: 6px; padding: 14px 36px; border: none; border-radius: 999px;
+				background: var(--accent); color: var(--dark); font-size: 15px; font-weight: 700;
+				cursor: pointer;
+			}
+			.intro-boton:hover, .intro-boton:active { background: var(--primary); }
+			.intro-contacto {
+				color: var(--text-muted); font-size: 13px; text-decoration: none;
+			}
+			.intro-whatsapp:hover, .intro-whatsapp:active { color: var(--primary); }
+			.intro-redes {
+				display: flex; gap: 16px; margin-top: 4px;
+			}
+			.intro-redes a { color: var(--text-muted); display: flex; }
+			.intro-redes a:hover, .intro-redes a:active { color: var(--primary); }
+			.intro-redes svg { width: 22px; height: 22px; }
+
 			/* Footer */
 			.footer {
 				text-align: center; padding: 20px;

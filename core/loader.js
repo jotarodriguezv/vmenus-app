@@ -20,6 +20,7 @@ import { aplicarHorarios } from './horarios.js';
 import { planDe, modeloDe } from './planes.js';
 import { aplicarPreview } from './preview.js';
 import { blindarAnfitrion } from './aviso.js';
+import { introActiva, mostrarIntro } from './intro.js';
 
 // ── 1. SLUG DESDE LA URL ──────────────────────────────────────
 // Se aceptan las dos formas a la vez, siempre, sin que el restaurante
@@ -157,6 +158,11 @@ async function init() {
 		setProductos(visible.productos);
 
 		showLoading(false);
+
+		// ── 4.5 PANTALLA DE BIENVENIDA (opcional) ─────────────────
+		// Se pinta ANTES del tema, y este se construye igual, debajo: al
+		// pulsar "Ver carta" la carta ya está lista, sin esperar a nada.
+		if (introActiva(restaurante)) mostrarIntro(restaurante);
 
 		// ── 5. TEMA DE NAV ────────────────────────────────────────
 		// Validado contra los modelos que existen de verdad: el nombre se usa
