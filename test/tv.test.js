@@ -76,7 +76,8 @@ function todos(nodo, salida = []) {
 // Las funciones que hacen falta para pintar una pantalla entera.
 const PARA_PINTAR = ['nuevoNodo', 'canalHex', 'paletaCategoria', 'nombreCategoria',
 	'urlSegura', 'config', 'aHex', 'rgba', 'aclarar', 'luminancia', 'contraste',
-	'textoSobre', 'legibleSobre', 'fondoPagina', 'acento', 'paletaPagina', 'pintarSlide'];
+	'textoSobre', 'legibleSobre', 'fondoPagina', 'acento', 'paletaPagina', 'pintarSlide',
+	'figuraPersona', 'iconoPersonas'];
 
 describe('tv.html · nada de sintaxis que un televisor viejo no entienda', () => {
 	// Cada entrada estuvo a punto de colarse o se coló en el resto del código.
