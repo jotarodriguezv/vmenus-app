@@ -78,6 +78,11 @@
 	   propósito, como la etiqueta de categoría: es un dato de apoyo, no algo
 	   que compita con el nombre o el precio por la atención de la mesa. */
 	.personas { margin-top: 0.5vmin; font-weight: 500; opacity: 0.62; }
+	/* Sin la frase, el icono es lo único que informa: no puede llevar la misma
+	   opacidad tenue de un dato de apoyo, o pierde el contraste que le hacía
+	   falta desde el principio. */
+	.personas-solo-icono { opacity: 0.85; }
+	.personas-solo-icono .icono-personas { margin-right: 0; }
 
 	/* El icono de personas: cabeza + cuerpo hechos con dos 'div' por figura,
 	   nunca SVG ni innerHTML — esta pantalla no construye marcado a partir de
@@ -335,6 +340,12 @@ var POR_DEFECTO = {
 	   clave (24/09/2026); 'mostrar_personas_uno' en false: 1 es el caso normal
 	   de casi toda la carta y decirlo siempre sería ruido. */
 	mostrar_personas: true, mostrar_personas_uno: false,
+	/* Pedido el 27/09/2026, al ver el icono en la pantalla de Malparados: de
+	   apoyo a la frase se veía tan chico que no se notaba. Con este interruptor
+	   en 'true' la frase desaparece y solo queda el icono, bastante más grande
+	   —es él solo quien tiene que comunicar, ya no un apoyo al lado del texto—.
+	   Por defecto en false: no cambiarle la pantalla a nadie que no lo pida. */
+	personas_solo_icono: false,
 	/* Hasta cinco avisos, cada uno en su propia franja (arriba o abajo). */
 	cintas: [], velocidad_cintas: 'normal', reloj: false,
 	tema: 'oscuro',
@@ -471,6 +482,7 @@ function config() {
 	c.mostrar_sin_foto_lista = !!c.mostrar_sin_foto_lista;
 	c.mostrar_personas = c.mostrar_personas !== false;
 	c.mostrar_personas_uno = !!c.mostrar_personas_uno;
+	c.personas_solo_icono = !!c.personas_solo_icono;
 	c.reloj = !!c.reloj;
 	if (c.velocidad_cintas !== 'lenta' && c.velocidad_cintas !== 'rapida') {
 		c.velocidad_cintas = 'normal';
@@ -1439,14 +1451,27 @@ function pintarSlide(s) {
 		   para algo que casi siempre se quiere igual en toda la carta. */
 		var numPersonas = p.personas || 1;
 		if (c.mostrar_personas && (numPersonas > 1 || c.mostrar_personas_uno)) {
-			var pers = nuevoNodo('div', 'personas');
+			var pers = nuevoNodo('div', c.personas_solo_icono ? 'personas personas-solo-icono' : 'personas');
 			pers.style.fontSize = (tamNombre * 0.4) + 'vmin';
 			pers.style.color = pag.texto;
+			var icono = iconoPersonas(numPersonas);
+			/* El icono no hereda el tamaño de letra chico de la frase: se ve
+			   con su PROPIO 'font-size', puesto sobre tamNombre (el del nombre
+			   del plato), no sobre el de .personas. Sin esto el icono salía
+			   minúsculo al lado del texto (probado en Malparados, 27/09/2026:
+			   con la frase se notaba, con el icono casi no se veía).
+			   Sin la frase al lado, el icono es lo único que informa y va
+			   bastante más grande todavía. */
+			icono.style.fontSize = (tamNombre * (c.personas_solo_icono ? 1.3 : 0.85)) + 'vmin';
 			// El texto va primero: asignar 'textContent' después del icono lo
 			// borraría (en el DOM real reemplaza TODOS los hijos). Añadir el
-			// icono a continuación con appendChild no toca ese texto.
-			pers.textContent = 'Para ' + numPersonas + ' ' + (numPersonas === 1 ? 'persona' : 'personas');
-			pers.appendChild(iconoPersonas(numPersonas));
+			// icono a continuación con appendChild no toca ese texto. En modo
+			// "solo icono" no se pone frase: 'pers' se queda vacío y luego
+			// solo recibe el icono.
+			if (!c.personas_solo_icono) {
+				pers.textContent = 'Para ' + numPersonas + ' ' + (numPersonas === 1 ? 'persona' : 'personas');
+			}
+			pers.appendChild(icono);
 			texto.appendChild(pers);
 		}
 

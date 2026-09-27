@@ -469,7 +469,8 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 			document: domFalso(), marcaDerecha: false, NEUTRO,
 			POR_DEFECTO: { por_slide: 2, segundos: 8, mostrar_categoria: false,
 				color_categoria: 'oscuro', tema: 'oscuro',
-				mostrar_personas: true, mostrar_personas_uno: false },
+				mostrar_personas: true, mostrar_personas_uno: false,
+				personas_solo_icono: false },
 			datos: {
 				restaurante: { color_primario: '#3dd68c', atributos: { tv: tv || {} } },
 				categorias: [{ id: 'c1', nombre: 'Hamburguesas' }],
@@ -477,6 +478,14 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 			Math, parseInt, String,
 		});
 		return todos(ctx.pintarSlide({ platos }));
+	}
+
+	// La nota lleva un icono siempre; con "solo icono" la clase gana un segundo
+	// término (personas-solo-icono), así que las pruebas de arriba, que buscan
+	// la clase EXACTA 'personas', no lo verían — a propósito: sin el modificador
+	// no deben tocarlo.
+	function notaDe(nodos) {
+		return nodos.find(n => n.className === 'personas' || n.className === 'personas personas-solo-icono');
 	}
 
 	test('con una persona no se dice nada: es lo normal en la carta', () => {
@@ -535,6 +544,43 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 1 };
 		assert.equal(slideDe([plato], { mostrar_personas: false, mostrar_personas_uno: true })
 			.some(n => n.className === 'personas'), false);
+	});
+
+	// Pedido el 27/09/2026 al ver el icono en la pantalla de Malparados: junto a
+	// la frase se notaba tan poco que no cumplía su propósito.
+	describe('el icono, aparte de la frase', () => {
+		test('el icono va con la frase por defecto', () => {
+			const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
+			const nota = notaDe(slideDe([plato]));
+			assert.ok(nota, 'debe existir la nota');
+			assert.equal(nota.className, 'personas', 'sin el interruptor, sin la clase modificadora');
+			assert.equal(nota.textContent, 'Para 3 personas');
+			assert.ok(nota.hijos.some(h => h.className === 'icono-personas'), 'el icono va dentro de la nota');
+		});
+
+		test('"solo icono" quita la frase pero deja el icono, más grande', () => {
+			const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
+			const conFrase = notaDe(slideDe([plato]));
+			const soloIcono = notaDe(slideDe([plato], { personas_solo_icono: true }));
+
+			assert.ok(soloIcono, 'debe seguir existiendo la nota, aunque sin texto');
+			assert.equal(soloIcono.className, 'personas personas-solo-icono');
+			assert.equal(soloIcono.textContent, '', 'sin frase');
+
+			const iconoConFrase = conFrase.hijos.find(h => h.className === 'icono-personas');
+			const iconoSolo = soloIcono.hijos.find(h => h.className === 'icono-personas');
+			assert.ok(iconoConFrase && iconoSolo);
+			assert.ok(
+				parseFloat(iconoSolo.style.fontSize) > parseFloat(iconoConFrase.style.fontSize),
+				'sin frase al lado, el icono tiene que ser más grande, no del mismo tamaño'
+			);
+		});
+
+		test('"solo icono" no hace nada si el interruptor general está apagado', () => {
+			const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
+			const nodos = slideDe([plato], { mostrar_personas: false, personas_solo_icono: true });
+			assert.equal(nodos.some(n => (n.className || '').indexOf('personas') === 0), false);
+		});
 	});
 });
 
