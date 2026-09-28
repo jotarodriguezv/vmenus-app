@@ -19,7 +19,7 @@
 
 import { restaurante, productos, soloDigitos } from './menu.js';
 import { planDe } from './planes.js';
-import { trackAgregarCarrito } from './analytics.js';
+import { trackAgregarCarrito, registrarPedido } from './analytics.js';
 import { esc, escUrl } from './html.js';
 import { llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
 
@@ -46,6 +46,7 @@ export const TIPOS_ENTREGA = {
 };
 
 let cart = [];
+let pedidoPendiente = null;
 let customProduct = null;
 let customOpciones = { platino: [], premium: [], salsas: [] };
 let customEditingKey = null;
@@ -897,9 +898,14 @@ function vaciarPedido() {
 	const entrega = document.getElementById('deliveryMethod');
 	if (entrega) entrega.value = '';
 	updateDeliveryDetails();
+	pedidoPendiente = null;
 }
 
 function confirmarEnviado() {
+	// El registro no bloquea el cierre: WhatsApp ya fue el canal de envío y el
+	// carrito no debe quedarse pegado si la red falla. keepalive conserva la
+	// petición incluso si la persona cierra la carta enseguida.
+	if (pedidoPendiente) void registrarPedido(pedidoPendiente);
 	vaciarPedido();
 	closeCheckout();
 }
@@ -975,6 +981,16 @@ function sendWhatsAppOrder(event) {
 		return;
 	}
 
+	pedidoPendiente = {
+		restaurante_id: restaurante.id,
+		cliente_nombre: name, cliente_telefono: phone,
+		tipo_entrega: deliveryKey,
+		direccion_entrega: delivery.requiereDireccion ? address : null,
+		metodo_pago: paymentKey,
+		total_reportado: total,
+		items: cart.map(item => ({ producto_id: item.id, nombre: item.name,
+			cantidad: item.cantidad, precio_unitario: item.price, descripcion: item.descripcion || '' })),
+	};
 	mostrarPreguntaEnvio(true);
 }
 

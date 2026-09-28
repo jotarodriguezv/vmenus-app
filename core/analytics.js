@@ -33,3 +33,14 @@ export function trackClic(restauranteId, productoId) {
 export function trackAgregarCarrito(restauranteId, productoId) {
 	enviar({ restaurante_id: restauranteId, tipo: 'agregar_carrito', producto_id: productoId });
 }
+
+// Un pedido contiene datos personales, así que no viaja por /api/track ni se
+// mezcla con los eventos anónimos. Solo se registra cuando la persona confirma
+// que envió el mensaje de WhatsApp; no se presenta como una venta confirmada.
+export function registrarPedido(pedido) {
+	if (new URLSearchParams(window.location.search).has('preview')) return Promise.resolve(false);
+	return fetch(`${TRACK_API_URL}/api/pedidos-publicos`, {
+		method: 'POST', headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(pedido), keepalive: true,
+	}).then(r => r.ok).catch(() => false);
+}
