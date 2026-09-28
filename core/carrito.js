@@ -46,7 +46,6 @@ export const TIPOS_ENTREGA = {
 };
 
 let cart = [];
-let pedidoPendiente = null;
 let customProduct = null;
 let customOpciones = { platino: [], premium: [], salsas: [] };
 let customEditingKey = null;
@@ -867,24 +866,6 @@ function updatePaymentDetails() {
 
 function closeCheckout() {
 	document.getElementById('checkoutOverlay').classList.remove('open');
-	// Si se cierra con la pregunta a la vista, la próxima vez se abre el
-	// formulario: la pregunta es sobre el envío de ahora, no un estado guardado.
-	mostrarPreguntaEnvio(false);
-}
-
-// ── ¿SE ENVIÓ? ────────────────────────────────────────────────
-// V5 en adminmenus_restaurantes/docs/revision-ux.md. Antes, abrir wa.me vaciaba
-// el carrito y borraba nombre y dirección en el acto. Pero abrir WhatsApp solo
-// prepara el mensaje: si el comensal no le daba a enviar —se lo pensó, no tenía
-// WhatsApp, volvió atrás— regresaba a una carta sin pedido y sin datos. El
-// camino del emergente bloqueado ya razonaba así; el habitual, no.
-//
-// No hay forma de saber desde aquí si el mensaje salió, así que se pregunta.
-function mostrarPreguntaEnvio(visible) {
-	const form = document.getElementById('checkoutForm');
-	const pregunta = document.getElementById('checkoutEnviado');
-	if (form) form.hidden = visible;
-	if (pregunta) pregunta.hidden = !visible;
 }
 
 function vaciarPedido() {
@@ -898,21 +879,6 @@ function vaciarPedido() {
 	const entrega = document.getElementById('deliveryMethod');
 	if (entrega) entrega.value = '';
 	updateDeliveryDetails();
-	pedidoPendiente = null;
-}
-
-function confirmarEnviado() {
-	// El registro no bloquea el cierre: WhatsApp ya fue el canal de envío y el
-	// carrito no debe quedarse pegado si la red falla. keepalive conserva la
-	// petición incluso si la persona cierra la carta enseguida.
-	if (pedidoPendiente) void registrarPedido(pedidoPendiente);
-	vaciarPedido();
-	closeCheckout();
-}
-
-// Vuelve al formulario tal cual: pedido, nombre y dirección siguen ahí.
-function todaviaNoEnviado() {
-	mostrarPreguntaEnvio(false);
 }
 
 function updateCheckoutSummary() {
@@ -970,6 +936,18 @@ function sendWhatsAppOrder(event) {
 	const total = cart.reduce((sum, i) => sum + i.price * i.cantidad, 0);
 	msg += `\n*TOTAL: $${total.toLocaleString('es-CO')}*`;
 
+	const pedido = {
+		restaurante_id: restaurante.id,
+		cliente_nombre: name, cliente_telefono: phone,
+		tipo_entrega: deliveryKey,
+		direccion_entrega: delivery.requiereDireccion ? address : null,
+		metodo_pago: paymentKey, total_reportado: total,
+		items: cart.map(item => ({ producto_id: item.id, nombre: item.name,
+			cantidad: item.cantidad, precio_unitario: item.price, descripcion: item.descripcion || '' })),
+	};
+	// El botón significa «quiero enviar este pedido». Se registra aquí, antes
+	// de salir a WhatsApp, para no pedir un segundo toque que mucha gente omite.
+	void registrarPedido(pedido);
 	const url = `https://wa.me/${whatsapp}?text=${encodeURIComponent(msg)}`;
 	const ventana = window.open(url, '_blank');
 
@@ -980,18 +958,8 @@ function sendWhatsAppOrder(event) {
 		mostrarEnlaceManual(url);
 		return;
 	}
-
-	pedidoPendiente = {
-		restaurante_id: restaurante.id,
-		cliente_nombre: name, cliente_telefono: phone,
-		tipo_entrega: deliveryKey,
-		direccion_entrega: delivery.requiereDireccion ? address : null,
-		metodo_pago: paymentKey,
-		total_reportado: total,
-		items: cart.map(item => ({ producto_id: item.id, nombre: item.name,
-			cantidad: item.cantidad, precio_unitario: item.price, descripcion: item.descripcion || '' })),
-	};
-	mostrarPreguntaEnvio(true);
+	vaciarPedido();
+	closeCheckout();
 }
 
 // Enlace de reserva cuando el emergente no abre. Es un <a> de verdad: al
@@ -1010,7 +978,6 @@ function mostrarEnlaceManual(url) {
 	// abre con el mensaje, pero enviarlo sigue siendo cosa del comensal.
 	aviso.querySelector('a').addEventListener('click', () => {
 		aviso.remove();
-		mostrarPreguntaEnvio(true);
 	});
 	cont.insertAdjacentElement('afterend', aviso);
 }
@@ -1066,8 +1033,6 @@ export function activarCarrito() {
 	window.vmOpenCheckout = openCheckout;
 	window.vmCloseCheckout = closeCheckout;
 	window.vmSendWhatsAppOrder = sendWhatsAppOrder;
-	window.vmConfirmarEnviado = confirmarEnviado;
-	window.vmTodaviaNoEnviado = todaviaNoEnviado;
 	window.vmCloseCustomModal = closeCustomModal;
 	window.vmUpdatePaymentDetails = updatePaymentDetails;
 	window.vmUpdateDeliveryDetails = updateDeliveryDetails;
