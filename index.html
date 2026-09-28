@@ -2046,15 +2046,6 @@
 					<div class="checkout-summary" id="checkoutSummary"></div>
 					<button type="submit" class="btn-send-order">📱 Enviar Pedido por WhatsApp</button>
 				</form>
-				<!-- Abrir WhatsApp solo PREPARA el mensaje: el envío lo hace el comensal
-				     dentro de WhatsApp. Por eso el pedido no se borra al abrirlo, sino
-				     cuando dice que lo envió. Ver V5 y core/carrito.js. -->
-				<div id="checkoutEnviado" class="checkout-enviado" hidden>
-					<p class="checkout-enviado-titulo">¿Enviaste el pedido en WhatsApp?</p>
-					<p class="checkout-enviado-texto">Se abrió con el mensaje ya escrito, pero hay que darle a enviar allí. Tu pedido sigue guardado aquí hasta que nos digas.</p>
-					<button type="button" class="btn-send-order" onclick="window.vmConfirmarEnviado()">Sí, ya lo envié</button>
-					<button type="button" class="btn-todavia-no" onclick="window.vmTodaviaNoEnviado()">Todavía no</button>
-				</div>
 			</div>
 		</div>
 

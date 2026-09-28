@@ -14,6 +14,11 @@ globalThis.localStorage = {
 };
 // Devolver null en todo hace que updateCartUI y el aviso salgan sin tocar nada.
 globalThis.document = { getElementById: () => null };
+let pedidosRegistrados = [];
+globalThis.fetch = (url, opciones) => {
+	pedidosRegistrados.push({ url, opciones });
+	return Promise.resolve({ ok: true });
+};
 
 const { setRestaurante, setProductos, soloDigitos } = await import('../core/menu.js');
 const { revalidarCarrito, recargoPremium, loadCartFromStorage, opcionesDe,
@@ -29,6 +34,7 @@ const leido = () => almacen.has(CLAVE) ? JSON.parse(almacen.get(CLAVE)) : null;
 
 beforeEach(() => {
 	almacen.clear();
+	pedidosRegistrados = [];
 	setRestaurante({ id: 'r1', slug: 'pruebas', atributos: {} });
 	setProductos([]);
 });
@@ -696,10 +702,7 @@ describe('sin número de WhatsApp, el pedido avisa antes de pedir datos', () => 
 	});
 });
 
-describe('abrir WhatsApp no es enviar el pedido', () => {
-	// V5 en adminmenus_restaurantes/docs/revision-ux.md. Abrir wa.me vaciaba el
-	// carrito y borraba nombre y dirección en el acto; si el comensal no le daba
-	// a enviar dentro de WhatsApp, volvía a una carta sin pedido y sin datos.
+describe('enviar pedido por WhatsApp', () => {
 	function montar({ bloqueado = false } = {}) {
 		const nodos = {};
 		const nodo = () => {
@@ -740,48 +743,34 @@ describe('abrir WhatsApp no es enviar el pedido', () => {
 	}
 	const enCarrito = () => leido()?.items?.length ?? 0;
 
-	test('al abrir WhatsApp el pedido y los datos siguen ahí, y se pregunta', () => {
+	test('registra el pedido, abre WhatsApp y cierra el checkout', () => {
 		const { $, abiertas } = montar();
 		assert.equal(abiertas.length, 1);
 		const mensaje = decodeURIComponent(new URL(abiertas[0]).searchParams.get('text'));
 		assert.match(mensaje, /\*Teléfono:\* 300 123 4567/);
 		assert.match(mensaje, /\*Entrega:\* Domicilio/);
 		assert.match(mensaje, /\*Dirección:\* Calle 10 # 20-30/);
-		assert.equal(enCarrito(), 1, 'el carrito se vació solo por abrir WhatsApp');
-		assert.equal($('clientName').value, 'Ana');
-		assert.equal($('clientAddress').value, 'Calle 10 # 20-30');
-		assert.equal($('checkoutEnviado').hidden, false, 'no se pregunta si se envió');
-		assert.equal($('checkoutForm').hidden, true);
-	});
-
-	test('«Sí, ya lo envié» vacía, borra los datos y cierra', () => {
-		const { $ } = montar();
-		window.vmConfirmarEnviado();
 		assert.equal(enCarrito(), 0);
 		assert.equal($('clientName').value, '');
+		assert.equal($('clientAddress').value, '');
 		assert.equal($('checkoutOverlay').classList.contains('open'), false);
-		// La próxima vez que se abra tiene que salir el formulario, no la pregunta.
-		assert.equal($('checkoutForm').hidden, false);
-		assert.equal($('checkoutEnviado').hidden, true);
+		assert.equal(pedidosRegistrados.length, 1);
+		assert.match(pedidosRegistrados[0].url, /\/api\/pedidos-publicos$/);
+		const pedido = JSON.parse(pedidosRegistrados[0].opciones.body);
+		assert.equal(pedido.cliente_nombre, 'Ana');
+		assert.equal(pedido.cliente_telefono, '300 123 4567');
+		assert.equal(pedido.tipo_entrega, 'domicilio');
+		assert.equal(pedido.direccion_entrega, 'Calle 10 # 20-30');
 	});
 
-	test('«Todavía no» vuelve al formulario sin tocar nada', () => {
-		const { $ } = montar();
-		window.vmTodaviaNoEnviado();
-		assert.equal(enCarrito(), 1);
-		assert.equal($('clientAddress').value, 'Calle 10 # 20-30');
-		assert.equal($('checkoutForm').hidden, false);
-		assert.equal($('checkoutEnviado').hidden, true);
-	});
-
-	test('con el emergente bloqueado, pulsar el enlace tampoco vacía: pregunta', () => {
-		const { $, nodos } = montar({ bloqueado: true });
+	test('con el emergente bloqueado conserva el carrito para abrir el enlace manual', () => {
+		const { nodos } = montar({ bloqueado: true });
 		assert.equal(enCarrito(), 1);
 		const aviso = nodos.checkoutManual;
 		assert.ok(aviso, 'no salió el enlace manual');
 		aviso.querySelector('a').oyentes.click.forEach(fn => fn());
 		assert.equal(enCarrito(), 1, 'pulsar el enlace vació el carrito');
-		assert.equal($('checkoutEnviado').hidden, false);
+		assert.equal(pedidosRegistrados.length, 1, 'el pedido no se registró al pulsar enviar');
 	});
 });
 
