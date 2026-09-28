@@ -25,6 +25,13 @@
 	                       transform: translateX(100vw) rotate(90deg); }
 
 	#slides { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+	#suspendida { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+	              padding:8vmin; text-align:center; background:#0a0a0f; color:#fff; }
+	#suspendida.visible { display:flex; }
+	.suspendida-caja { max-width:760px; }
+	.suspendida-icono { font-size:8vmin; margin-bottom:2vmin; }
+	.suspendida-titulo { font-size:4.2vmin; font-weight:700; margin-bottom:1.3vmin; }
+	.suspendida-texto { font-size:2.2vmin; color:#c7c7d0; line-height:1.45; }
 	.slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%;
 	         display: flex; align-items: center; justify-content: center;
 	         opacity: 0; transition: opacity 900ms ease-in-out; padding: 3vmin; }
@@ -268,6 +275,7 @@
 <body>
 	<div id="marco">
 		<div id="slides"></div>
+		<div id="suspendida" role="status"><div class="suspendida-caja"><div class="suspendida-icono">🔒</div><div class="suspendida-titulo">Este menú está temporalmente inactivo</div><div class="suspendida-texto">Comunícate con la administración del restaurante para más información.</div></div></div>
 		<div id="reposo"><img id="reposoLogo" alt=""><div id="reposoNombre"></div></div>
 		<img id="marca" alt="">
 		<div id="sinRed">sin conexión</div>
@@ -1701,6 +1709,21 @@ function sinRed(activo) {
 	e.className = activo ? 'visible' : '';
 }
 
+// Una suspensión es distinta de no tener red: no se conserva la última carta
+// en caché ni se deja una cartelera aparentemente activa. El mensaje sigue
+// siendo neutral para quien esté mirando la TV.
+function mostrarSuspendida() {
+	if (temporizador) { clearInterval(temporizador); temporizador = null; }
+	document.getElementById('slides').textContent = '';
+	document.getElementById('suspendida').className = 'visible';
+	document.getElementById('reposo').className = '';
+	document.getElementById('marca').style.display = 'none';
+	document.getElementById('cintaArriba').className = 'cinta';
+	document.getElementById('cintaAbajo').className = 'cinta';
+	document.getElementById('reloj').className = '';
+	try { localStorage.removeItem(CLAVE_CACHE + slug); } catch (e) {}
+}
+
 /* Trae restaurante, categorías y productos. Si algo falla se conserva lo que
    ya había: una pantalla que sigue enseñando la carta de hace diez minutos es
    infinitamente mejor que una pantalla en blanco en la pared de un local. */
@@ -1715,12 +1738,13 @@ function sinRed(activo) {
    sale la programación por días y horas. Esa consulta va aparte y su fallo NO
    corta la carga: los platos son el producto. */
 function cargar(alTerminar) {
-	pedir('restaurantes?slug=eq.' + encodeURIComponent(slug) + '&activo=is.true&select=' +
-		'id,nombre,slug,logo_url,color_primario,color_secundario,atributos,' +
+	pedir('restaurantes?slug=eq.' + encodeURIComponent(slug) + '&select=' +
+		'id,nombre,slug,activo,logo_url,color_primario,color_secundario,atributos,' +
 		'promo_activa,promo_imagen_url,promo_nombre,promo_precio,promo_en_tv,promo_cada',
 		function (rs) {
 			if (!rs || !rs.length) { alTerminar(false); return; }
 			var r = rs[0];
+			if (r.activo === false) { mostrarSuspendida(); alTerminar('suspendida'); return; }
 			pedir('categorias?restaurante_id=eq.' + r.id + '&select=id,nombre,atributos', function (cats) {
 				if (!cats) { alTerminar(false); return; }
 				pedir('productos?restaurante_id=eq.' + r.id + '&disponible=is.true' +
@@ -1749,7 +1773,7 @@ function sondear() {
 	var antes = JSON.stringify(datos);
 	cargar(function (ok) {
 		sinRed(!ok);
-		if (!ok) return;
+		if (ok !== true) return;
 		/* Solo se reconstruye si algo cambió de verdad: rehacer los slides en
 		   cada sondeo reiniciaría el ciclo cada cinco minutos y el cliente
 		   vería siempre los mismos primeros platos. */
@@ -1832,7 +1856,7 @@ if (!slug) {
 
 	cargar(function (ok) {
 		sinRed(!ok);
-		if (ok) aplicar(!cache);
+		if (ok === true) aplicar(!cache);
 		else if (!cache) mostrarReposo(true);
 	});
 
