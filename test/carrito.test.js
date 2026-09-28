@@ -18,8 +18,8 @@ globalThis.document = { getElementById: () => null };
 const { setRestaurante, setProductos, soloDigitos } = await import('../core/menu.js');
 const { revalidarCarrito, recargoPremium, loadCartFromStorage, opcionesDe,
         describirSeleccion, leerSeleccion, catalogoDe,
-        topeDeAdicional, cuantasDe, TOPE_MAXIMO_ADICIONAL,
-        recibePedidos, activarCarrito } = await import('../core/carrito.js');
+		topeDeAdicional, cuantasDe, TOPE_MAXIMO_ADICIONAL,
+		recibePedidos, activarCarrito, TIPOS_ENTREGA } = await import('../core/carrito.js');
 
 const P = (id, nombre, precio) => ({ id, nombre, precio_numerico: precio, categoria_id: 'c1' });
 const CLAVE = 'pruebas_cart';
@@ -729,6 +729,8 @@ describe('abrir WhatsApp no es enviar el pedido', () => {
 		activarCarrito();
 		const $ = id => document.getElementById(id);
 		$('clientName').value = 'Ana';
+		$('clientPhone').value = '300 123 4567';
+		$('deliveryMethod').value = 'domicilio';
 		$('clientAddress').value = 'Calle 10 # 20-30';
 		$('paymentMethod').value = 'efectivo';
 		// Abierto a mano: openCheckout pinta los métodos de pago, y eso es otra prueba.
@@ -741,6 +743,10 @@ describe('abrir WhatsApp no es enviar el pedido', () => {
 	test('al abrir WhatsApp el pedido y los datos siguen ahí, y se pregunta', () => {
 		const { $, abiertas } = montar();
 		assert.equal(abiertas.length, 1);
+		const mensaje = decodeURIComponent(new URL(abiertas[0]).searchParams.get('text'));
+		assert.match(mensaje, /\*Teléfono:\* 300 123 4567/);
+		assert.match(mensaje, /\*Entrega:\* Domicilio/);
+		assert.match(mensaje, /\*Dirección:\* Calle 10 # 20-30/);
 		assert.equal(enCarrito(), 1, 'el carrito se vació solo por abrir WhatsApp');
 		assert.equal($('clientName').value, 'Ana');
 		assert.equal($('clientAddress').value, 'Calle 10 # 20-30');
@@ -785,14 +791,23 @@ describe('el formulario del pedido', () => {
 	const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 	test('cada etiqueta apunta a su campo', () => {
-		for (const id of ['clientName', 'clientAddress', 'paymentMethod']) {
+		for (const id of ['clientName', 'clientPhone', 'deliveryMethod', 'clientAddress', 'paymentMethod']) {
 			assert.match(html, new RegExp(`<label for="${id}">`), `la etiqueta de ${id} no está asociada`);
 		}
 	});
 
-	test('el móvil puede ofrecer el nombre y la dirección', () => {
+	test('el móvil puede ofrecer nombre, teléfono y dirección', () => {
 		assert.match(html.match(/<input[^>]*id="clientName"[^>]*>/)[0], /autocomplete="name"/);
+		assert.match(html.match(/<input[^>]*id="clientPhone"[^>]*>/)[0], /autocomplete="tel"/);
 		assert.match(html.match(/<textarea[^>]*id="clientAddress"[^>]*>/)[0], /autocomplete="street-address"/);
+	});
+
+	test('ofrece los tres tipos de entrega y la dirección solo es obligatoria a domicilio', () => {
+		assert.deepEqual(Object.keys(TIPOS_ENTREGA), ['domicilio', 'local', 'recoger']);
+		assert.equal(TIPOS_ENTREGA.domicilio.requiereDireccion, true);
+		assert.equal(TIPOS_ENTREGA.local.requiereDireccion, false);
+		assert.match(html, /id="clientAddressGroup" hidden/);
+		assert.doesNotMatch(html.match(/<textarea[^>]*id="clientAddress"[^>]*>/)[0], /\srequired/);
 	});
 
 	test('los campos tienen al menos 16 px, o iOS amplía al tocarlos', () => {

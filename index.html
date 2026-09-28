@@ -2020,8 +2020,22 @@
 							autocomplete="name" autocapitalize="words">
 					</div>
 					<div class="checkout-form-group">
+						<label for="deliveryMethod"><span aria-hidden="true">🛍️</span> ¿Cómo quieres recibir tu pedido?</label>
+						<select id="deliveryMethod" required onchange="window.vmUpdateDeliveryDetails()">
+							<option value="" selected disabled>Selecciona una opción</option>
+							<option value="domicilio">Domicilio</option>
+							<option value="local">Consumir en el local</option>
+							<option value="recoger">Recoger en el local</option>
+						</select>
+					</div>
+					<div class="checkout-form-group">
+						<label for="clientPhone"><span aria-hidden="true">📱</span> Tu número de teléfono</label>
+						<input type="tel" id="clientPhone" placeholder="Ej: 300 123 4567" required
+							autocomplete="tel" inputmode="tel">
+					</div>
+					<div class="checkout-form-group" id="clientAddressGroup" hidden>
 						<label for="clientAddress"><span aria-hidden="true">📍</span> Dirección de Entrega</label>
-						<textarea id="clientAddress" rows="3" placeholder="Ej: Calle 10 # 20-30" required
+						<textarea id="clientAddress" rows="3" placeholder="Ej: Calle 10 # 20-30"
 							autocomplete="street-address"></textarea>
 					</div>
 					<div class="checkout-form-group">
