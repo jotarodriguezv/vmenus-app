@@ -35,6 +35,16 @@ const METODOS_PAGO_CATALOGO = {
 	breb:        { label: 'Llave Bre-B', detalle: m => `Llave Bre-B: ${m.llave}` }
 };
 
+// El tipo de entrega no es un método de pago ni una nota libre: el restaurante
+// necesita distinguir si prepara para mesa, empaca para recoger o coordina un
+// domicilio. Se deja como catálogo para que el mensaje de WhatsApp use siempre
+// las mismas palabras que vio el cliente.
+export const TIPOS_ENTREGA = {
+	domicilio: { label: 'Domicilio', requiereDireccion: true },
+	local:     { label: 'Consumir en el local', requiereDireccion: false },
+	recoger:   { label: 'Recoger en el local', requiereDireccion: false },
+};
+
 let cart = [];
 let customProduct = null;
 let customOpciones = { platino: [], premium: [], salsas: [] };
@@ -800,9 +810,20 @@ function openCheckout() {
 	// no se piden datos que no van a servir.
 	if (!recibePedidos()) { updateCartUI(); return; }
 	renderPaymentOptions();
+	updateDeliveryDetails();
 	updateCheckoutSummary();
 	document.getElementById('checkoutOverlay').classList.add('open');
 	document.getElementById('cartSidebar').classList.remove('open');
+}
+
+function updateDeliveryDetails() {
+	const select = document.getElementById('deliveryMethod');
+	const grupo = document.getElementById('clientAddressGroup');
+	const direccion = document.getElementById('clientAddress');
+	if (!select || !grupo || !direccion) return;
+	const pideDireccion = TIPOS_ENTREGA[select.value]?.requiereDireccion === true;
+	grupo.hidden = !pideDireccion;
+	direccion.required = pideDireccion;
 }
 
 function renderPaymentOptions() {
@@ -871,7 +892,11 @@ function vaciarPedido() {
 	updateCartUI();
 	document.getElementById('checkoutManual')?.remove();
 	document.getElementById('clientName').value = '';
+	document.getElementById('clientPhone').value = '';
 	document.getElementById('clientAddress').value = '';
+	const entrega = document.getElementById('deliveryMethod');
+	if (entrega) entrega.value = '';
+	updateDeliveryDetails();
 }
 
 function confirmarEnviado() {
@@ -912,15 +937,23 @@ function sendWhatsAppOrder(event) {
 		document.getElementById('cartSidebar')?.classList.add('open');
 		return;
 	}
-	const name    = document.getElementById('clientName').value;
-	const address = document.getElementById('clientAddress').value;
+	const name    = document.getElementById('clientName').value.trim();
+	const phone   = document.getElementById('clientPhone').value.trim();
+	const deliveryKey = document.getElementById('deliveryMethod').value;
+	const delivery = TIPOS_ENTREGA[deliveryKey];
+	const address = document.getElementById('clientAddress').value.trim();
 	const paymentKey = document.getElementById('paymentMethod').value;
 	const paymentDef = METODOS_PAGO_CATALOGO[paymentKey];
 	const mp = restaurante?.atributos?.metodos_pago || {};
+	// El navegador valida los required antes de llegar aquí. Esta comprobación
+	// protege también la función global si otro script la invoca directamente.
+	if (!name || !phone || !delivery || (delivery.requiereDireccion && !address)) return;
 
 	let msg = `*Pedido - ${restaurante.nombre}*\n\n`;
 	msg += `*Cliente:* ${name}\n`;
-	msg += `*Dirección:* ${address}\n`;
+	msg += `*Teléfono:* ${phone}\n`;
+	msg += `*Entrega:* ${delivery.label}\n`;
+	if (delivery.requiereDireccion) msg += `*Dirección:* ${address}\n`;
 	msg += `*Pago:* ${paymentDef?.label || paymentKey}\n`;
 	if (paymentDef?.detalle && mp[paymentKey]) msg += `${paymentDef.detalle(mp[paymentKey])}\n`;
 	msg += `\n*Pedido:*\n`;
@@ -1021,6 +1054,7 @@ export function activarCarrito() {
 	window.vmTodaviaNoEnviado = todaviaNoEnviado;
 	window.vmCloseCustomModal = closeCustomModal;
 	window.vmUpdatePaymentDetails = updatePaymentDetails;
+	window.vmUpdateDeliveryDetails = updateDeliveryDetails;
 }
 
 export { addSimpleToCart as agregarSimple, openCustomModal, tienePersonalizacion, opcionesDe };
