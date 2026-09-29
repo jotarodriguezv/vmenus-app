@@ -373,6 +373,7 @@ var POR_DEFECTO = {
 
 var arranque = new Date().getTime();
 var slug = leerSlug();
+var numeroPantalla = leerNumeroPantalla();
 var datos = null;      /* { restaurante, categorias, productos } */
 var slides = [];       /* lista de listas de platos, o {promo:…} o {marca:…} */
 var turnoIntercalado = 0;  /* por dónde va la rotación; avanza una vez por vuelta */
@@ -396,6 +397,22 @@ function leerSlug() {
 	for (var j = 0; j < SUBDOMINIOS_RESERVADOS.length; j++)
 		if (SUBDOMINIOS_RESERVADOS[j] === partes[0]) esReservado = true;
 	return esReservado ? porRuta : partes[0];
+}
+
+function leerNumeroPantalla() {
+	var trozos = window.location.pathname.split('/'), limpios = [];
+	for (var i = 0; i < trozos.length; i++) if (trozos[i]) limpios.push(trozos[i]);
+	for (var j = 0; j < limpios.length; j++) if (limpios[j] === 'tv') {
+		var n = parseInt(limpios[j + 1], 10);
+		return n === 2 || n === 3 ? n : 1;
+	}
+	return 1;
+}
+
+function configGuardada() {
+	var a = (datos && datos.restaurante && datos.restaurante.atributos) || {};
+	if (numeroPantalla === 1) return a.tv || {};
+	return (a.tv_pantallas && a.tv_pantallas[String(numeroPantalla)]) || {};
 }
 
 /* Solo http(s). No es que un javascript: corra dentro de un background-image,
@@ -462,12 +479,15 @@ function registrar(texto) {
    funcionaría gratis para todos los restaurantes de la plataforma. */
 function tvActiva() {
 	var a = (datos && datos.restaurante && datos.restaurante.atributos) || {};
-	return !!(a.tv && a.tv.activa !== false);
+	var t = typeof configGuardada === 'function' ? configGuardada() : (a.tv || {});
+	var pantalla = typeof numeroPantalla === 'number' ? numeroPantalla : 1;
+	return !!(t && t.activa !== false && (pantalla === 1 ? a.tv :
+		a.tv_pantallas && a.tv_pantallas[String(pantalla)]));
 }
 
 function config() {
 	var a = (datos && datos.restaurante && datos.restaurante.atributos) || {};
-	var t = a.tv || {};
+	var t = typeof configGuardada === 'function' ? configGuardada() : (a.tv || {});
 	var c = {};
 	for (var k in POR_DEFECTO) if (POR_DEFECTO.hasOwnProperty(k)) {
 		c[k] = (t[k] === undefined || t[k] === null) ? POR_DEFECTO[k] : t[k];
@@ -822,6 +842,13 @@ function promocionesDeAhora(referencia) {
 	for (var i = 0; i < todas.length; i++) {
 		var p = todas[i];
 		if (!p || !p.activa || !p.en_tv) continue;
+		var destinos = p.pantallas_tv;
+		var pantalla = typeof numeroPantalla === 'number' ? numeroPantalla : 1;
+		if (destinos && destinos.length) {
+			var entra = false;
+			for (var di = 0; di < destinos.length; di++) if (parseInt(destinos[di], 10) === pantalla) entra = true;
+			if (!entra) continue;
+		} else if (pantalla !== 1) continue;
 		if (!urlSegura(p.imagen_url)) continue;
 		if (!vigenteAhora(p.programacion, zona, referencia)) continue;
 		vivas.push(p);
@@ -844,7 +871,7 @@ function promocionesDeAhora(referencia) {
    Con un solo elemento la secuencia es idéntica a la de antes. */
 function listaIntercalados() {
 	var r = datos.restaurante;
-	var t = (r.atributos && r.atributos.tv) || {};
+	var t = typeof configGuardada === 'function' ? configGuardada() : ((r.atributos && r.atributos.tv) || {});
 	var lista = t.intercalados;
 
 	/* Compatibilidad. Quien no haya vuelto a guardar la configuración no tiene
@@ -901,7 +928,7 @@ function listaIntercalados() {
    'promo_cada' queda de respaldo por lo mismo que arriba. */
 function ritmoIntercalado() {
 	var r = datos.restaurante;
-	var t = (r.atributos && r.atributos.tv) || {};
+	var t = typeof configGuardada === 'function' ? configGuardada() : ((r.atributos && r.atributos.tv) || {});
 	var cada = parseInt(t.cada, 10);
 	if (!cada || cada < 1) cada = parseInt(r.promo_cada, 10);
 	if (!cada || cada < 1) cada = 4;
@@ -1756,7 +1783,7 @@ function cargar(alTerminar) {
 						   ella sería cambiar un problema pequeño por uno grande. Un null se
 						   trata como "hoy no hay". */
 						pedir('promociones?restaurante_id=eq.' + r.id +
-							'&select=id,imagen_url,nombre,precio,activa,en_popup,en_tv,programacion,orden' +
+							'&select=id,imagen_url,nombre,precio,activa,en_popup,en_tv,pantallas_tv,programacion,orden' +
 							'&order=orden.asc',
 							function (promos) {
 								datos = { restaurante: r, categorias: cats, productos: prods,
