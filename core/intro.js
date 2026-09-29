@@ -34,7 +34,9 @@ function estiloTexto(at, tipo, defecto) {
   const t = at.intro_textos?.[tipo] || {}; const alineacion = { izquierda: 'left', centro: 'center', derecha: 'right' }[t.alineacion] || 'center';
   const tamano = Number(t.tamano); const peso = Number(t.peso);
   const fuente = FUENTE_SEGURA.test(String(t.fuente || '')) ? t.fuente : '';
-  return `color:${colorSeguro(t.color, defecto)};font-family:${fuente ? `'${esc(fuente)}',` : ''}Montserrat,system-ui,sans-serif;font-size:${Number.isFinite(tamano) && tamano >= 12 && tamano <= 64 ? tamano : ''}px;font-weight:${[400,500,600,700,800].includes(peso) ? peso : ''};text-align:${alineacion};`;
+  const base = `font-family:${fuente ? `'${esc(fuente)}',` : ''}Montserrat,system-ui,sans-serif;font-size:${Number.isFinite(tamano) && tamano >= 12 && tamano <= 64 ? tamano : ''}px;font-weight:${[400,500,600,700,800].includes(peso) ? peso : ''};text-align:${alineacion};`;
+  if (tipo === 'cta') return `background:${colorSeguro(t.color, '#ffffff')};color:${colorSeguro(t.color_texto, '#15100b')};${base}`;
+  return `color:${colorSeguro(t.color, defecto)};${base}`;
 }
 function iconoInstagram() { return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.5" cy="6.5" r=".8" fill="currentColor"/></svg>`; }
 function iconoFacebook() { return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M13.6 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5H17V3.9c-.4-.1-1.3-.2-2.4-.2-2.4 0-4 1.4-4 4.1V10H8v3h2.6v8h3Z"/></svg>`; }
