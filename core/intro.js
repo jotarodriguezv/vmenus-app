@@ -41,7 +41,25 @@ function estiloTexto(at, tipo, defecto) {
 function iconoInstagram() { return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.5" cy="6.5" r=".8" fill="currentColor"/></svg>`; }
 function iconoFacebook() { return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M13.6 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5H17V3.9c-.4-.1-1.3-.2-2.4-.2-2.4 0-4 1.4-4 4.1V10H8v3h2.6v8h3Z"/></svg>`; }
 function enlaceMapa(url) { try { const u = new URL(url); return u.protocol === 'https:' ? u.href : ''; } catch { return ''; } }
-function fuenteMapa(url) { const enlace = enlaceMapa(url); if (!enlace) return ''; const u = new URL(enlace); if (/google\.[a-z.]+$/i.test(u.hostname) && /\/maps\/embed/i.test(u.pathname)) return enlace; const q = u.searchParams.get('q') || u.searchParams.get('query') || enlace; return `https://www.google.com/maps?output=embed&q=${encodeURIComponent(q)}`; }
+function consultaMapa(url) {
+  const enlace = enlaceMapa(url); if (!enlace) return '';
+  const u = new URL(enlace); const directa = u.searchParams.get('q') || u.searchParams.get('query') || u.searchParams.get('destination') || u.searchParams.get('center') || u.searchParams.get('ll');
+  if (directa) return directa;
+  const coordenadas = u.pathname.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (coordenadas) return `${coordenadas[1]},${coordenadas[2]}`;
+  const lugar = u.pathname.match(/\/maps\/(?:place|search)\/([^/?]+)/i);
+  return lugar ? decodeURIComponent(lugar[1].replace(/\+/g, ' ')) : '';
+}
+function fuenteMapa(url) {
+  const enlace = enlaceMapa(url); if (!enlace) return ''; const u = new URL(enlace);
+  if (/google\.[a-z.]+$/i.test(u.hostname) && /\/maps\/embed/i.test(u.pathname)) return enlace;
+  if (/(^|\.)maps\.app\.goo\.gl$/i.test(u.hostname)) return enlace;
+  const consulta = consultaMapa(enlace); return consulta ? `https://maps.google.com/maps?output=embed&q=${encodeURIComponent(consulta)}` : '';
+}
+function estiloBotonMapa(at) {
+  const fuente = FUENTE_SEGURA.test(String(at.intro_mapa_boton_fuente || '')) ? at.intro_mapa_boton_fuente : '';
+  return `background:${colorSeguro(at.intro_mapa_boton_fondo, '#17120b')};color:${colorSeguro(at.intro_mapa_boton_color, '#ffffff')};font-family:${fuente ? `'${esc(fuente)}',` : ''}Montserrat,system-ui,sans-serif;`;
+}
 
 function insertarEstilos() {
   if (document.getElementById('introVmenusStyles')) return;
@@ -58,12 +76,12 @@ export function mostrarIntro(restaurante) {
   const at = restaurante?.atributos || {}; if (!at.intro_activo || document.getElementById('introVmenus')) return;
   insertarEstilos(); const fondo = colorSeguro(at.intro_fondo_color, '#111827'); const imagen = at.intro_fondo_url ? `url("${escUrl(at.intro_fondo_url)}")` : 'none';
   const ajuste = ['cover', 'contain', 'center'].includes(at.intro_imagen_ajuste) ? at.intro_imagen_ajuste : 'cover'; const opacidad = Math.max(0, Math.min(100, Number(at.intro_overlay_opacidad ?? 50))) / 100; const overlayActivo = at.intro_overlay_activo !== false;
-  const nombre = texto(at, 'nombre', restaurante.nombre); const eslogan = texto(at, 'eslogan'); const adicional = texto(at, 'adicional'); const cta = texto(at, 'cta', 'Ver carta'); const mapaUrl = enlaceMapa(at.intro_mapa_url); const modoMapa = MAPAS.has(at.intro_mapa_modo) ? at.intro_mapa_modo : 'mapa';
+  const nombre = texto(at, 'nombre', restaurante.nombre); const eslogan = texto(at, 'eslogan'); const adicional = texto(at, 'adicional'); const cta = texto(at, 'cta', 'Ver carta'); const mapaUrl = enlaceMapa(at.intro_mapa_url); const modoMapa = MAPAS.has(at.intro_mapa_modo) ? at.intro_mapa_modo : 'mapa'; const estiloMapa = estiloBotonMapa(at);
   const raiz = document.createElement('section'); raiz.id = 'introVmenus'; raiz.className = 'intro-vmenus'; raiz.setAttribute('aria-label', `Bienvenida a ${nombre}`); raiz.style.setProperty('--intro-fondo', fondo); raiz.style.backgroundImage = imagen; raiz.style.setProperty('--intro-ajuste', ajuste === 'center' ? 'auto' : ajuste); raiz.style.setProperty('--intro-overlay', colorSeguro(at.intro_overlay_color, '#0a0a0f')); raiz.style.setProperty('--intro-opacidad', overlayActivo ? opacidad : 0);
   const logo = restaurante.logo_url ? `<img class="intro-vmenus__logo" src="${escUrl(restaurante.logo_url)}" alt="Logo de ${esc(nombre)}">` : `<div class="intro-vmenus__logo intro-vmenus__logo--vacio" aria-hidden="true">${esc(nombre.slice(0, 2).toUpperCase())}</div>`;
   const redes = []; const estilo = ['circular', 'redondeado', 'pildora'].includes(at.intro_social_estilo) ? at.intro_social_estilo : 'circular'; const tamano = Math.max(36, Math.min(72, Number(at.intro_social_tamano || 48))); const socialCss = `color:${colorSeguro(at.intro_social_icono_color, '#ffffff')};background:${colorSeguro(at.intro_social_fondo, '#ef7a00')};border-color:${colorSeguro(at.intro_social_borde, '#ffffff')};width:${tamano}px;height:${tamano}px;border-radius:${estilo === 'redondeado' ? '12px' : '999px'};`;
   if (at.intro_social_instagram && at.social_instagram) redes.push(`<a style="${socialCss}" href="${escUrl(at.social_instagram)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir Instagram">${iconoInstagram()}</a>`);
   if (at.intro_social_facebook && at.social_facebook) redes.push(`<a style="${socialCss}" href="${escUrl(at.social_facebook)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir Facebook">${iconoFacebook()}</a>`);
-  raiz.innerHTML = `<div class="intro-vmenus__card">${logo}<h1 style="${estiloTexto(at, 'nombre', '#ffffff')}">${esc(nombre)}</h1>${eslogan ? `<p style="${estiloTexto(at, 'eslogan', '#ffffff')}">${esc(eslogan)}</p>` : ''}${adicional ? `<p style="${estiloTexto(at, 'adicional', '#ffffff')}">${esc(adicional)}</p>` : ''}<button class="intro-vmenus__cta" type="button" style="${estiloTexto(at, 'cta', '#ffffff')}">${esc(cta)}</button>${redes.length ? `<div class="intro-vmenus__social">${redes.join('')}</div>` : ''}${at.direccion ? `<p class="intro-vmenus__direccion">${esc(at.direccion)}</p>` : ''}${mapaUrl && modoMapa !== 'boton' ? `<iframe class="intro-vmenus__mapa" title="Ubicación de ${esc(nombre)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${escUrl(fuenteMapa(mapaUrl))}"></iframe>` : ''}${mapaUrl && modoMapa !== 'mapa' ? `<a class="intro-vmenus__mapa-link" href="${escUrl(mapaUrl)}" target="_blank" rel="noopener noreferrer">Ver ubicación</a>` : ''}</div>`;
+  const fuenteMiniMapa = fuenteMapa(mapaUrl); raiz.innerHTML = `<div class="intro-vmenus__card">${logo}<h1 style="${estiloTexto(at, 'nombre', '#ffffff')}">${esc(nombre)}</h1>${eslogan ? `<p style="${estiloTexto(at, 'eslogan', '#ffffff')}">${esc(eslogan)}</p>` : ''}${adicional ? `<p style="${estiloTexto(at, 'adicional', '#ffffff')}">${esc(adicional)}</p>` : ''}<button class="intro-vmenus__cta" type="button" style="${estiloTexto(at, 'cta', '#ffffff')}">${esc(cta)}</button>${redes.length ? `<div class="intro-vmenus__social">${redes.join('')}</div>` : ''}${at.direccion ? `<p class="intro-vmenus__direccion">${esc(at.direccion)}</p>` : ''}${mapaUrl && fuenteMiniMapa && modoMapa !== 'boton' ? `<iframe class="intro-vmenus__mapa" title="Ubicación de ${esc(nombre)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${escUrl(fuenteMiniMapa)}"></iframe>` : ''}${mapaUrl && modoMapa !== 'mapa' ? `<a class="intro-vmenus__mapa-link" style="${estiloMapa}" href="${escUrl(mapaUrl)}" target="_blank" rel="noopener noreferrer">Ver ubicación</a>` : ''}</div>`;
   const cerrar = () => { raiz.remove(); document.body.style.overflow = ''; }; raiz.querySelector('.intro-vmenus__cta').addEventListener('click', cerrar); document.addEventListener('keydown', function escape(e) { if (e.key === 'Escape') { cerrar(); document.removeEventListener('keydown', escape); } }); document.body.appendChild(raiz); document.body.style.overflow = 'hidden';
 }
