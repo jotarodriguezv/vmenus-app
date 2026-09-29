@@ -843,11 +843,12 @@ function promocionesDeAhora(referencia) {
 		var p = todas[i];
 		if (!p || !p.activa || !p.en_tv) continue;
 		var destinos = p.pantallas_tv;
+		var pantalla = typeof numeroPantalla === 'number' ? numeroPantalla : 1;
 		if (destinos && destinos.length) {
 			var entra = false;
-			for (var di = 0; di < destinos.length; di++) if (parseInt(destinos[di], 10) === numeroPantalla) entra = true;
+			for (var di = 0; di < destinos.length; di++) if (parseInt(destinos[di], 10) === pantalla) entra = true;
 			if (!entra) continue;
-		} else if (numeroPantalla !== 1) continue;
+		} else if (pantalla !== 1) continue;
 		if (!urlSegura(p.imagen_url)) continue;
 		if (!vigenteAhora(p.programacion, zona, referencia)) continue;
 		vivas.push(p);
