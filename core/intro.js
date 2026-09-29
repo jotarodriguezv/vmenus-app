@@ -3,8 +3,9 @@
 import { esc, escUrl } from './html.js';
 import { soloDigitos, enlacesSociales } from './menu.js';
 
-const TIPOS = ['nombre', 'eslogan', 'adicional', 'cta'];
+const TIPOS = ['nombre', 'eslogan', 'adicional', 'cta', 'direccion'];
 const MAPAS = new Set(['mapa', 'boton', 'ambos']);
+const MAPA_API_URL = 'https://adminvmenus.verificame.click';
 const COLOR_HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 const FUENTE_SEGURA = /^[\p{L}\p{N} .-]{0,60}$/u;
 function colorSeguro(valor, defecto) { return COLOR_HEX.test(String(valor || '')) ? valor : defecto; }
@@ -27,7 +28,7 @@ export function construirIntro(restaurante) {
 }
 
 function texto(at, tipo, defecto = '') {
-  const valores = { nombre: at.intro_nombre, eslogan: at.intro_eslogan, adicional: at.intro_texto_adicional, cta: at.intro_cta };
+  const valores = { nombre: at.intro_nombre, eslogan: at.intro_eslogan, adicional: at.intro_texto_adicional, cta: at.intro_cta, direccion: at.direccion };
   return String(valores[tipo] || defecto).trim();
 }
 function estiloTexto(at, tipo, defecto) {
@@ -53,8 +54,19 @@ function consultaMapa(url) {
 function fuenteMapa(url) {
   const enlace = enlaceMapa(url); if (!enlace) return ''; const u = new URL(enlace);
   if (/google\.[a-z.]+$/i.test(u.hostname) && /\/maps\/embed/i.test(u.pathname)) return enlace;
-  if (/(^|\.)maps\.app\.goo\.gl$/i.test(u.hostname)) return enlace;
+  if (/(^|\.)maps\.app\.goo\.gl$/i.test(u.hostname)) return '';
   const consulta = consultaMapa(enlace); return consulta ? `https://maps.google.com/maps?output=embed&q=${encodeURIComponent(consulta)}` : '';
+}
+async function resolverFuenteMapa(url) {
+  if (fuenteMapa(url)) return fuenteMapa(url);
+  try {
+    const respuesta = await fetch(`${MAPA_API_URL}/api/mapa-embed?url=${encodeURIComponent(url)}`);
+    if (!respuesta.ok) return '';
+    const datos = await respuesta.json(); return fuenteMapa(datos.url);
+  } catch { return ''; }
+}
+function crearMiniMapa(src, nombre) {
+  const iframe = document.createElement('iframe'); iframe.className = 'intro-vmenus__mapa'; iframe.title = `Ubicación de ${nombre}`; iframe.loading = 'lazy'; iframe.referrerPolicy = 'no-referrer-when-downgrade'; iframe.src = src; return iframe;
 }
 function estiloBotonMapa(at) {
   const fuente = FUENTE_SEGURA.test(String(at.intro_mapa_boton_fuente || '')) ? at.intro_mapa_boton_fuente : '';
@@ -76,12 +88,17 @@ export function mostrarIntro(restaurante) {
   const at = restaurante?.atributos || {}; if (!at.intro_activo || document.getElementById('introVmenus')) return;
   insertarEstilos(); const fondo = colorSeguro(at.intro_fondo_color, '#111827'); const imagen = at.intro_fondo_url ? `url("${escUrl(at.intro_fondo_url)}")` : 'none';
   const ajuste = ['cover', 'contain', 'center'].includes(at.intro_imagen_ajuste) ? at.intro_imagen_ajuste : 'cover'; const opacidad = Math.max(0, Math.min(100, Number(at.intro_overlay_opacidad ?? 50))) / 100; const overlayActivo = at.intro_overlay_activo !== false;
-  const nombre = texto(at, 'nombre', restaurante.nombre); const eslogan = texto(at, 'eslogan'); const adicional = texto(at, 'adicional'); const cta = texto(at, 'cta', 'Ver carta'); const mapaUrl = enlaceMapa(at.intro_mapa_url); const modoMapa = MAPAS.has(at.intro_mapa_modo) ? at.intro_mapa_modo : 'mapa'; const estiloMapa = estiloBotonMapa(at);
+  const nombre = texto(at, 'nombre', restaurante.nombre); const eslogan = texto(at, 'eslogan'); const adicional = texto(at, 'adicional'); const cta = texto(at, 'cta', 'Ver carta'); const direccion = texto(at, 'direccion'); const mapaUrl = enlaceMapa(at.intro_mapa_url); const modoMapa = MAPAS.has(at.intro_mapa_modo) ? at.intro_mapa_modo : 'mapa'; const estiloMapa = estiloBotonMapa(at);
   const raiz = document.createElement('section'); raiz.id = 'introVmenus'; raiz.className = 'intro-vmenus'; raiz.setAttribute('aria-label', `Bienvenida a ${nombre}`); raiz.style.setProperty('--intro-fondo', fondo); raiz.style.backgroundImage = imagen; raiz.style.setProperty('--intro-ajuste', ajuste === 'center' ? 'auto' : ajuste); raiz.style.setProperty('--intro-overlay', colorSeguro(at.intro_overlay_color, '#0a0a0f')); raiz.style.setProperty('--intro-opacidad', overlayActivo ? opacidad : 0);
   const logo = restaurante.logo_url ? `<img class="intro-vmenus__logo" src="${escUrl(restaurante.logo_url)}" alt="Logo de ${esc(nombre)}">` : `<div class="intro-vmenus__logo intro-vmenus__logo--vacio" aria-hidden="true">${esc(nombre.slice(0, 2).toUpperCase())}</div>`;
   const redes = []; const estilo = ['circular', 'redondeado', 'pildora'].includes(at.intro_social_estilo) ? at.intro_social_estilo : 'circular'; const tamano = Math.max(36, Math.min(72, Number(at.intro_social_tamano || 48))); const socialCss = `color:${colorSeguro(at.intro_social_icono_color, '#ffffff')};background:${colorSeguro(at.intro_social_fondo, '#ef7a00')};border-color:${colorSeguro(at.intro_social_borde, '#ffffff')};width:${tamano}px;height:${tamano}px;border-radius:${estilo === 'redondeado' ? '12px' : '999px'};`;
   if (at.intro_social_instagram && at.social_instagram) redes.push(`<a style="${socialCss}" href="${escUrl(at.social_instagram)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir Instagram">${iconoInstagram()}</a>`);
   if (at.intro_social_facebook && at.social_facebook) redes.push(`<a style="${socialCss}" href="${escUrl(at.social_facebook)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir Facebook">${iconoFacebook()}</a>`);
-  const fuenteMiniMapa = fuenteMapa(mapaUrl); raiz.innerHTML = `<div class="intro-vmenus__card">${logo}<h1 style="${estiloTexto(at, 'nombre', '#ffffff')}">${esc(nombre)}</h1>${eslogan ? `<p style="${estiloTexto(at, 'eslogan', '#ffffff')}">${esc(eslogan)}</p>` : ''}${adicional ? `<p style="${estiloTexto(at, 'adicional', '#ffffff')}">${esc(adicional)}</p>` : ''}<button class="intro-vmenus__cta" type="button" style="${estiloTexto(at, 'cta', '#ffffff')}">${esc(cta)}</button>${redes.length ? `<div class="intro-vmenus__social">${redes.join('')}</div>` : ''}${at.direccion ? `<p class="intro-vmenus__direccion">${esc(at.direccion)}</p>` : ''}${mapaUrl && fuenteMiniMapa && modoMapa !== 'boton' ? `<iframe class="intro-vmenus__mapa" title="Ubicación de ${esc(nombre)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${escUrl(fuenteMiniMapa)}"></iframe>` : ''}${mapaUrl && modoMapa !== 'mapa' ? `<a class="intro-vmenus__mapa-link" style="${estiloMapa}" href="${escUrl(mapaUrl)}" target="_blank" rel="noopener noreferrer">Ver ubicación</a>` : ''}</div>`;
+  const fuenteMiniMapa = fuenteMapa(mapaUrl); raiz.innerHTML = `<div class="intro-vmenus__card">${logo}<h1 style="${estiloTexto(at, 'nombre', '#ffffff')}">${esc(nombre)}</h1>${eslogan ? `<p style="${estiloTexto(at, 'eslogan', '#ffffff')}">${esc(eslogan)}</p>` : ''}${adicional ? `<p style="${estiloTexto(at, 'adicional', '#ffffff')}">${esc(adicional)}</p>` : ''}<button class="intro-vmenus__cta" type="button" style="${estiloTexto(at, 'cta', '#ffffff')}">${esc(cta)}</button>${redes.length ? `<div class="intro-vmenus__social">${redes.join('')}</div>` : ''}${direccion ? `<p class="intro-vmenus__direccion" style="${estiloTexto(at, 'direccion', '#ffffff')}">${esc(direccion)}</p>` : ''}${mapaUrl && fuenteMiniMapa && modoMapa !== 'boton' ? `<iframe class="intro-vmenus__mapa" title="Ubicación de ${esc(nombre)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${escUrl(fuenteMiniMapa)}"></iframe>` : ''}${mapaUrl && modoMapa !== 'mapa' ? `<a class="intro-vmenus__mapa-link" style="${estiloMapa}" href="${escUrl(mapaUrl)}" target="_blank" rel="noopener noreferrer">Ver ubicación</a>` : ''}</div>`;
+  if (mapaUrl && !fuenteMiniMapa && modoMapa !== 'boton') resolverFuenteMapa(mapaUrl).then(fuente => {
+    if (!fuente || !raiz.isConnected) return;
+    const iframe = crearMiniMapa(fuente, nombre); const botonMapa = raiz.querySelector('.intro-vmenus__mapa-link');
+    if (botonMapa) botonMapa.before(iframe); else raiz.querySelector('.intro-vmenus__card')?.appendChild(iframe);
+  });
   const cerrar = () => { raiz.remove(); document.body.style.overflow = ''; }; raiz.querySelector('.intro-vmenus__cta').addEventListener('click', cerrar); document.addEventListener('keydown', function escape(e) { if (e.key === 'Escape') { cerrar(); document.removeEventListener('keydown', escape); } }); document.body.appendChild(raiz); document.body.style.overflow = 'hidden';
 }
