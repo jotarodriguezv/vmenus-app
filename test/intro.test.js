@@ -3,6 +3,7 @@
 // de sidebar/topnav): ver la cabecera de core/intro.js.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 // El módulo crea elementos con document.createElement y los cuelga de
 // document.body. Se monta un DOM mínimo antes de importarlo, como en
@@ -37,6 +38,11 @@ describe('introActiva', () => {
 		assert.equal(introActiva(null), false);
 		assert.equal(introActiva(undefined), false);
 	});
+});
+
+test('la vista previa de la carta no monta la bienvenida encima del modelo', () => {
+	const loader = fs.readFileSync(new URL('../core/loader.js', import.meta.url), 'utf8');
+	assert.match(loader, /if \(!previewDraft && introActiva\(restaurante\)\) mostrarIntro\(restaurante\);/);
 });
 
 describe('construirIntro · qué se pinta', () => {

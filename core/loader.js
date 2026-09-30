@@ -162,7 +162,11 @@ async function init() {
 		// ── 4.5 PANTALLA DE BIENVENIDA (opcional) ─────────────────
 		// Se pinta ANTES del tema, y este se construye igual, debajo: al
 		// pulsar "Ver carta" la carta ya está lista, sin esperar a nada.
-		if (introActiva(restaurante)) mostrarIntro(restaurante);
+		// Una vista previa compara la carta, no su puerta de entrada: las tres
+		// miniaturas de modelos comparten ?preview=… y deben enseñar de inmediato
+		// la navegación que se está eligiendo. La bienvenida tiene su propio
+		// simulador dentro del panel de Apariencia.
+		if (!previewDraft && introActiva(restaurante)) mostrarIntro(restaurante);
 
 		// ── 5. TEMA DE NAV ────────────────────────────────────────
 		// Validado contra los modelos que existen de verdad: el nombre se usa
