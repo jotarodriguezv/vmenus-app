@@ -1549,6 +1549,21 @@ function separadorDeCinta(tipo) {
 	return '★';
 }
 
+/* Con dos avisos basta alternar texto y pastilla. Con tres, el primero y el
+   tercero parecían el mismo mensaje: el tercero queda delineado, con el texto
+   normal de la cinta, para distinguirlo sin perder contraste ni saturarla. */
+function estiloAvisoCinta(aviso, indice, pag) {
+	if (indice % 3 === 1) {
+		aviso.style.background = pag.acento;
+		aviso.style.color = textoSobre(canalHex(pag.acento));
+	} else if (indice % 3 === 2) {
+		aviso.style.border = '0.16vmin solid ' + pag.acento;
+		aviso.style.borderRadius = '0.35vmin';
+		aviso.style.padding = '0 0.38vmin';
+		aviso.style.color = pag.texto;
+	} else aviso.style.color = pag.texto;
+}
+
 function pintarCinta(id, mensajes, pag, velocidad, tipoSeparador) {
 	var caja = document.getElementById(id);
 	var pista = caja && caja.firstChild;
@@ -1566,10 +1581,7 @@ function pintarCinta(id, mensajes, pag, velocidad, tipoSeparador) {
 			for (var i = 0; i < mensajes.length; i++) {
 				var aviso = nuevoNodo('span', 'cinta-mensaje');
 				aviso.textContent = mensajes[i];
-				if (i % 2) {
-					aviso.style.background = pag.acento;
-					aviso.style.color = textoSobre(canalHex(pag.acento));
-				} else aviso.style.color = pag.texto;
+				estiloAvisoCinta(aviso, i, pag);
 				g.appendChild(aviso);
 				if (separadorTexto) {
 					var separador = nuevoNodo('span', 'cinta-separador');
