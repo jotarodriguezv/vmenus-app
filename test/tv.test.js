@@ -217,22 +217,29 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 	});
 });
 
-describe('tv.html · tres avisos seguidos se distinguen', () => {
+describe('tv.html · los avisos de la cinta alternan sin cortar el ciclo', () => {
 	const estilo = () => extraer(['canalHex', 'luminancia', 'contraste', 'textoSobre', 'estiloAvisoCinta'], {
 		Math, parseInt,
 	}).estiloAvisoCinta;
 	const paleta = { acento: '#cdfefe', texto: '#ffffff' };
 
-	test('el tercero se delinea en vez de repetir el aspecto del primero', () => {
-		const primero = { style: {} }, segundo = { style: {} }, tercero = { style: {} };
+	test('con tres o más conserva texto y pastilla alternados', () => {
+		const primero = { style: {} }, segundo = { style: {} }, tercero = { style: {} }, cuarto = { style: {} };
 		const pintar = estilo();
 		pintar(primero, 0, paleta);
 		pintar(segundo, 1, paleta);
 		pintar(tercero, 2, paleta);
+		pintar(cuarto, 3, paleta);
 		assert.equal(primero.style.color, '#ffffff');
 		assert.equal(segundo.style.background, '#cdfefe');
-		assert.equal(tercero.style.border, '0.16vmin solid #cdfefe');
+		assert.equal(tercero.style.color, '#ffffff');
 		assert.equal(tercero.style.background, undefined);
+		assert.equal(cuarto.style.background, '#cdfefe');
+	});
+
+	test('la segunda copia conserva la alternancia al reiniciar una lista impar', () => {
+		assert.match(GUION, /grupo\(veces \* mensajes\.length\)/);
+		assert.match(GUION, /desfase \+ vuelta \* mensajes\.length \+ i/);
 	});
 });
 
