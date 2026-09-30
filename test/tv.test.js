@@ -140,8 +140,9 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 	const conTv = tv => extraer(['config'], {
 		POR_DEFECTO: { activa: true, orientacion: 'horizontal', por_slide: 2,
 		               segundos: 8, modo: 'todos', categoria_id: null,
-		               productos: [], aleatorio: false, mostrar_descripcion: false,
-		               mostrar_sin_foto_lista: false, cintas: [], velocidad_cintas: 'normal', separador_cintas: 'estrella', reloj: false },
+			               productos: [], aleatorio: false, mostrar_descripcion: false,
+			               mostrar_sin_foto_lista: false, mostrar_todos_lista: false,
+			               cintas: [], velocidad_cintas: 'normal', separador_cintas: 'estrella', reloj: false },
 		datos: { restaurante: { atributos: { tv } } },
 		Math,
 		parseInt,
@@ -214,6 +215,11 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 	test('la lista de productos sin foto empieza apagada y acepta activarse', () => {
 		assert.equal(conTv({}).mostrar_sin_foto_lista, false);
 		assert.equal(conTv({ mostrar_sin_foto_lista: true }).mostrar_sin_foto_lista, true);
+	});
+
+	test('la vista de lista completa empieza apagada y acepta activarse', () => {
+		assert.equal(conTv({}).mostrar_todos_lista, false);
+		assert.equal(conTv({ mostrar_todos_lista: true }).mostrar_todos_lista, true);
 	});
 });
 
@@ -636,6 +642,26 @@ describe('tv.html · productos sin foto en lista', () => {
 		assert.ok(nodos.some(n => n.textContent === 'Bebidas'));
 		assert.ok(nodos.some(n => n.textContent === 'Gaseosa'));
 		assert.ok(nodos.some(n => n.textContent === '$8.000'));
+	});
+
+	test('la lista completa escribe la categoría junto a los platos, sin fotos', () => {
+		const ctx = extraer(PARA_PINTAR, {
+			document: domFalso(), marcaDerecha: false, NEUTRO,
+			POR_DEFECTO: { tema: 'oscuro', por_slide: 2, segundos: 8 },
+			datos: {
+				restaurante: { atributos: { tv: {} } },
+				categorias: [{ id: 'hamb', nombre: 'Hamburguesas' }, { id: 'beb', nombre: 'Bebidas' }],
+			},
+			Math, parseInt, String,
+		});
+		const nodos = todos(ctx.pintarSlide({ lista_completa: { platos: [
+			{ nombre: 'Doble carne', precio: '$25.000', categoria_id: 'hamb' },
+			{ nombre: 'Limonada', precio: '$8.000', categoria_id: 'beb' },
+		] } }));
+		assert.ok(nodos.some(n => n.className === 'lista-tv lista-tv-completa'));
+		assert.ok(nodos.some(n => n.className === 'lista-tv-categoria' && n.textContent === 'Hamburguesas'));
+		assert.ok(nodos.some(n => n.className === 'lista-tv-categoria' && n.textContent === 'Bebidas'));
+		assert.ok(nodos.some(n => n.textContent === '$25.000'));
 	});
 });
 
@@ -1218,7 +1244,8 @@ describe('tv.html · la lista de intercalados', () => {
 			 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
 			{
 				POR_DEFECTO: { activa: true, por_slide: 1, segundos: 8, modo: 'todos',
-				               categoria_id: null, productos: [], aleatorio: false },
+				               categoria_id: null, productos: [], aleatorio: false,
+				               mostrar_todos_lista: false },
 				datos: { restaurante: r, categorias: [{ id: 'c1', nombre: 'Cat' }],
 				         productos: productos(cuantos) },
 				slides: [], turnoIntercalado, Math, parseInt, String, Intl, Date, RegExp,
@@ -1244,6 +1271,14 @@ describe('tv.html · la lista de intercalados', () => {
 		// La garantía para los restaurantes que ya tienen esto funcionando.
 		const s = ciclo(base({ cada: 2, intercalados: [{ tipo: 'promocion' }] }), 4);
 		assert.equal(tipos(s), 'platos platos promo platos platos promo');
+	});
+
+	test('la vista completa agrupa hasta veinte platos por pantalla', () => {
+		const r = base({ mostrar_todos_lista: true, intercalados: [] });
+		const s = ciclo(r, 21);
+		assert.equal(s.length, 2);
+		assert.equal(s[0].lista_completa.platos.length, 20);
+		assert.equal(s[1].lista_completa.platos.length, 1);
 	});
 
 	test('sin lista guardada se arma desde promo_en_tv', () => {

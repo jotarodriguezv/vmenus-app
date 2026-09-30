@@ -147,6 +147,18 @@
 	.lista-tv-nombre { flex: 1 1 auto; min-width: 0; overflow: hidden;
 	                  white-space: nowrap; text-overflow: ellipsis; font-weight: 700; }
 	.lista-tv-precio { flex: 0 0 auto; margin-left: 2vmin; font-weight: 700; }
+	/* La vista de carta completa prioriza cantidad sobre fotografía: caben hasta
+	   veinte platos, siempre en dos columnas y con la categoría como guía. */
+	.lista-tv-completa { padding: 4.5vmin 5vmin; }
+	.lista-tv-completa .lista-tv-titulo { margin-bottom: 1.4vmin; }
+	.lista-tv-completa .lista-tv-columnas { gap: 2.5vmin; }
+	.lista-tv-completa .lista-tv-fila { min-height: 4.8vmin; padding: 0.35vmin 1vmin;
+	                                  margin-bottom: 0.35vmin; border-left-width: 0.32vmin; }
+	.lista-tv-completa .lista-tv-nombre,
+	.lista-tv-completa .lista-tv-precio { font-size: 2.15vmin !important; }
+	.lista-tv-categoria { margin: 0.75vmin 0 0.35vmin; font-weight: 700;
+	                      letter-spacing: 0.04em; text-transform: uppercase;
+	                      overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 	/* ── ANIMACIÓN ─────────────────────────────────────────────
 	   Solo 'transform' y 'opacity': son las dos que el navegador puede pasarle
@@ -340,6 +352,10 @@ var POR_DEFECTO = {
 	mostrar_descripcion: false,
 	/* Incluye las bebidas y extras sin foto, agrupados como lista por categoría. */
 	mostrar_sin_foto_lista: false,
+	/* Cambia toda la selección de esta pantalla a una carta compacta, sin fotos.
+	   Es deliberadamente otra opción: la anterior solo completa las bebidas sin
+	   imagen; esta sirve para quien prefiere una lista en toda su cartelera. */
+	mostrar_todos_lista: false,
 	/* Para cuántas personas alcanza cada plato (sql/26 de adminmenus_restaurantes,
 	   columna 'personas' de cada producto). Es UN interruptor por restaurante y
 	   no uno por plato: con muchos platos, marcar cada uno a mano cansaría al
@@ -508,6 +524,7 @@ function config() {
 	if (c.tema !== 'carta') c.tema = 'oscuro';
 	c.mostrar_descripcion = !!c.mostrar_descripcion;
 	c.mostrar_sin_foto_lista = !!c.mostrar_sin_foto_lista;
+	c.mostrar_todos_lista = !!c.mostrar_todos_lista;
 	c.mostrar_personas = c.mostrar_personas !== false;
 	c.mostrar_personas_uno = !!c.mostrar_personas_uno;
 	c.personas_solo_icono = !!c.personas_solo_icono;
@@ -653,7 +670,7 @@ function platosElegidos() {
 		if (!p.disponible) continue;
 		/* Sin foto no hay ficha. Solo se admiten cuando el restaurante pidió
 		   expresamente la lista de bebidas y complementos sin fotografía. */
-		if (!urlSegura(p.imagen_url) && !c.mostrar_sin_foto_lista) continue;
+		if (!urlSegura(p.imagen_url) && !c.mostrar_sin_foto_lista && !c.mostrar_todos_lista) continue;
 		if (!visibles[p.categoria_id]) continue;
 		var dentro = entraEnSeleccion(p, sel);
 		/* Con la mezcla encendida, lo de siempre NO se apaga: la excepción suma.
@@ -684,7 +701,37 @@ function barajar(lista, ultimoPrevio) {
 function construirSlides() {
 	if (!tvActiva()) { slides = []; return; }
 	var c = config();
-	var platos = platosElegidos(), conFoto = [], sinFoto = [];
+	var platos = platosElegidos();
+	var nuevos = [];
+
+	/* Esta vista no es la lista auxiliar de bebidas: cambia toda la selección
+	   (con foto o sin ella) a filas compactas. Veinte deja diez por columna;
+	   más empieza a ser ilegible desde una mesa. Mantener el orden por categoría
+	   evita que una lista larga se lea como un bloque sin estructura. */
+	if (c.mostrar_todos_lista) {
+		var porLista = 20, compactos = [], ordenados = [];
+		for (var cc = 0; cc < datos.categorias.length; cc++) {
+			var idCategoria = datos.categorias[cc].id, deEstaCategoria = [];
+			for (var cp = 0; cp < platos.length; cp++) {
+				if (platos[cp].categoria_id === idCategoria) deEstaCategoria.push(platos[cp]);
+			}
+			for (var cl = 0; cl < deEstaCategoria.length; cl++) ordenados.push(deEstaCategoria[cl]);
+		}
+		/* Una categoría archivada o sin nombre no debe hacer desaparecer sus
+		   platos de una pantalla que estaba configurada manualmente. */
+		var conocidos = {};
+		for (var kc = 0; kc < datos.categorias.length; kc++) conocidos[datos.categorias[kc].id] = true;
+		var sinCategoria = [];
+		for (var sp = 0; sp < platos.length; sp++) if (!conocidos[platos[sp].categoria_id]) sinCategoria.push(platos[sp]);
+		for (var sl = 0; sl < sinCategoria.length; sl++) ordenados.push(sinCategoria[sl]);
+		for (var pagina = 0; pagina < ordenados.length; pagina += porLista) {
+			compactos.push({ lista_completa: { platos: ordenados.slice(pagina, pagina + porLista) } });
+		}
+		nuevos = compactos;
+	}
+
+	if (!c.mostrar_todos_lista) {
+	var conFoto = [], sinFoto = [];
 	for (var pf = 0; pf < platos.length; pf++) {
 		if (urlSegura(platos[pf].imagen_url)) conFoto.push(platos[pf]);
 		else sinFoto.push(platos[pf]);
@@ -693,7 +740,6 @@ function construirSlides() {
 		? slides[slides.length - 1].platos[slides[slides.length - 1].platos.length - 1] : null;
 	if (c.aleatorio) conFoto = barajar(conFoto, ultimo);
 
-	var nuevos = [];
 	for (var i = 0; i < conFoto.length; i += c.por_slide) {
 		nuevos.push({ platos: conFoto.slice(i, i + c.por_slide) });
 	}
@@ -724,6 +770,7 @@ function construirSlides() {
 		for (var li = 0; li < deCategoria.length; li += 12) {
 			nuevos.push({ lista: { categoria_id: catId, platos: deCategoria.slice(li, li + 12) } });
 		}
+	}
 	}
 
 	/* Los intercalados van al margen de 'por_slide'.
@@ -1338,30 +1385,42 @@ function pintarSlide(s) {
 		return div;
 	}
 
-	if (s.lista) {
-		var listaTv = nuevoNodo('div', 'lista-tv');
+	if (s.lista || s.lista_completa) {
+		var esListaCompleta = !!s.lista_completa;
+		var datosLista = esListaCompleta ? s.lista_completa : s.lista;
+		var listaTv = nuevoNodo('div', esListaCompleta ? 'lista-tv lista-tv-completa' : 'lista-tv');
 		var tituloLista = nuevoNodo('div', 'lista-tv-titulo');
 		tituloLista.style.fontSize = '4.2vmin';
 		tituloLista.style.color = pag.acento;
-		tituloLista.textContent = nombreCategoria(s.lista.categoria_id) || 'Carta';
+		tituloLista.textContent = esListaCompleta ? 'Carta' : (nombreCategoria(datosLista.categoria_id) || 'Carta');
 		listaTv.appendChild(tituloLista);
 		var columnas = nuevoNodo('div', 'lista-tv-columnas');
-		var mitad = Math.ceil(s.lista.platos.length / 2);
+		var mitad = Math.ceil(datosLista.platos.length / 2);
 		for (var col = 0; col < 2; col++) {
 			var columna = nuevoNodo('div', 'lista-tv-columna');
 			var desde = col === 0 ? 0 : mitad;
-			var hasta = col === 0 ? mitad : s.lista.platos.length;
+			var hasta = col === 0 ? mitad : datosLista.platos.length;
+			var categoriaAnterior = null;
 			for (var lp = desde; lp < hasta; lp++) {
+				var productoLista = datosLista.platos[lp];
+				if (esListaCompleta && productoLista.categoria_id !== categoriaAnterior) {
+					var categoriaLista = nuevoNodo('div', 'lista-tv-categoria');
+					categoriaLista.style.fontSize = '1.7vmin';
+					categoriaLista.style.color = pag.acento;
+					categoriaLista.textContent = nombreCategoria(productoLista.categoria_id) || 'Otros';
+					columna.appendChild(categoriaLista);
+					categoriaAnterior = productoLista.categoria_id;
+				}
 				var filaLista = nuevoNodo('div', 'lista-tv-fila');
 				filaLista.style.borderColor = pag.acento;
 				var nombreLista = nuevoNodo('div', 'lista-tv-nombre');
-				nombreLista.style.fontSize = '2.7vmin';
+				nombreLista.style.fontSize = esListaCompleta ? '2.15vmin' : '2.7vmin';
 				nombreLista.style.color = pag.texto;
-				nombreLista.textContent = s.lista.platos[lp].nombre || '';
+				nombreLista.textContent = productoLista.nombre || '';
 				var precioLista = nuevoNodo('div', 'lista-tv-precio');
-				precioLista.style.fontSize = '2.7vmin';
+				precioLista.style.fontSize = esListaCompleta ? '2.15vmin' : '2.7vmin';
 				precioLista.style.color = pag.acento;
-				precioLista.textContent = s.lista.platos[lp].precio || '';
+				precioLista.textContent = productoLista.precio || '';
 				filaLista.appendChild(nombreLista);
 				filaLista.appendChild(precioLista);
 				columna.appendChild(filaLista);
