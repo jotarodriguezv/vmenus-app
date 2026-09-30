@@ -128,7 +128,6 @@ export function buildMenu() {
 			`).join('')}
 			${sinMultimedia.length ? `
 				<div class="vid-lista-sin-media" aria-label="${esc(cat.nombre)}">
-					<div class="vid-lista-aviso">Productos sin foto ni video</div>
 					${sinMultimedia.map(p => `
 						<article class="vid-lista-fila" data-plato="${esc(p.id)}">
 							<div class="vid-lista-fila-principal">

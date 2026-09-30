@@ -209,7 +209,6 @@ export function buildMenu() {
 				<div class="ver-lista-contenido">
 					<div class="ver-cat">${titulo}</div>
 					${!conMultimedia.length && indice === 0 ? notaDe(cat, 'categoria-nota ver-nota') : ''}
-					<div class="ver-lista-aviso">Productos sin foto ni video</div>
 					<div class="ver-lista-filas">
 						${grupo.map(p => `
 							<article class="ver-lista-fila" data-plato="${esc(p.id)}">
