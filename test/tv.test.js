@@ -217,6 +217,25 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 	});
 });
 
+describe('tv.html · tres avisos seguidos se distinguen', () => {
+	const estilo = () => extraer(['canalHex', 'luminancia', 'contraste', 'textoSobre', 'estiloAvisoCinta'], {
+		Math, parseInt,
+	}).estiloAvisoCinta;
+	const paleta = { acento: '#cdfefe', texto: '#ffffff' };
+
+	test('el tercero se delinea en vez de repetir el aspecto del primero', () => {
+		const primero = { style: {} }, segundo = { style: {} }, tercero = { style: {} };
+		const pintar = estilo();
+		pintar(primero, 0, paleta);
+		pintar(segundo, 1, paleta);
+		pintar(tercero, 2, paleta);
+		assert.equal(primero.style.color, '#ffffff');
+		assert.equal(segundo.style.background, '#cdfefe');
+		assert.equal(tercero.style.border, '0.16vmin solid #cdfefe');
+		assert.equal(tercero.style.background, undefined);
+	});
+});
+
 describe('tv.html · el color de la etiqueta de categoría', () => {
 	// Reutiliza el color que el restaurante ya guardó para su carta. Lo que se
 	// prueba aquí es sobre todo que nunca acabe ilegible: esto se cuelga en una
