@@ -1549,18 +1549,13 @@ function separadorDeCinta(tipo) {
 	return '★';
 }
 
-/* Con dos avisos basta alternar texto y pastilla. Con tres, el primero y el
-   tercero parecían el mismo mensaje: el tercero queda delineado, con el texto
-   normal de la cinta, para distinguirlo sin perder contraste ni saturarla. */
+/* Los avisos alternan siempre entre texto y pastilla. El índice llega contando
+   también las repeticiones: si una lista impar vuelve a empezar, no deja dos
+   avisos normales pegados justo en ese salto. */
 function estiloAvisoCinta(aviso, indice, pag) {
-	if (indice % 3 === 1) {
+	if (indice % 2) {
 		aviso.style.background = pag.acento;
 		aviso.style.color = textoSobre(canalHex(pag.acento));
-	} else if (indice % 3 === 2) {
-		aviso.style.border = '0.16vmin solid ' + pag.acento;
-		aviso.style.borderRadius = '0.35vmin';
-		aviso.style.padding = '0 0.38vmin';
-		aviso.style.color = pag.texto;
 	} else aviso.style.color = pag.texto;
 }
 
@@ -1575,13 +1570,13 @@ function pintarCinta(id, mensajes, pag, velocidad, tipoSeparador) {
 	/* Un aviso muy corto se repite dentro de cada grupo hasta cruzar la pantalla.
 	   Así tampoco deja una franja vacía antes de que entre la copia idéntica. */
 	while (texto.length * veces < 120) veces++;
-	function grupo() {
+	function grupo(desfase) {
 		var g = nuevoNodo('span', 'cinta-grupo');
 		for (var vuelta = 0; vuelta < veces; vuelta++) {
 			for (var i = 0; i < mensajes.length; i++) {
 				var aviso = nuevoNodo('span', 'cinta-mensaje');
 				aviso.textContent = mensajes[i];
-				estiloAvisoCinta(aviso, i, pag);
+				estiloAvisoCinta(aviso, desfase + vuelta * mensajes.length + i, pag);
 				g.appendChild(aviso);
 				if (separadorTexto) {
 					var separador = nuevoNodo('span', 'cinta-separador');
@@ -1592,8 +1587,8 @@ function pintarCinta(id, mensajes, pag, velocidad, tipoSeparador) {
 		}
 		return g;
 	}
-	pista.appendChild(grupo());
-	pista.appendChild(grupo());
+	pista.appendChild(grupo(0));
+	pista.appendChild(grupo(veces * mensajes.length));
 	pista.style.background = pag.placa;
 	/* No se guarda una duración fija: dos mensajes cortos no deberían tardar un
 	   minuto ni cinco largos desaparecer en un suspiro. La velocidad elegida
