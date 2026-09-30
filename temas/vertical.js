@@ -1,6 +1,6 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { esc, notaDe, textoPrecio } from '../core/html.js';
-import { mediaDe, activarVideos } from '../core/reproduccion.js';
+import { mediaDe, activarVideos, tieneMultimedia } from '../core/reproduccion.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
 import { montarBuscador } from '../core/buscador.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion, carritoEncendido } from '../core/carrito.js';
@@ -136,7 +136,11 @@ export function buildNav() {
 	// Al filtrar o buscar cambia cuántos platos quedan, así que la barra de
 	// avance tiene que rehacerse: si no, marcaría posiciones de una carta que
 	// ya no es la que se está viendo.
-	const repintar = () => { ocultarNoCoinciden('.ver-plato'); pintarSegmentos(); };
+	const repintar = () => {
+		ocultarNoCoinciden('.ver-plato:not(.ver-lista-sin-media), .ver-lista-fila');
+		actualizarListasSinMedia();
+		pintarSegmentos();
+	};
 	montarChips(repintar, document.getElementById('verFiltros'));
 	// El buscador va en la barra flotante, por lo mismo: aquí no hay ninguna
 	// barra donde meterlo, cada plato ocupa la pantalla entera. En fila propia y
@@ -167,6 +171,8 @@ export function buildMenu() {
 
 	cats.forEach(cat => {
 		const prods = productos.filter(p => p.categoria_id === cat.id);
+		const conMultimedia = prods.filter(tieneMultimedia);
+		const sinMultimedia = prods.filter(p => !tieneMultimedia(p));
 
 		const seccion = document.createElement('section');
 		// Clase e id compartidos con el resto de temas: el spy y el
@@ -179,7 +185,7 @@ export function buildMenu() {
 		// Aquí no hay cabecera de categoría: cada plato ocupa la pantalla. La nota
 		// va en el PRIMER plato de la categoría, bajo su nombre, que es donde se
 		// entra a ella; repetirla en cada uno taparía la comida.
-		seccion.innerHTML = prods.map((p, i) => `
+		seccion.innerHTML = conMultimedia.map((p, i) => `
 			<article class="ver-plato" data-plato="${esc(p.id)}" data-cat="${esc(cat.id)}">
 				<div class="ver-media">${mediaDe(p)}</div>
 				<div class="ver-velo"></div>
@@ -195,6 +201,32 @@ export function buildMenu() {
 						${hayCarrito ? `<button class="ver-add" data-plato="${esc(p.id)}">${
 							tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
 						}</button>` : ''}
+					</div>
+				</div>
+			</article>
+		`).join('') + gruposDe(sinMultimedia, 8).map((grupo, indice) => `
+			<article class="ver-plato ver-lista-sin-media" data-cat="${esc(cat.id)}">
+				<div class="ver-lista-contenido">
+					<div class="ver-cat">${titulo}</div>
+					${!conMultimedia.length && indice === 0 ? notaDe(cat, 'categoria-nota ver-nota') : ''}
+					<div class="ver-lista-aviso">Productos sin foto ni video</div>
+					<div class="ver-lista-filas">
+						${grupo.map(p => `
+							<article class="ver-lista-fila" data-plato="${esc(p.id)}">
+								<div class="ver-lista-fila-principal">
+									<h3>${esc(p.nombre)}</h3>
+									${p.descripcion_avanzada || p.descripcion
+										? `<p>${esc(p.descripcion_avanzada || p.descripcion)}</p>`
+										: ''}
+								</div>
+								<div class="ver-lista-fila-final">
+									<span>${esc(textoPrecio(p))}</span>
+									${hayCarrito ? `<button class="ver-add" data-plato="${esc(p.id)}">${
+										tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
+									}</button>` : ''}
+								</div>
+							</article>
+						`).join('')}
 					</div>
 				</div>
 			</article>
@@ -228,7 +260,7 @@ function mostrarPista(scroller) {
 	// descripción y eso no se sabe hasta que está pintado. Se mide la más
 	// alta de todas —la pista es fija y no se mueve con el carrete— y se
 	// pone justo por encima.
-	const altas = [...scroller.querySelectorAll('.ver-info')]
+	const altas = [...scroller.querySelectorAll('.ver-info, .ver-lista-contenido')]
 		.map(el => el.getBoundingClientRect().height);
 	pista.style.bottom = `calc(${Math.round(Math.max(0, ...altas)) + 40}px + env(safe-area-inset-bottom, 0px))`;
 
@@ -238,6 +270,23 @@ function mostrarPista(scroller) {
 	};
 	scroller.addEventListener('scroll', quitar, { once: true, passive: true });
 	setTimeout(quitar, 6000);
+}
+
+// Cada lista ocupa una pantalla completa; partirla evita que una categoría
+// grande fuerce un scroll interno y mantenga el gesto de reels consistente.
+function gruposDe(lista, tamano) {
+	return Array.from({ length: Math.ceil(lista.length / tamano) }, (_, indice) =>
+		lista.slice(indice * tamano, (indice + 1) * tamano));
+}
+
+// Los filtros esconden filas, no la pantalla que las agrupa. Esta segunda
+// pasada apaga la pantalla cuando ya no le queda ninguna fila visible.
+function actualizarListasSinMedia() {
+	document.querySelectorAll('.ver-lista-sin-media').forEach(lista => {
+		const hayVisible = [...lista.querySelectorAll('.ver-lista-fila')]
+			.some(fila => fila.style.display !== 'none');
+		lista.style.display = hayVisible ? '' : 'none';
+	});
 }
 
 // ── AGREGAR AL CARRITO ────────────────────────────────────────

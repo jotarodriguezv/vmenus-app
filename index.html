@@ -1209,6 +1209,60 @@
 				flex-shrink: 0;
 			}
 
+			/* Un producto sin imagen ni video no gana nada con un rectángulo
+			   vacío. En las cartas de video se agrupa con sus pares para que la
+			   categoría siga siendo útil sin simular que tiene multimedia. */
+			.vid-lista-sin-media {
+				background: var(--card);
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				overflow: hidden;
+				margin-bottom: 16px;
+			}
+			.vid-lista-aviso,
+			.ver-lista-aviso {
+				font-size: 11px;
+				font-weight: 700;
+				letter-spacing: 1.2px;
+				text-transform: uppercase;
+				color: var(--muted);
+			}
+			.vid-lista-aviso { padding: 14px 16px 6px; }
+			.vid-lista-fila {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 14px;
+				padding: 13px 16px;
+				border-top: 1px solid var(--border);
+			}
+			.vid-lista-fila-principal { min-width: 0; }
+			.vid-lista-fila h3,
+			.ver-lista-fila h3 {
+				font-family: var(--font-titulo, inherit);
+				font-size: 16px;
+				line-height: 1.25;
+				color: var(--text);
+			}
+			.vid-lista-fila p,
+			.ver-lista-fila p {
+				margin-top: 4px;
+				font-size: 13px;
+				line-height: 1.35;
+				color: var(--muted);
+			}
+			.vid-lista-fila-final,
+			.ver-lista-fila-final {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				flex-shrink: 0;
+				font-family: var(--font-titulo, inherit);
+				font-weight: 700;
+				color: var(--primary);
+				white-space: nowrap;
+			}
+
 			/* ── Filtros (segunda fila de la nav) ─────────────────── */
 			/* Sin chips dentro el contenedor no existe: nada de una franja
 			   vacía bajo las categorías en las cartas que no filtran. */
@@ -1559,6 +1613,51 @@
 				font-weight: 700;
 				cursor: pointer;
 				box-shadow: 0 4px 16px rgba(0,0,0,.45);
+			}
+
+			.ver-plato.ver-lista-sin-media {
+				display: flex;
+				align-items: center;
+				background: var(--surface);
+				padding: 28px 18px calc(28px + env(safe-area-inset-bottom, 0px));
+				overflow-y: auto;
+			}
+			.ver-lista-contenido {
+				width: min(100%, 620px);
+				margin: auto;
+				padding-right: 70px;
+			}
+			.ver-lista-sin-media .ver-cat {
+				font-family: var(--font-titulo, inherit);
+				font-size: 12px;
+				font-weight: 700;
+				letter-spacing: 2px;
+				text-transform: uppercase;
+				color: var(--primary);
+				margin-bottom: 10px;
+			}
+			.ver-lista-aviso { margin-bottom: 10px; }
+			.ver-lista-filas {
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				overflow: hidden;
+				background: var(--card);
+			}
+			.ver-lista-fila {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				padding: 13px 14px;
+				border-top: 1px solid var(--border);
+			}
+			.ver-lista-fila:first-child { border-top: none; }
+			.ver-lista-fila-principal { min-width: 0; }
+			.ver-lista-fila .ver-add,
+			.vid-lista-fila .vid-add {
+				min-height: 34px;
+				padding: 7px 11px;
+				font-size: 12px;
 			}
 			.ver-add:active { transform: scale(.96); }
 
