@@ -198,9 +198,7 @@ export function buildMenu() {
 						: ''}
 					<div class="ver-fila">
 						<span class="ver-precio">${esc(textoPrecio(p))}</span>
-						${hayCarrito ? `<button class="ver-add" data-plato="${esc(p.id)}">${
-							tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
-						}</button>` : ''}
+						${hayCarrito ? botonAgregar(p) : ''}
 					</div>
 				</div>
 			</article>
@@ -220,9 +218,7 @@ export function buildMenu() {
 								</div>
 								<div class="ver-lista-fila-final">
 									<span>${esc(textoPrecio(p))}</span>
-									${hayCarrito ? `<button class="ver-add" data-plato="${esc(p.id)}">${
-										tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
-									}</button>` : ''}
+									${hayCarrito ? botonAgregar(p) : ''}
 								</div>
 							</article>
 						`).join('')}
@@ -289,6 +285,19 @@ function actualizarListasSinMedia() {
 }
 
 // ── AGREGAR AL CARRITO ────────────────────────────────────────
+// El botón es solo el signo «+» (decidido el 30/09/2026): con el carrito
+// flotante al lado, que lleva la cuenta, el texto «Agregar» sobraba y el botón
+// medía casi lo mismo que el precio. Como ya no dice qué hace, el nombre
+// accesible lo dice por él, y el área de toque se mantiene en 44 px aunque el
+// botón se vea de 40 (ver .ver-add::after en index.html).
+function etiquetaAgregar(p) {
+	return tienePersonalizacion(p) ? `Personalizar ${p.nombre}` : `Agregar ${p.nombre} al pedido`;
+}
+
+function botonAgregar(p) {
+	return `<button class="ver-add" data-plato="${esc(p.id)}" aria-label="${esc(etiquetaAgregar(p))}">+</button>`;
+}
+
 // Un solo escuchador para todo el carrete, igual que en temas/video.js:
 // con treinta platos son treinta escuchadores para el mismo comportamiento.
 function activarBotonesAgregar(scroller) {
@@ -302,9 +311,17 @@ function activarBotonesAgregar(scroller) {
 		if (tienePersonalizacion(p)) return openCustomModal(p.id);
 
 		agregarSimple(p);
-		const antes = btn.textContent;
-		btn.textContent = '✓ Agregado';
-		setTimeout(() => { btn.textContent = antes; }, 900);
+		// Se restaura lo que dice el plato y no «lo de antes»: con dos toques
+		// seguidos, «antes» ya sería la marca de agregado y el botón se quedaría con ella.
+		btn.textContent = '✓';
+		btn.classList.add('ver-add-ok');
+		btn.setAttribute('aria-label', `${p.nombre} agregado al pedido`);
+		clearTimeout(btn._restaurar);
+		btn._restaurar = setTimeout(() => {
+			btn.textContent = '+';
+			btn.classList.remove('ver-add-ok');
+			btn.setAttribute('aria-label', etiquetaAgregar(p));
+		}, 900);
 	});
 }
 
