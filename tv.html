@@ -84,14 +84,19 @@
 	   leerse juntos desde lejos. El formato «número» usa una insignia cuadrada,
 	   como una clasificación, y no lleva el icono de personas. */
 	.precio-personas { display: flex; align-items: center; justify-content: center;
-	                   gap: 0.8vmin; margin-top: 0.6vmin; }
+	                   gap: 1.7vmin; margin-top: 0.6vmin; }
 	.plato.editorial .precio-personas { justify-content: flex-start; }
 	.personas { display: inline-flex; align-items: center; gap: 0.32em;
 	            min-height: 1.65em; font-weight: 600; line-height: 1;
 	            color: currentColor; }
 	.personas-etiqueta { padding: 0.26em 0.55em; border: 0.08em solid currentColor;
 	                  border-radius: 0.25em; white-space: nowrap; }
-	.personas-numero { width: 1.72em; min-width: 1.72em; height: 1.72em;
+	/* Con icono y texto, leer hacia abajo ocupa menos ancho y mantiene la
+	   información separada del precio. El icono solo tiene más presencia porque
+	   es lo único que comunica las porciones. */
+	.personas-icono_frase { flex-direction: column; gap: 0.22em; text-align: center; }
+	.personas-icono { justify-content: center; }
+	.personas-numero { width: 2.15em; min-width: 2.15em; height: 2.15em;
 	                   justify-content: center; border: 0.12em solid currentColor;
 	                   border-radius: 0.2em; font-weight: 800; }
 
@@ -369,8 +374,8 @@ var POR_DEFECTO = {
 	   clave (24/09/2026); 'mostrar_personas_uno' en false: 1 es el caso normal
 	   de casi toda la carta y decirlo siempre sería ruido. */
 	mostrar_personas: true, mostrar_personas_uno: false,
-	/* icono_frase, frase o numero. La clave vieja se conserva solo para leer
-	   configuraciones anteriores y convertir «solo icono» en número. */
+	/* icono_frase, frase, icono o numero. La clave vieja se conserva para
+	   restaurar la elección de los restaurantes que usaban solo el icono. */
 	formato_personas: 'icono_frase', personas_solo_icono: false,
 	/* Hasta cinco avisos, cada uno en su propia franja (arriba o abajo). */
 	cintas: [], velocidad_cintas: 'normal', separador_cintas: 'estrella', reloj: false,
@@ -530,8 +535,8 @@ function config() {
 	c.mostrar_personas = c.mostrar_personas !== false;
 	c.mostrar_personas_uno = !!c.mostrar_personas_uno;
 	c.personas_solo_icono = !!c.personas_solo_icono;
-	if (t.formato_personas !== 'frase' && t.formato_personas !== 'numero' && t.formato_personas !== 'icono_frase') {
-		c.formato_personas = c.personas_solo_icono ? 'numero' : 'icono_frase';
+	if (t.formato_personas !== 'frase' && t.formato_personas !== 'numero' && t.formato_personas !== 'icono_frase' && t.formato_personas !== 'icono') {
+		c.formato_personas = c.personas_solo_icono ? 'icono' : 'icono_frase';
 	}
 	c.reloj = !!c.reloj;
 	if (c.velocidad_cintas !== 'lenta' && c.velocidad_cintas !== 'rapida') {
@@ -1560,17 +1565,21 @@ function pintarSlide(s) {
 		if (c.mostrar_personas && (numPersonas > 1 || c.mostrar_personas_uno)) {
 			var formatoPersonas = c.formato_personas;
 			var pers = nuevoNodo('div', 'personas personas-' + formatoPersonas);
-			pers.style.fontSize = (tamNombre * (formatoPersonas === 'numero' ? 0.62 : 0.4)) + 'vmin';
+			pers.style.fontSize = (tamNombre * (formatoPersonas === 'numero' ? 0.8 : 0.4)) + 'vmin';
 			pers.style.color = pag.texto;
 			if (formatoPersonas === 'numero') {
 				// La cifra ya comunica cuántas porciones hay; no se duplica con
 				// figura ni frase para conservar el cuadrado limpio y legible.
 				pers.textContent = String(numPersonas);
+			} else if (formatoPersonas === 'icono') {
+				var iconoSolo = iconoPersonas(numPersonas);
+				iconoSolo.style.fontSize = (tamNombre * 1.18) + 'vmin';
+				pers.appendChild(iconoSolo);
 			} else {
-				var frase = 'Para ' + numPersonas + ' ' + (numPersonas === 1 ? 'persona' : 'personas');
+				var frase = numPersonas + ' ' + (numPersonas === 1 ? 'persona' : 'personas');
 				if (formatoPersonas === 'icono_frase') {
 					var icono = iconoPersonas(numPersonas);
-					icono.style.fontSize = (tamNombre * 0.72) + 'vmin';
+					icono.style.fontSize = (tamNombre * 1.02) + 'vmin';
 					pers.appendChild(icono);
 				}
 				var etiqueta = nuevoNodo('span', 'personas-etiqueta');
