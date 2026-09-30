@@ -489,7 +489,7 @@ describe('tv.html · un plato se lee como ficha', () => {
 		assert.ok(plato, 'un plato descrito debe usar el diseño dividido');
 		const texto = plato.hijos[1];
 		assert.deepEqual(texto.hijos.map(n => n.className),
-			['categoria derecha', 'nombre', 'descripcion', 'precio']);
+			['categoria derecha', 'nombre', 'descripcion', 'precio-personas']);
 		assert.equal(plato.hijos[0].hijos.some(n => /categoria/.test(n.className)), false,
 			'la categoría no debe quedar encima de la foto');
 	});
@@ -510,7 +510,7 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 			POR_DEFECTO: { por_slide: 2, segundos: 8, mostrar_categoria: false,
 				color_categoria: 'oscuro', tema: 'oscuro',
 				mostrar_personas: true, mostrar_personas_uno: false,
-				personas_solo_icono: false },
+				formato_personas: 'icono_frase', personas_solo_icono: false },
 			datos: {
 				restaurante: { color_primario: '#3dd68c', atributos: { tv: tv || {} } },
 				categorias: [{ id: 'c1', nombre: 'Hamburguesas' }],
@@ -520,29 +520,31 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 		return todos(ctx.pintarSlide({ platos }));
 	}
 
-	// La nota lleva un icono siempre; con "solo icono" la clase gana un segundo
-	// término (personas-solo-icono), así que las pruebas de arriba, que buscan
-	// la clase EXACTA 'personas', no lo verían — a propósito: sin el modificador
-	// no deben tocarlo.
+	// Los tres formatos comparten la base «personas» y cambian el segundo
+	// término. La nota vive dentro de .precio-personas, al mismo nivel del precio.
 	function notaDe(nodos) {
-		return nodos.find(n => n.className === 'personas' || n.className === 'personas personas-solo-icono');
+		return nodos.find(n => (n.className || '').indexOf('personas personas-') === 0);
+	}
+
+	function fraseDe(nota) {
+		return nota && nota.hijos.find(n => n.className === 'personas-etiqueta');
 	}
 
 	test('con una persona no se dice nada: es lo normal en la carta', () => {
 		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 1 };
-		assert.equal(slideDe([plato]).some(n => n.className === 'personas'), false);
+		assert.equal(!!notaDe(slideDe([plato])), false);
 	});
 
 	test('sin el campo tampoco se dice nada: los platos de siempre no cambian', () => {
 		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1' };
-		assert.equal(slideDe([plato]).some(n => n.className === 'personas'), false);
+		assert.equal(!!notaDe(slideDe([plato])), false);
 	});
 
 	test('a partir de dos, sale la nota', () => {
 		const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
-		const nota = slideDe([plato]).find(n => n.className === 'personas');
+		const nota = notaDe(slideDe([plato]));
 		assert.ok(nota, 'un plato para 3 personas debe llevar la nota');
-		assert.equal(nota.textContent, 'Para 3 personas');
+		assert.equal(fraseDe(nota).textContent, 'Para 3 personas');
 	});
 
 	test('cada plato dice lo suyo, no lo del vecino', () => {
@@ -550,9 +552,9 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 			{ nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 1 },
 			{ nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/2.jpg', categoria_id: 'c1', personas: 4 },
 		];
-		const notas = slideDe(platos).filter(n => n.className === 'personas');
+		const notas = slideDe(platos).filter(n => (n.className || '').indexOf('personas personas-') === 0);
 		assert.equal(notas.length, 1);
-		assert.equal(notas[0].textContent, 'Para 4 personas');
+		assert.equal(fraseDe(notas[0]).textContent, 'Para 4 personas');
 	});
 
 	// 24/09/2026 (sql/28): el interruptor es del RESTAURANTE, en la pestaña
@@ -562,7 +564,7 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 	test('con el interruptor general apagado no se dice nada, ni para un plato de varias personas', () => {
 		const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg',
 			categoria_id: 'c1', personas: 4 };
-		assert.equal(slideDe([plato], { mostrar_personas: false }).some(n => n.className === 'personas'), false);
+		assert.equal(!!notaDe(slideDe([plato], { mostrar_personas: false })), false);
 	});
 
 	test('afecta a todos los platos por igual, no plato por plato', () => {
@@ -570,56 +572,51 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 			{ nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 2 },
 			{ nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/2.jpg', categoria_id: 'c1', personas: 4 },
 		];
-		assert.equal(slideDe(platos, { mostrar_personas: false }).some(n => n.className === 'personas'), false);
+		assert.equal(!!notaDe(slideDe(platos, { mostrar_personas: false })), false);
 	});
 
 	test('con "también con una" se dice en singular', () => {
 		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 1 };
-		const nota = slideDe([plato], { mostrar_personas_uno: true }).find(n => n.className === 'personas');
+		const nota = notaDe(slideDe([plato], { mostrar_personas_uno: true }));
 		assert.ok(nota, 'con el interruptor encendido, un plato de 1 debe llevar la nota');
-		assert.equal(nota.textContent, 'Para 1 persona');
+		assert.equal(fraseDe(nota).textContent, 'Para 1 persona');
 	});
 
 	test('el interruptor general manda por encima del de "también con una"', () => {
 		const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 1 };
-		assert.equal(slideDe([plato], { mostrar_personas: false, mostrar_personas_uno: true })
-			.some(n => n.className === 'personas'), false);
+		assert.equal(!!notaDe(slideDe([plato], { mostrar_personas: false, mostrar_personas_uno: true })), false);
 	});
 
-	// Pedido el 27/09/2026 al ver el icono en la pantalla de Malparados: junto a
-	// la frase se notaba tan poco que no cumplía su propósito.
-	describe('el icono, aparte de la frase', () => {
-		test('el icono va con la frase por defecto', () => {
+	describe('los formatos de porciones', () => {
+		test('el icono acompaña la frase por defecto', () => {
 			const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
 			const nota = notaDe(slideDe([plato]));
 			assert.ok(nota, 'debe existir la nota');
-			assert.equal(nota.className, 'personas', 'sin el interruptor, sin la clase modificadora');
-			assert.equal(nota.textContent, 'Para 3 personas');
+			assert.equal(nota.className, 'personas personas-icono_frase');
+			assert.equal(fraseDe(nota).textContent, 'Para 3 personas');
 			assert.ok(nota.hijos.some(h => h.className === 'icono-personas'), 'el icono va dentro de la nota');
 		});
 
-		test('"solo icono" quita la frase pero deja el icono, más grande', () => {
+		test('solo frase no dibuja el icono', () => {
 			const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
-			const conFrase = notaDe(slideDe([plato]));
-			const soloIcono = notaDe(slideDe([plato], { personas_solo_icono: true }));
-
-			assert.ok(soloIcono, 'debe seguir existiendo la nota, aunque sin texto');
-			assert.equal(soloIcono.className, 'personas personas-solo-icono');
-			assert.equal(soloIcono.textContent, '', 'sin frase');
-
-			const iconoConFrase = conFrase.hijos.find(h => h.className === 'icono-personas');
-			const iconoSolo = soloIcono.hijos.find(h => h.className === 'icono-personas');
-			assert.ok(iconoConFrase && iconoSolo);
-			assert.ok(
-				parseFloat(iconoSolo.style.fontSize) > parseFloat(iconoConFrase.style.fontSize),
-				'sin frase al lado, el icono tiene que ser más grande, no del mismo tamaño'
-			);
+			const nota = notaDe(slideDe([plato], { formato_personas: 'frase' }));
+			assert.equal(nota.className, 'personas personas-frase');
+			assert.equal(fraseDe(nota).textContent, 'Para 3 personas');
+			assert.equal(nota.hijos.some(h => h.className === 'icono-personas'), false);
 		});
 
-		test('"solo icono" no hace nada si el interruptor general está apagado', () => {
+		test('número destacado no dibuja ni icono ni frase', () => {
 			const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
-			const nodos = slideDe([plato], { mostrar_personas: false, personas_solo_icono: true });
-			assert.equal(nodos.some(n => (n.className || '').indexOf('personas') === 0), false);
+			const nota = notaDe(slideDe([plato], { formato_personas: 'numero' }));
+			assert.equal(nota.className, 'personas personas-numero');
+			assert.equal(nota.textContent, '3');
+			assert.equal(nota.hijos.length, 0);
+		});
+
+		test('la configuración anterior de solo icono pasa a número destacado', () => {
+			const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
+			const nota = notaDe(slideDe([plato], { personas_solo_icono: true }));
+			assert.equal(nota.className, 'personas personas-numero');
 		});
 	});
 });
