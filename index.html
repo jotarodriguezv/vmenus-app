@@ -1663,12 +1663,25 @@
 			}
 			.ver-chrome > * { pointer-events: auto; }
 
+			/* Una sola fila a la vista: las categorías, que se desplazan, y la lupa,
+			   que se queda quieta a la derecha. Dentro de la misma fila y no encima
+			   de ella: así la última categoría nunca queda tapada por el botón. */
+			.ver-fila-cats {
+				display: flex;
+				align-items: center;
+				padding-right: 14px;
+			}
 			.ver-cats {
+				flex: 1;
+				min-width: 0;
 				display: flex;
 				gap: 8px;
 				overflow-x: auto;
 				padding: 0 14px 4px;
 				scrollbar-width: none;
+				/* Un desvanecido al borde avisa de que hay más categorías. */
+				-webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+				mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
 			}
 			.ver-cats::-webkit-scrollbar { display: none; }
 
@@ -1692,6 +1705,39 @@
 				background: var(--primary);
 				color: var(--dark);
 			}
+
+			/* La lupa: abre el panel con el buscador y los filtros. Se ve de 34 px,
+			   como las categorías, y el ::after le da un área de toque de 44. */
+			.ver-lupa {
+				position: relative;
+				flex-shrink: 0;
+				display: grid;
+				place-items: center;
+				width: 34px; height: 34px;
+				margin-bottom: 4px;
+				padding: 0;
+				border: none;
+				border-radius: 999px;
+				background: rgba(0,0,0,.42);
+				-webkit-backdrop-filter: blur(10px);
+				backdrop-filter: blur(10px);
+				color: rgba(255,255,255,.85);
+				cursor: pointer;
+			}
+			.ver-lupa[hidden] { display: none; }
+			.ver-lupa::after { content: ''; position: absolute; inset: -5px; }
+			.ver-lupa.abierta { background: var(--primary); color: var(--dark); }
+			/* El punto dice que hay algo puesto aunque el panel esté cerrado. */
+			.ver-lupa.con-filtro::before {
+				content: '';
+				position: absolute;
+				top: -2px; right: -2px;
+				width: 11px; height: 11px;
+				border: 2px solid #111;
+				border-radius: 50%;
+				background: var(--primary);
+			}
+			.ver-busqueda[hidden] { display: none; }
 
 			/* Los chips son los compartidos de core/filtros.js; aquí solo
 			   cambia el fondo, porque el suyo se apoya en --border y sobre
@@ -1792,7 +1838,8 @@
 				line-clamp: 2;
 				font-size: 13.5px;
 			}
-			body.estilo-intenso .ver-cat-btn { border-radius: 8px; }
+			body.estilo-intenso .ver-cat-btn,
+			body.estilo-intenso .ver-lupa { border-radius: 8px; }
 			body.estilo-intenso .ver-filtros .filtro-chip { border-radius: 8px; }
 			body.estilo-intenso .ver-add { border-radius: 10px; }
 
@@ -1832,6 +1879,7 @@
 			   categoría estás y qué filtros tienes puestos. Un estilo no puede
 			   apagar una señal de estado. */
 			body.estilo-avance .ver-cat-btn:not(.active),
+			body.estilo-avance .ver-lupa:not(.abierta),
 			body.estilo-avance .ver-filtros .filtro-chip:not(.activo) { background: rgba(0,0,0,.3); }
 
 			/* ── Pista de deslizar ────────────────────────────────── */
