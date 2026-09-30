@@ -1629,17 +1629,21 @@
 			/* La marca ✓ es más pequeña que el «+»: a 26 px llenaría el botón. */
 			.ver-add.ver-add-ok { font-size: 20px; font-weight: 700; }
 
+			/* Centrada de verdad (30/09/2026). Antes la tarjeta llevaba 70 px de
+			   relleno solo a la derecha para esquivar el WhatsApp y el carrito, y
+			   quedaba corrida a la izquierda, con un hueco a un lado que no era de
+			   nadie. Esa columna flotante solo estorba ABAJO, así que el espacio se
+			   reserva abajo, donde hace falta, y a los lados queda simétrico. */
 			.ver-plato.ver-lista-sin-media {
 				display: flex;
 				align-items: center;
 				background: var(--surface);
-				padding: 28px 18px calc(28px + env(safe-area-inset-bottom, 0px));
+				padding: 72px 18px calc(104px + env(safe-area-inset-bottom, 0px));
 				overflow-y: auto;
 			}
 			.ver-lista-contenido {
 				width: min(100%, 620px);
 				margin: auto;
-				padding-right: 70px;
 			}
 			.ver-lista-sin-media .ver-cat {
 				font-family: var(--font-titulo, inherit);
