@@ -1,6 +1,6 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { esc, notaDe, textoPrecio } from '../core/html.js';
-import { mediaDe, activarVideos } from '../core/reproduccion.js';
+import { mediaDe, activarVideos, tieneMultimedia } from '../core/reproduccion.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
 import { montarBuscador } from '../core/buscador.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion, carritoEncendido } from '../core/carrito.js';
@@ -69,7 +69,7 @@ export function buildNav() {
 
 	// Los chips los pinta core/filtros.js; aquí solo se dice qué esconder. El
 	// buscador es lo mismo con la caja de texto (core/buscador.js).
-	const repintar = () => ocultarNoCoinciden('.vid-plato');
+	const repintar = () => ocultarNoCoinciden('.vid-plato, .vid-lista-fila');
 	montarChips(repintar);
 	montarBuscador(repintar);
 	repintar();
@@ -95,6 +95,8 @@ export function buildMenu() {
 	categorias.forEach(cat => {
 		const prods = productos.filter(p => p.categoria_id === cat.id);
 		if (!prods.length) return;
+		const conMultimedia = prods.filter(tieneMultimedia);
+		const sinMultimedia = prods.filter(p => !tieneMultimedia(p));
 
 		const seccion = document.createElement('section');
 		// La clase y el id son los mismos que usa el resto de temas
@@ -105,7 +107,7 @@ export function buildMenu() {
 		seccion.innerHTML = `
 			<div class="vid-cat">${esc(cat.emoji || '')} ${esc(cat.nombre)}</div>
 			${notaDe(cat, 'categoria-nota vid-nota')}
-			${prods.map(p => `
+			${conMultimedia.map(p => `
 				<article class="vid-plato" data-plato="${esc(p.id)}">
 					<div class="vid-media">${mediaDe(p)}</div>
 					<div class="vid-info">
@@ -124,6 +126,26 @@ export function buildMenu() {
 					</div>
 				</article>
 			`).join('')}
+			${sinMultimedia.length ? `
+				<div class="vid-lista-sin-media" aria-label="${esc(cat.nombre)}">
+					<div class="vid-lista-aviso">Productos sin foto ni video</div>
+					${sinMultimedia.map(p => `
+						<article class="vid-lista-fila" data-plato="${esc(p.id)}">
+							<div class="vid-lista-fila-principal">
+								<h3>${esc(p.nombre)}</h3>
+								${p.descripcion_avanzada || p.descripcion
+									? `<p>${esc(p.descripcion_avanzada || p.descripcion)}</p>`
+									: ''}
+							</div>
+							<div class="vid-lista-fila-final">
+								<span>${esc(textoPrecio(p))}</span>
+								${hayCarrito ? `<button class="vid-add" data-plato="${esc(p.id)}">${
+									tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
+								}</button>` : ''}
+							</div>
+						</article>
+					`).join('')}
+				</div>` : ''}
 		`;
 
 		lista.appendChild(seccion);

@@ -30,6 +30,14 @@ import { esc, escUrl } from './html.js';
 // quiera darle play.
 export const menosMovimiento = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+// Una ficha solo merece el formato visual de video cuando tiene algo que
+// mostrar. `sin_foto` es una indicación para el panel, pero la fuente de
+// verdad aquí es que no exista ni video ni imagen: si luego se le sube una,
+// vuelve a poder verse como tarjeta sin tener que limpiar datos antiguos.
+export function tieneMultimedia(p) {
+	return Boolean(p?.atributos?.video?.url || p?.imagen_url);
+}
+
 // El video y su portada los deja el worker en atributos cuando termina
 // de procesar, como un objeto { url, portada, duracion } — no como dos
 // campos sueltos. La ruta del master no está aquí a propósito: ese
