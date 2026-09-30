@@ -355,7 +355,7 @@ var POR_DEFECTO = {
 	   Por defecto en false: no cambiarle la pantalla a nadie que no lo pida. */
 	personas_solo_icono: false,
 	/* Hasta cinco avisos, cada uno en su propia franja (arriba o abajo). */
-	cintas: [], velocidad_cintas: 'normal', reloj: false,
+	cintas: [], velocidad_cintas: 'normal', separador_cintas: 'estrella', reloj: false,
 	tema: 'oscuro',
 	/* Si la cartelera obedece los horarios de categoría. Por defecto SÍ, que es
 	   lo que hacía antes de existir esta clave: un restaurante que no vuelva a
@@ -514,6 +514,11 @@ function config() {
 	c.reloj = !!c.reloj;
 	if (c.velocidad_cintas !== 'lenta' && c.velocidad_cintas !== 'rapida') {
 		c.velocidad_cintas = 'normal';
+	}
+	/* La estrella era el aspecto original. Solo se admiten los cuatro valores del
+	   panel: cualquier dato viejo, incompleto o escrito a mano conserva la estrella. */
+	if (c.separador_cintas !== 'punto' && c.separador_cintas !== 'barra' && c.separador_cintas !== 'ninguno') {
+		c.separador_cintas = 'estrella';
 	}
 	/* Se tolera cualquier dato viejo o escrito a mano, pero nunca se pinta más
 	   de lo que el panel deja configurar. */
@@ -1537,12 +1542,20 @@ function mostrarReposo(activo) {
 
 /* Una cinta puede llevar varios avisos. Dos grupos idénticos hacen que el
    final enlace con el principio sin hueco ni salto visible. */
-function pintarCinta(id, mensajes, pag, velocidad) {
+function separadorDeCinta(tipo) {
+	if (tipo === 'punto') return '•';
+	if (tipo === 'barra') return '|';
+	if (tipo === 'ninguno') return '';
+	return '★';
+}
+
+function pintarCinta(id, mensajes, pag, velocidad, tipoSeparador) {
 	var caja = document.getElementById(id);
 	var pista = caja && caja.firstChild;
 	if (!caja || !pista) return;
 	if (!mensajes.length) { caja.className = 'cinta'; return; }
-	var texto = mensajes.join('   ★   '), veces = 1;
+	var separadorTexto = separadorDeCinta(tipoSeparador);
+	var texto = mensajes.join(separadorTexto ? '   ' + separadorTexto + '   ' : '   '), veces = 1;
 	pista.textContent = '';
 	/* Un aviso muy corto se repite dentro de cada grupo hasta cruzar la pantalla.
 	   Así tampoco deja una franja vacía antes de que entre la copia idéntica. */
@@ -1558,9 +1571,11 @@ function pintarCinta(id, mensajes, pag, velocidad) {
 					aviso.style.color = textoSobre(canalHex(pag.acento));
 				} else aviso.style.color = pag.texto;
 				g.appendChild(aviso);
-				var separador = nuevoNodo('span', 'cinta-separador');
-				separador.textContent = '★';
-				g.appendChild(separador);
+				if (separadorTexto) {
+					var separador = nuevoNodo('span', 'cinta-separador');
+					separador.textContent = separadorTexto;
+					g.appendChild(separador);
+				}
 			}
 		}
 		return g;
@@ -1587,8 +1602,8 @@ function pintarCintas() {
 		else arriba.push(c.cintas[i].texto);
 	}
 	var pag = paletaPagina();
-	pintarCinta('cintaArriba', arriba, pag, c.velocidad_cintas);
-	pintarCinta('cintaAbajo', abajo, pag, c.velocidad_cintas);
+	pintarCinta('cintaArriba', arriba, pag, c.velocidad_cintas, c.separador_cintas);
+	pintarCinta('cintaAbajo', abajo, pag, c.velocidad_cintas, c.separador_cintas);
 }
 
 function pintarReloj() {
