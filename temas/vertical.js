@@ -1,8 +1,8 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { esc, notaDe, textoPrecio } from '../core/html.js';
 import { mediaDe, activarVideos, tieneMultimedia } from '../core/reproduccion.js';
-import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
-import { montarBuscador } from '../core/buscador.js';
+import { montarChips, ocultarNoCoinciden, filtrosEnUso, filtrosActivos } from '../core/filtros.js';
+import { montarBuscador, hayQueOfrecerBuscador, terminoBusqueda } from '../core/buscador.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion, carritoEncendido } from '../core/carrito.js';
 
 // ── TEMA: VERTICAL ────────────────────────────────────────────
@@ -85,6 +85,13 @@ function categoriasConPlatos() {
 // ── CHROME ────────────────────────────────────────────────────
 // La barra flotante vive FUERA de #mainContent a propósito: buildMenu()
 // vacía ese contenedor entero, y si estuviera dentro se iría con él.
+//
+// Una sola fila a la vista: las categorías y una lupa (30/09/2026). Antes eran
+// tres —categorías, filtros y buscador— y se comían 148 px de 844, casi una
+// sexta parte de una carta cuyo punto fuerte es el video a pantalla completa.
+// El buscador y los filtros son lo mismo —acotar la carta— y se usan de vez en
+// cuando, así que viven juntos detrás de la lupa. Dentro va primero el
+// buscador y luego los chips: se lee de arriba abajo «busca o afina».
 function montarChrome() {
 	const main = document.getElementById('mainContent');
 	if (!main) return null;
@@ -96,12 +103,48 @@ function montarChrome() {
 		chrome.className = 'ver-chrome';
 		chrome.innerHTML = `
 			<div class="ver-segmentos" id="verSegmentos"></div>
-			<div class="ver-cats" id="verCats"></div>
-			<div class="ver-filtros nav-filtros" id="verFiltros"></div>
-			<div class="ver-buscador" id="verBuscador"></div>`;
+			<div class="ver-fila-cats">
+				<div class="ver-cats" id="verCats"></div>
+				<button class="ver-lupa" id="verLupa" type="button" hidden
+					aria-label="Buscar y filtrar" aria-expanded="false" aria-controls="verBusqueda">
+					<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+				</button>
+			</div>
+			<div class="ver-busqueda" id="verBusqueda" hidden>
+				<div class="ver-buscador" id="verBuscador"></div>
+				<div class="ver-filtros nav-filtros" id="verFiltros"></div>
+			</div>`;
 		main.insertAdjacentElement('beforebegin', chrome);
 	}
 	return chrome;
+}
+
+// La lupa solo existe si hay algo detrás: un buscador que se ofrece o al menos
+// un filtro en uso. Y avisa cuando hay algo puesto con el panel cerrado: sin el
+// punto, una carta acotada y escondida se vería como una carta a la que le
+// faltan platos.
+function actualizarLupa() {
+	const lupa = document.getElementById('verLupa');
+	if (!lupa) return;
+	lupa.hidden = !(hayQueOfrecerBuscador() || filtrosEnUso().length);
+	const enUso = filtrosActivos.size > 0 || terminoBusqueda().trim() !== '';
+	lupa.classList.toggle('con-filtro', enUso);
+	lupa.setAttribute('aria-label', enUso ? 'Buscar y filtrar (hay algo puesto)' : 'Buscar y filtrar');
+}
+
+function activarLupa() {
+	const lupa = document.getElementById('verLupa');
+	const panel = document.getElementById('verBusqueda');
+	if (!lupa || !panel || lupa.dataset.listo) return;
+	lupa.dataset.listo = '1';
+	lupa.onclick = () => {
+		const abrir = panel.hidden;
+		panel.hidden = !abrir;
+		lupa.setAttribute('aria-expanded', String(abrir));
+		lupa.classList.toggle('abierta', abrir);
+		// Quien toca la lupa quiere escribir: que el cursor ya esté dentro.
+		if (abrir) document.getElementById('buscadorInput')?.focus();
+	};
 }
 
 export function buildNav() {
@@ -140,13 +183,15 @@ export function buildNav() {
 		ocultarNoCoinciden('.ver-plato:not(.ver-lista-sin-media), .ver-lista-fila');
 		actualizarListasSinMedia();
 		pintarSegmentos();
+		actualizarLupa();
 	};
 	montarChips(repintar, document.getElementById('verFiltros'));
-	// El buscador va en la barra flotante, por lo mismo: aquí no hay ninguna
-	// barra donde meterlo, cada plato ocupa la pantalla entera. En fila propia y
-	// no en la de los chips porque montarChips vacía la suya al repintar, y se
-	// llevaría por delante lo que se estuviera escribiendo.
+	// El buscador va en el mismo panel, por lo mismo: aquí no hay ninguna
+	// barra donde meterlo, cada plato ocupa la pantalla entera. En su propio
+	// contenedor y no en el de los chips porque montarChips vacía el suyo al
+	// repintar, y se llevaría por delante lo que se estuviera escribiendo.
 	montarBuscador(repintar, document.getElementById('verBuscador'));
+	activarLupa();
 	repintar();
 
 	if (!conCarrito()) return;
