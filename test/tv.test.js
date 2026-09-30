@@ -141,7 +141,7 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 		POR_DEFECTO: { activa: true, orientacion: 'horizontal', por_slide: 2,
 		               segundos: 8, modo: 'todos', categoria_id: null,
 		               productos: [], aleatorio: false, mostrar_descripcion: false,
-		               mostrar_sin_foto_lista: false, cintas: [], velocidad_cintas: 'normal', reloj: false },
+		               mostrar_sin_foto_lista: false, cintas: [], velocidad_cintas: 'normal', separador_cintas: 'estrella', reloj: false },
 		datos: { restaurante: { atributos: { tv } } },
 		Math,
 		parseInt,
@@ -201,6 +201,14 @@ describe('tv.html · la configuración no puede dejar la pantalla inservible', (
 		assert.equal(conTv({ velocidad_cintas: 'lenta' }).velocidad_cintas, 'lenta');
 		assert.equal(conTv({ velocidad_cintas: 'rapida' }).velocidad_cintas, 'rapida');
 		assert.equal(conTv({ velocidad_cintas: 'turbo' }).velocidad_cintas, 'normal');
+	});
+
+	test('el separador de las cintas acepta las opciones del panel y conserva la estrella', () => {
+		assert.equal(conTv({}).separador_cintas, 'estrella');
+		assert.equal(conTv({ separador_cintas: 'punto' }).separador_cintas, 'punto');
+		assert.equal(conTv({ separador_cintas: 'barra' }).separador_cintas, 'barra');
+		assert.equal(conTv({ separador_cintas: 'ninguno' }).separador_cintas, 'ninguno');
+		assert.equal(conTv({ separador_cintas: 'corazón' }).separador_cintas, 'estrella');
 	});
 
 	test('la lista de productos sin foto empieza apagada y acepta activarse', () => {
