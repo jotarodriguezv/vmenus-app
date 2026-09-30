@@ -662,6 +662,8 @@ describe('tv.html · productos sin foto en lista', () => {
 		assert.ok(nodos.some(n => n.className === 'lista-tv-categoria' && n.textContent === 'Hamburguesas'));
 		assert.ok(nodos.some(n => n.className === 'lista-tv-categoria' && n.textContent === 'Bebidas'));
 		assert.ok(nodos.some(n => n.textContent === '$25.000'));
+		assert.equal(nodos.some(n => n.className === 'lista-tv-titulo'), false,
+			'la lista completa no repite el título genérico junto al logo');
 	});
 });
 

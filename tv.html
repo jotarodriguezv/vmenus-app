@@ -149,9 +149,10 @@
 	.lista-tv-precio { flex: 0 0 auto; margin-left: 2vmin; font-weight: 700; }
 	/* La vista de carta completa prioriza cantidad sobre fotografía: caben hasta
 	   veinte platos, siempre en dos columnas y con la categoría como guía. */
-	.lista-tv-completa { padding: 4.5vmin 5vmin; }
-	.lista-tv-completa .lista-tv-titulo { margin-bottom: 1.4vmin; }
-	.lista-tv-completa .lista-tv-columnas { gap: 2.5vmin; }
+	.lista-tv-completa { padding: 5.5vmin 5vmin; justify-content: center; }
+	/* En la lista completa el logo ya identifica la carta. Quitar el título
+	   genérico evita que compita con él y deja que las columnas se centren. */
+	.lista-tv-completa .lista-tv-columnas { flex: 0 1 auto; gap: 2.5vmin; }
 	.lista-tv-completa .lista-tv-fila { min-height: 4.8vmin; padding: 0.35vmin 1vmin;
 	                                  margin-bottom: 0.35vmin; border-left-width: 0.32vmin; }
 	.lista-tv-completa .lista-tv-nombre,
@@ -1389,11 +1390,13 @@ function pintarSlide(s) {
 		var esListaCompleta = !!s.lista_completa;
 		var datosLista = esListaCompleta ? s.lista_completa : s.lista;
 		var listaTv = nuevoNodo('div', esListaCompleta ? 'lista-tv lista-tv-completa' : 'lista-tv');
-		var tituloLista = nuevoNodo('div', 'lista-tv-titulo');
-		tituloLista.style.fontSize = '4.2vmin';
-		tituloLista.style.color = pag.acento;
-		tituloLista.textContent = esListaCompleta ? 'Carta' : (nombreCategoria(datosLista.categoria_id) || 'Carta');
-		listaTv.appendChild(tituloLista);
+		if (!esListaCompleta) {
+			var tituloLista = nuevoNodo('div', 'lista-tv-titulo');
+			tituloLista.style.fontSize = '4.2vmin';
+			tituloLista.style.color = pag.acento;
+			tituloLista.textContent = nombreCategoria(datosLista.categoria_id) || 'Carta';
+			listaTv.appendChild(tituloLista);
+		}
 		var columnas = nuevoNodo('div', 'lista-tv-columnas');
 		var mitad = Math.ceil(datosLista.platos.length / 2);
 		for (var col = 0; col < 2; col++) {
