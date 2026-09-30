@@ -724,8 +724,18 @@ export function recibePedidos() {
 	return !!soloDigitos(restaurante?.atributos?.whatsapp_pedidos);
 }
 
+// Cuántos había la última vez que se pintó: el flotante solo rebota si sube.
+let conteoAnterior = 0;
+
 function updateCartUI() {
 	const count = cart.reduce((sum, i) => sum + i.cantidad, 0);
+	const fab = document.getElementById('cartFab');
+	if (fab?.classList && count > conteoAnterior) {
+		fab.classList.remove('rebote');
+		void fab.offsetWidth; // reinicia la animación si se agrega dos veces seguidas
+		fab.classList.add('rebote');
+	}
+	conteoAnterior = count;
 	// Un contador por botón: el de la cabecera fija de Sidebar, el
 	// flotante de los temas sin cabecera y el de la barra de Explorar. Cada tema
 	// enseña el suyo; aquí se actualizan los dos sin preguntar cuál existe.

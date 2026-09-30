@@ -1415,6 +1415,18 @@
 				box-shadow: 0 6px 20px rgba(0,0,0,.45);
 			}
 
+			/* Rebote al agregar un plato: con el botón de agregar reducido a un «+»,
+			   esto es lo que confirma que el toque hizo algo. */
+			.cart-fab.rebote { animation: cart-fab-rebote .35s ease-out; }
+			@keyframes cart-fab-rebote {
+				0%   { transform: scale(1); }
+				40%  { transform: scale(1.18); }
+				100% { transform: scale(1); }
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.cart-fab.rebote { animation: none; }
+			}
+
 			.cart-fab-count {
 				position: absolute;
 				top: -2px; right: -2px;
@@ -1589,22 +1601,33 @@
 
 			/* Relleno y no contorno, al revés que en 'video': aquí el fondo
 			   es un fotograma cualquiera y un botón transparente se pierde
-			   contra la mitad de ellos. */
+			   contra la mitad de ellos.
+
+			   Solo el signo «+» (30/09/2026). Se ve de 40 px, pero el ::after
+			   amplía el área de toque a 44: lo que se pide a un dedo no es lo
+			   mismo que lo que se ve bien. */
 			.ver-add {
+				position: relative;
 				display: inline-flex;
 				align-items: center;
-				min-height: 42px;
-				padding: 10px 20px;
+				justify-content: center;
+				flex-shrink: 0;
+				width: 40px; height: 40px;
+				padding: 0;
 				border: none;
 				border-radius: 999px;
 				background: var(--primary);
 				color: var(--dark);
-				font-family: var(--font-cuerpo, inherit);
-				font-size: 13.5px;
-				font-weight: 700;
+				font-family: system-ui, sans-serif;
+				font-size: 26px;
+				font-weight: 500;
+				line-height: 1;
 				cursor: pointer;
 				box-shadow: 0 4px 16px rgba(0,0,0,.45);
 			}
+			.ver-add::after { content: ''; position: absolute; inset: -2px; }
+			/* La marca ✓ es más pequeña que el «+»: a 26 px llenaría el botón. */
+			.ver-add.ver-add-ok { font-size: 20px; font-weight: 700; }
 
 			.ver-plato.ver-lista-sin-media {
 				display: flex;
@@ -1643,7 +1666,6 @@
 			}
 			.ver-lista-fila:first-child { border-top: none; }
 			.ver-lista-fila-principal { min-width: 0; }
-			.ver-lista-fila .ver-add,
 			.vid-lista-fila .vid-add {
 				min-height: 34px;
 				padding: 7px 11px;
