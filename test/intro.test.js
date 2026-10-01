@@ -208,9 +208,9 @@ describe('botonResenaIntro · «Califícanos en Google»', () => {
 		assert.ok(botonResenaIntro(on({ intro_resena_texto: '   ' })).includes(RESENA_TEXTO_POR_DEFECTO));
 	});
 
-	test('mostrarIntro lo pone justo debajo del botón principal y las redes con el estilo de siempre', () => {
+	test('mostrarIntro pone reservas y reseñas justo debajo del botón principal, y las redes con el estilo de siempre', () => {
 		const fuente = fs.readFileSync(new URL('../core/intro.js', import.meta.url), 'utf8');
-		assert.match(fuente, /<\/button>\$\{botonResenaIntro\(at\)\}\$\{redes\.length/);
+		assert.match(fuente, /<\/button>\$\{botonReservaIntro\(at\)\}\$\{botonResenaIntro\(at\)\}\$\{redes\.length/);
 		assert.match(fuente, /redes\.push\(\.\.\.redesIntro\(at, socialCss\)\)/);
 	});
 });
