@@ -21,6 +21,7 @@ import { restaurante, productos, soloDigitos } from './menu.js';
 import { planDe } from './planes.js';
 import { trackAgregarCarrito, registrarPedido } from './analytics.js';
 import { esc, escUrl } from './html.js';
+import { precioVigente, estadoOferta, formatoPesos } from './ofertas.js';
 import { llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
 
 // ── CATÁLOGO DE MÉTODOS DE PAGO ─────────────────────────────────
@@ -169,7 +170,7 @@ function addSimpleToCart(p) {
 	// 'extras' guarda aparte lo que suman los toppings, para poder recalcular
 	// el precio contra el menú de hoy sin perder el recargo. Un producto
 	// simple no lleva ninguno.
-	else cart.push({ cartKey: p.id, id: p.id, name: p.nombre, price: p.precio_numerico, extras: 0, cantidad: 1, descripcion: '' });
+	else cart.push({ cartKey: p.id, id: p.id, name: p.nombre, price: precioVigente(p), extras: 0, cantidad: 1, descripcion: '' });
 	saveCartToStorage();
 	updateCartUI();
 }
@@ -200,7 +201,7 @@ function openCustomModal(productId, editingCartKey = null) {
 	}
 
 	document.getElementById('customName').textContent = p.nombre;
-	document.getElementById('customBasePrice').textContent = `Precio base: ${p.atributos?.precio_gratis === true ? 'Gratis' : p.precio}`;
+	document.getElementById('customBasePrice').textContent = `Precio base: ${p.atributos?.precio_gratis === true ? 'Gratis' : (estadoOferta(p) === 'vigente' ? formatoPesos(precioVigente(p)) + ' (en oferta)' : p.precio)}`;
 	updateCustomQtyUI();
 	document.getElementById('btnAgregarCarrito').textContent = editingCartKey ? '✏ GUARDAR CAMBIOS' : '🛒 AGREGAR AL CARRITO';
 
@@ -446,7 +447,7 @@ export function leerSeleccion(item, opciones = null) {
 function updateCustomTotal() {
 	if (!customProduct) return;
 	const extras = recargoPremium(customOpciones.premium);
-	const total = (customProduct.precio_numerico + extras) * customQty;
+	const total = (precioVigente(customProduct) + extras) * customQty;
 	document.getElementById('customTotal').textContent = '$' + total.toLocaleString('es-CO');
 }
 
@@ -463,7 +464,7 @@ function closeCustomModal() {
 function addCustomToCart() {
 	if (!customProduct) return;
 	const extras = recargoPremium(customOpciones.premium, selectedPremium, cantidadesPremium);
-	const precioUnit = customProduct.precio_numerico + extras;
+	const precioUnit = precioVigente(customProduct) + extras;
 
 	// Lo elegido, como objetos del catálogo. Mismo ayudante que usa la
 	// revalidación, para que dar de alta una línea y recalcularla después no
@@ -565,7 +566,7 @@ export function revalidarCarrito(guardado) {
 			? recargoPremium(opciones.premium, new Set(elegidos.premium.map(t => t.id)),
 				new Map(elegidos.premium.map(t => [t.id, t.cantidad])))
 			: (Number(item.extras) || 0);
-		const precioHoy = p.precio_numerico + extras;
+		const precioHoy = precioVigente(p) + extras;
 
 		if (precioHoy !== item.price) {
 			reprecio.push({ nombre: p.nombre, antes: item.price, ahora: precioHoy });

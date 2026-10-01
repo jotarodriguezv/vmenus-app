@@ -562,6 +562,11 @@
 			}
 			.card-price { font-size: 13px; font-weight: 600; color: var(--primary); }
 
+			/* Oferta de precio: el de siempre, apagado y tachado, y el nuevo al lado.
+			   Lo pinta htmlPrecio() en los cinco modelos y en la ficha del plato, así
+			   que la regla es una sola. El tachado lo hace <s>: no depende del tema. */
+			.precio-antes { font-size: .78em; font-weight: 400; opacity: .65; margin-right: .2em; }
+
 			/* Producto sin imagen: fila compacta en vez de tarjeta con placeholder
 			   (mismo criterio que las categorías "sin fotos", pero por producto) */
 			.product-noimg {

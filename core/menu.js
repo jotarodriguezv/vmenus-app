@@ -1,5 +1,7 @@
 import { trackClic } from './analytics.js';
-import { esc, escUrl, notaDe, textoPrecio } from './html.js';
+import { esc, escUrl, notaDe, htmlPrecio } from './html.js';
+import { fijarZonaDeOfertas } from './ofertas.js';
+import { zonaDe } from './horarios.js';
 import { fotosDe, construirCarrusel, noLlevaFoto } from './carrusel.js';
 import { montarChips, ocultarNoCoinciden } from './filtros.js';
 import { montarBuscador } from './buscador.js';
@@ -13,7 +15,9 @@ export let productos = [];
 let currentCategoryProducts = [];
 let currentProductIndex = 0;
 
-export function setRestaurante(r) {restaurante = r;}
+// La zona del restaurante también la necesitan las ofertas, que deciden qué día
+// es «hoy» para quien mira la carta (ofertas.js).
+export function setRestaurante(r) { restaurante = r; fijarZonaDeOfertas(zonaDe(r)); }
 export function setCategorias(c) {categorias = c;}
 export function setProductos(p) {productos = p;}
 
@@ -131,7 +135,7 @@ export function buildMenu() {
 				? `<span class="list-desc-avanzada">${esc(p.descripcion_avanzada)}</span>`
 					: ''}
 				</span>
-				<span class="list-price">${esc(textoPrecio(p))}</span>
+				<span class="list-price">${htmlPrecio(p)}</span>
 				`;
 				if (conPedido) item.appendChild(botonAgregar(p));
 				list.appendChild(item);
@@ -151,7 +155,7 @@ export function buildMenu() {
 					hacerActivable(row);
 					row.innerHTML = `
 					<div class="card-name">${esc(p.nombre)}</div>
-					<div class="card-price">${esc(textoPrecio(p))}</div>
+					<div class="card-price">${htmlPrecio(p)}</div>
 					`;
 					if (conPedido) row.appendChild(botonAgregar(p));
 					grid.appendChild(row);
@@ -169,7 +173,7 @@ export function buildMenu() {
 				</div>
 				<div class="card-body">
 				<div class="card-name">${esc(p.nombre)}</div>
-				<div class="card-price">${esc(textoPrecio(p))}</div>
+				<div class="card-price">${htmlPrecio(p)}</div>
 					</div>
 					`;
 					if (conPedido) card.querySelector('.card-body').appendChild(botonAgregar(p));
@@ -253,7 +257,7 @@ export function buildMenu() {
 
 		// Datos del producto
 		document.getElementById('modalName').textContent = p.nombre;
-		document.getElementById('modalPrice').textContent = textoPrecio(p);
+		document.getElementById('modalPrice').innerHTML = htmlPrecio(p);
 		document.getElementById('modalDesc').textContent = p.descripcion || '';
 
 		const da = document.getElementById('modalDescAvanzada');

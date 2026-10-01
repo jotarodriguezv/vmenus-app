@@ -1,5 +1,5 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
-import { esc, notaDe, textoPrecio } from '../core/html.js';
+import { esc, notaDe, htmlPrecio } from '../core/html.js';
 import { mediaDe, activarVideos, tieneMultimedia } from '../core/reproduccion.js';
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
 import { montarBuscador } from '../core/buscador.js';
@@ -113,7 +113,7 @@ export function buildMenu() {
 					<div class="vid-info">
 						<div class="vid-fila">
 							<h3 class="vid-nombre">${esc(p.nombre)}</h3>
-							<span class="vid-precio">${esc(textoPrecio(p))}</span>
+							<span class="vid-precio">${htmlPrecio(p)}</span>
 						</div>
 						${p.descripcion_avanzada || p.descripcion
 							? `<p class="vid-desc">${esc(p.descripcion_avanzada || p.descripcion)}</p>`
@@ -137,7 +137,7 @@ export function buildMenu() {
 									: ''}
 							</div>
 							<div class="vid-lista-fila-final">
-								<span>${esc(textoPrecio(p))}</span>
+								<span>${htmlPrecio(p)}</span>
 								${hayCarrito ? `<button class="vid-add" data-plato="${esc(p.id)}">${
 									tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
 								}</button>` : ''}
