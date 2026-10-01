@@ -1212,6 +1212,25 @@
 			/* Un producto sin imagen ni video no gana nada con un rectángulo
 			   vacío. En las cartas de video se agrupa con sus pares para que la
 			   categoría siga siendo útil sin simular que tiene multimedia. */
+			/* ── AJUSTES DE DISENO DEL MODELO VIDEO HORIZONTAL (01/10/2026) ──
+			   Revision de Skipper, medida en un movil de 375 px:
+			   · el primer video empezaba al 44 % de la altura de la pantalla (355 de 812 px):
+			     mas de un tercio de la pantalla iba antes de ver un solo plato, y aqui el
+			     protagonista es el video. Se compacta el encabezado.
+			   · los chips de categoria median 30 px de alto y estaban a 4 px unos de otros:
+			     facil tocar el vecino con el pulgar. Se suben a 44 px (guia de Apple y Material).
+			   · el precio medía 17 px en negrita con un contraste de 3,44 sobre la tarjeta:
+			     WCAG pide 18,66 px en negrita para llamarlo texto grande y dejar el 3. Con 19 px
+			     cumple sin tocar el color del restaurante.
+			   Solo con body[data-tema="video"]: el encabezado y la nav son los de topnav, que
+			   usan Bonzas y Malparados, y NO se tocan. El modelo vertical tiene su propio tema. */
+			body[data-tema="video"] .header-hero { padding: 18px 20px 10px; }
+			body[data-tema="video"] .hero-logo { width: 64px; height: 64px; margin-bottom: 6px; }
+			body[data-tema="video"] .hero-title { font-size: 34px; letter-spacing: 4px; }
+			body[data-tema="video"] .nav-scroll { gap: 8px; padding: 8px 12px; }
+			body[data-tema="video"] .nav-btn { min-height: 44px; padding: 10px 16px; font-size: 13px; }
+			body[data-tema="video"] .vid-precio { font-size: 19px; }
+
 			.vid-lista-sin-media {
 				background: var(--card);
 				border: 1px solid var(--border);
@@ -2333,6 +2352,9 @@
 			}
 
 			window.activarTema = function(tema, restaurante) {
+				// Marca el modelo en el body: el encabezado y la nav son compartidos con topnav, y
+				// las reglas que son solo de un modelo se escriben como body[data-tema="..."].
+				document.body.dataset.tema = tema;
 				if (tema === 'explorar') {
 					// El tema explorar construye todo su propio DOM en explorar.js.
 					// Ocultamos el footer compartido y el botón scroll-top para que
