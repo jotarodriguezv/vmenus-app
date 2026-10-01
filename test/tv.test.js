@@ -77,7 +77,8 @@ function todos(nodo, salida = []) {
 const PARA_PINTAR = ['nuevoNodo', 'canalHex', 'paletaCategoria', 'nombreCategoria',
 	'urlSegura', 'config', 'aHex', 'rgba', 'aclarar', 'luminancia', 'contraste',
 	'textoSobre', 'legibleSobre', 'fondoPagina', 'acento', 'paletaPagina', 'pintarSlide',
-	'figuraPersona', 'iconoPersonas'];
+	'figuraPersona', 'iconoPersonas',
+	'pintarPrecio', 'estadoOferta', 'hoyDelRestaurante', 'formatoPesos', 'ahoraEnZona'];
 
 describe('tv.html · nada de sintaxis que un televisor viejo no entienda', () => {
 	// Cada entrada estuvo a punto de colarse o se coló en el resto del código.
@@ -132,7 +133,11 @@ describe('tv.html · nada de sintaxis que un televisor viejo no entienda', () =>
 		// Los dos interruptores de si se enseña NO son columnas de 'productos'
 		// (24/09/2026, sql/28): son del restaurante, en atributos.tv, que ya
 		// viaja completo en el select de 'restaurantes' de más abajo.
-		assert.match(CODIGO, /select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible,personas&/);
+		//
+		// Después de «personas» van ahora las columnas de la oferta (oferta de
+		// precio, sql/35), y «precio_numerico» junto a «precio»: es contra lo que
+		// se compara la oferta para saber si de verdad es una rebaja.
+		assert.match(CODIGO, /select=id,nombre,descripcion,precio,precio_numerico,imagen_url,categoria_id,disponible,personas,/);
 	});
 });
 

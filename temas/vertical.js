@@ -1,5 +1,5 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
-import { esc, notaDe, textoPrecio } from '../core/html.js';
+import { esc, notaDe, htmlPrecio } from '../core/html.js';
 import { mediaDe, activarVideos, tieneMultimedia } from '../core/reproduccion.js';
 import { montarChips, ocultarNoCoinciden, filtrosEnUso, filtrosActivos } from '../core/filtros.js';
 import { montarBuscador, hayQueOfrecerBuscador, terminoBusqueda } from '../core/buscador.js';
@@ -242,7 +242,7 @@ export function buildMenu() {
 						? `<p class="ver-desc">${esc(p.descripcion_avanzada || p.descripcion)}</p>`
 						: ''}
 					<div class="ver-fila">
-						<span class="ver-precio">${esc(textoPrecio(p))}</span>
+						<span class="ver-precio">${htmlPrecio(p)}</span>
 						${hayCarrito ? botonAgregar(p) : ''}
 					</div>
 				</div>
@@ -262,7 +262,7 @@ export function buildMenu() {
 										: ''}
 								</div>
 								<div class="ver-lista-fila-final">
-									<span>${esc(textoPrecio(p))}</span>
+									<span>${htmlPrecio(p)}</span>
 									${hayCarrito ? botonAgregar(p) : ''}
 								</div>
 							</article>

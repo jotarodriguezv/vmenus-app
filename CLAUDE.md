@@ -43,6 +43,17 @@ instalar: no ejecutar `npm install` esperando que haga algo.
     `horarios.js`, `planes.js`, `preview.js`, `analytics.js`, `aviso.js`,
     `html.js`, `reproduccion.js`.
 
+  `ofertas.js` es la **oferta de precio** de un plato: un precio menor, con
+  fechas opcionales (`oferta_*` en `productos`, `sql/35` del panel). La carta
+  enseña el de siempre tachado y el nuevo al lado —lo pinta `htmlPrecio()` de
+  `html.js`, que usan los cinco temas y la ficha— y el carrito cobra el nuevo
+  (`precioVigente()`). **No es la «promoción»** (`promociones.js`): esa es una
+  imagen y no toca ningún precio. La regla vive en TRES sitios —aquí, `tv.html`
+  y `public/oferta.js` del panel— y los tres corren contra
+  `test/casos-oferta.json`, **duplicado a propósito en los dos repositorios**.
+  Se calcula en la zona del restaurante y al pintar, nunca guardada. Ver
+  `docs/ofertas.md` del panel.
+
   `intro.js` pinta la bienvenida; las **reservas de mesa** (botón y formulario dentro de
   su tarjeta) viven aparte en `reservas-intro.js`, con el `fetch` por parámetro
   para probarlas. La carta no escribe en la base: manda la reserva al panel

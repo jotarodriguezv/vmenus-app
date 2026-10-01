@@ -80,6 +80,8 @@
 	.nombre { font-weight: 700; line-height: 1.15; letter-spacing: 0.02em;
 	          overflow: hidden; }
 	.precio { font-weight: 700; color: #ffd521; }
+	/* Oferta de precio: el de siempre, tachado y más pequeño, antes del nuevo. */
+	.precio-antes { font-size: 0.72em; font-weight: 400; opacity: 0.65; margin-right: 0.3em; }
 	/* Precio y porciones son datos de decisión: viven en la misma línea para
 	   leerse juntos desde lejos. El formato «número» usa una insignia cuadrada,
 	   como una clasificación, y no lleva el icono de personas. */
@@ -1465,7 +1467,7 @@ function pintarSlide(s) {
 				var precioLista = nuevoNodo('div', 'lista-tv-precio');
 				precioLista.style.fontSize = esListaCompleta ? '2.15vmin' : '2.7vmin';
 				precioLista.style.color = pag.acento;
-				precioLista.textContent = productoLista.precio || '';
+				pintarPrecio(precioLista, productoLista);
 				filaLista.appendChild(nombreLista);
 				filaLista.appendChild(precioLista);
 				columna.appendChild(filaLista);
@@ -1583,7 +1585,7 @@ function pintarSlide(s) {
 		var pre = nuevoNodo('div', 'precio');
 		pre.style.fontSize = (tamNombre * 0.92) + 'vmin';
 		pre.style.color = pag.acento;
-		pre.textContent = p.precio || '';
+		pintarPrecio(pre, p);
 		datosCompra.appendChild(pre);
 
 		/* Por defecto un plato es para una persona, y eso no se dice. A partir
@@ -1742,6 +1744,61 @@ function pintarCintas() {
 	var pag = paletaPagina();
 	pintarCinta('cintaArriba', arriba, pag, c.velocidad_cintas, c.separador_cintas);
 	pintarCinta('cintaAbajo', abajo, pag, c.velocidad_cintas, c.separador_cintas);
+}
+
+/* ── OFERTAS DE PRECIO ──────────────────────────────────────────
+   Un plato puede tener un precio rebajado, con fechas opcionales. La carta
+   del QR, esta pantalla y el espejo del panel aplican la MISMA regla, y la
+   comprueba el mismo juego de casos (test/casos-oferta.json). No es la
+   promoción: esa es una imagen y no toca ningún precio.
+
+   Se evalúa al pintar contra el reloj en la zona del restaurante, nunca
+   guardada ya resuelta: la cartelera pinta desde la caché cuando arranca sin
+   internet, y una caché con «la oferta rige» congelada de ayer saldría mal. */
+function estadoOferta(p, hoy) {
+	if (!p || p.oferta_activa !== true) return 'sin';
+	if (p.oferta_precio_numerico === null || p.oferta_precio_numerico === undefined) return 'sin';
+	var o = Number(p.oferta_precio_numerico);
+	if (isNaN(o) || !(o < Number(p.precio_numerico))) return 'sin';
+	if (p.oferta_desde && hoy < p.oferta_desde) return 'programada';
+	if (p.oferta_hasta && hoy > p.oferta_hasta) return 'terminada';
+	return 'vigente';
+}
+
+function hoyDelRestaurante() {
+	var at = (datos && datos.restaurante && datos.restaurante.atributos) || {};
+	return ahoraEnZona(at.zona_horaria || 'America/Bogota').fecha;
+}
+
+/* El mismo formato que escribe el panel: el separador de miles se arma a mano
+   porque toLocaleString depende de los datos del aparato. */
+function formatoPesos(n) {
+	return '$ ' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+/* Con oferta vigente: el precio de siempre tachado y el nuevo al lado. */
+function pintarPrecio(el, p) {
+	el.textContent = '';
+	/* Sin la marca no hace falta ni mirar el reloj: es el caso de casi todos los
+	   platos, y esta función corre una vez por plato en cada pantalla. */
+	if (p.oferta_activa !== true || estadoOferta(p, hoyDelRestaurante()) !== 'vigente') {
+		el.textContent = p.precio || '';
+		return;
+	}
+	var antes = nuevoNodo('s', 'precio-antes');
+	antes.textContent = p.precio || '';
+	el.appendChild(antes);
+	el.appendChild(document.createTextNode(formatoPesos(p.oferta_precio_numerico)));
+}
+
+/* Qué platos tienen la oferta vigente AHORA. Entra en la comparación del sondeo:
+   cuando cruza la medianoche de un último día no cambia ningún dato, cambia el
+   reloj, y sin esto la pantalla seguiría enseñando una oferta que ya terminó. */
+function firmaDeOfertas() {
+	var firma = [], prods = (datos && datos.productos) || [], hoy = hoyDelRestaurante();
+	for (var i = 0; i < prods.length; i++)
+		if (estadoOferta(prods[i], hoy) === 'vigente') firma.push(prods[i].id);
+	return firma.join(',');
 }
 
 function pintarReloj() {
@@ -1928,7 +1985,8 @@ function cargar(alTerminar) {
 			pedir('categorias?restaurante_id=eq.' + r.id + '&select=id,nombre,atributos', function (cats) {
 				if (!cats) { alTerminar(false); return; }
 				pedir('productos?restaurante_id=eq.' + r.id + '&disponible=is.true' +
-					'&select=id,nombre,descripcion,precio,imagen_url,categoria_id,disponible,personas&order=orden.asc',
+					'&select=id,nombre,descripcion,precio,precio_numerico,imagen_url,categoria_id,disponible,personas,' +
+					'oferta_activa,oferta_precio_numerico,oferta_desde,oferta_hasta&order=orden.asc',
 					function (prods) {
 						if (!prods) { alTerminar(false); return; }
 						/* Las promociones NO cortan la carga si fallan. Los platos son el
@@ -1950,14 +2008,14 @@ function cargar(alTerminar) {
 }
 
 function sondear() {
-	var antes = JSON.stringify(datos);
+	var antes = JSON.stringify(datos) + '|' + firmaDeOfertas();
 	cargar(function (ok) {
 		sinRed(!ok);
 		if (ok !== true) return;
 		/* Solo se reconstruye si algo cambió de verdad: rehacer los slides en
 		   cada sondeo reiniciaría el ciclo cada cinco minutos y el cliente
 		   vería siempre los mismos primeros platos. */
-		if (JSON.stringify(datos) !== antes) aplicar(false);
+		if (JSON.stringify(datos) + '|' + firmaDeOfertas() !== antes) aplicar(false);
 	});
 }
 

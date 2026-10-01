@@ -14,11 +14,25 @@ export function esc(s) {
 	}[c]));
 }
 
+import { estadoOferta, formatoPesos } from './ofertas.js';
+
 // Un cero no basta para decir que algo es gratis: muchas cartas antiguas lo
 // usaban como valor provisional. Solo la marca explícita del panel cambia lo
 // que ve el comensal; el importe numérico sigue siendo 0 para el carrito.
 export function textoPrecio(producto) {
 	return producto?.atributos?.precio_gratis === true ? 'Gratis' : (producto?.precio || '');
+}
+
+// El precio como HTML, ya escapado, para meter en una plantilla: si el plato
+// tiene una oferta vigente, el de siempre tachado y el nuevo al lado; si no, lo
+// mismo que textoPrecio(). Es lo que pintan TODAS las plantillas, para que una
+// oferta salga igual en los cinco modelos y en la ficha del plato.
+//
+// «Gratis» manda sobre la oferta: es una marca explícita del panel.
+export function htmlPrecio(producto) {
+	if (producto?.atributos?.precio_gratis === true) return 'Gratis';
+	if (estadoOferta(producto) !== 'vigente') return esc(textoPrecio(producto));
+	return `<s class="precio-antes">${esc(textoPrecio(producto))}</s> <span class="precio-oferta">${esc(formatoPesos(producto.oferta_precio_numerico))}</span>`;
 }
 
 // Para lo que va dentro de href/src. Escapar evita salirse del atributo pero
