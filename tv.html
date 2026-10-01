@@ -86,20 +86,24 @@
 	.precio-personas { display: flex; align-items: center; justify-content: center;
 	                   gap: 1.7vmin; margin-top: 0.6vmin; }
 	.plato.editorial .precio-personas { justify-content: flex-start; }
+	/* Un recuadro para los cuatro formatos (30/09/2026, pedido por el usuario): el
+	   precio se nota porque lleva el color de acento, y el dato de las porciones,
+	   que el restaurante quiere que se lea, quedaba suelto —solo la frase y el
+	   número llevaban borde, el icono no—. El borde y el relleno suave toman el
+	   color de acento al pintar (pintarSlide), el mismo del precio. */
 	.personas { display: inline-flex; align-items: center; gap: 0.32em;
-	            min-height: 1.65em; font-weight: 600; line-height: 1;
-	            color: currentColor; }
-	.personas-etiqueta { padding: 0.26em 0.55em; border: 0.08em solid currentColor;
-	                  border-radius: 0.25em; white-space: nowrap; }
+	            min-height: 1.65em; padding: 0.3em 0.55em;
+	            border: 0.1em solid currentColor; border-radius: 0.25em;
+	            font-weight: 600; line-height: 1; color: currentColor; }
+	.personas-etiqueta { white-space: nowrap; }
 	/* Con icono y texto, leer hacia abajo ocupa menos ancho y mantiene la
 	   información separada del precio. El icono solo tiene más presencia porque
 	   es lo único que comunica las porciones. */
 	.personas-icono_frase { flex-direction: column; gap: 0.22em; text-align: center; }
 	.personas-icono { justify-content: center; }
-	.personas-numero { width: 2.15em; min-width: 2.15em; height: 2.9em;
+	.personas-numero { width: 2.15em; min-width: 2.15em; height: 2.9em; padding: 0;
 	                   flex-direction: column; justify-content: center; gap: 0.12em;
-	                   border: 0.12em solid currentColor;
-	                   border-radius: 0.2em; font-weight: 800; }
+	                   border-width: 0.12em; border-radius: 0.2em; font-weight: 800; }
 	.personas-cifra { line-height: 1; }
 
 	/* El icono de personas: cabeza + cuerpo hechos con dos 'div' por figura,
@@ -1600,6 +1604,11 @@ function pintarSlide(s) {
 			   que se lea. */
 			pers.style.fontSize = (tamNombre * (formatoPersonas === 'numero' ? 0.8 : 0.6)) + 'vmin';
 			pers.style.color = pag.texto;
+			/* Borde y relleno suave del color del precio, para que el dato de las
+			   porciones se vea tan cerca del precio como lejos del resto del texto. */
+			pers.style.borderColor = pag.acento;
+			var rgbAcento = canalHex(pag.acento);
+			if (rgbAcento) pers.style.backgroundColor = rgba(rgbAcento, 0.16);
 			if (formatoPersonas === 'numero') {
 				/* La cifra va con una figura pequeña encima (30/09/2026). Sola, «$ 45.900
 				   ▢5» se leía como cinco piezas o cinco unidades, y en una carta con

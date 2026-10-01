@@ -682,6 +682,28 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 			}
 		});
 
+		// 30/09/2026, pedido por el usuario: el precio se nota por su color de acento, y
+		// el dato de las porciones —que el restaurante quiere que se lea— quedaba suelto:
+		// solo la frase y el número llevaban borde, el icono no.
+		describe('el dato de las porciones va en un recuadro, sea cual sea el formato', () => {
+			const plato = { nombre: 'Combo', precio: '$60.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 4 };
+			const colorDelPrecio = nodos => nodos.find(n => n.className === 'precio').style.color;
+
+			for (const formato of ['icono_frase', 'frase', 'icono', 'numero']) {
+				test(formato + ': borde y relleno del color del precio', () => {
+					const nodos = slideDe([plato], { formato_personas: formato });
+					const nota = notaDe(nodos);
+					assert.equal(nota.style.borderColor, colorDelPrecio(nodos), 'el borde es el color de acento');
+					assert.match(nota.style.backgroundColor, /^rgba\(\d+, \d+, \d+, 0\.16\)$/, 'relleno suave');
+				});
+			}
+
+			test('el recuadro es de la nota entera y no de la frase: sin un segundo borde dentro', () => {
+				const css = HTML.match(/\.personas-etiqueta \{[^}]*\}/)[0];
+				assert.doesNotMatch(css, /border/);
+			});
+		});
+
 		test('la configuración anterior de solo icono se conserva como icono solo', () => {
 			const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
 			const nota = notaDe(slideDe([plato], { personas_solo_icono: true }));
