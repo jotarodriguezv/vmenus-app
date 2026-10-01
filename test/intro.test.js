@@ -21,7 +21,7 @@ function nodoFalso(etiqueta) {
 const cuerpo = { hijos: [], appendChild(h) { this.hijos.push(h); return h; } };
 globalThis.document = { createElement: nodoFalso, body: cuerpo };
 
-const { introActiva, construirIntro, mostrarIntro, redesIntro, botonResenaIntro, RESENA_TEXTO_POR_DEFECTO } = await import('../core/intro.js');
+const { introActiva, construirIntro, mostrarIntro, redesIntro, botonResenaIntro, RESENA_TEXTO_POR_DEFECTO, variablesTarjeta } = await import('../core/intro.js');
 
 const restaurante = (atributos = {}, extra = {}) => ({
 	nombre: 'Bonzas', logo_url: '/uploads/logos/bonzas.png', atributos, ...extra,
@@ -212,5 +212,49 @@ describe('botonResenaIntro · «Califícanos en Google»', () => {
 		const fuente = fs.readFileSync(new URL('../core/intro.js', import.meta.url), 'utf8');
 		assert.match(fuente, /<\/button>\$\{botonReservaIntro\(at\)\}\$\{botonResenaIntro\(at\)\}\$\{redes\.length/);
 		assert.match(fuente, /redes\.push\(\.\.\.redesIntro\(at, socialCss\)\)/);
+	});
+});
+
+describe('el recuadro de la bienvenida · color y borde que elige el restaurante', () => {
+	// El panel los guarda (intro_tarjeta_*) y la carta no los leía: la-leydi y
+	// lobsterboat habían elegido un color y la bienvenida se veía igual.
+	const fuente = fs.readFileSync(new URL('../core/intro.js', import.meta.url), 'utf8');
+
+	test('sin nada guardado no se pone ninguna variable: la tarjeta se ve como siempre', () => {
+		assert.deepEqual(variablesTarjeta({}), {});
+		assert.deepEqual(variablesTarjeta(undefined), {});
+	});
+
+	test('lo guardado se convierte en variables', () => {
+		assert.deepEqual(
+			variablesTarjeta({ intro_tarjeta_fondo: '#f7ffdb', intro_tarjeta_borde: '#fff', intro_tarjeta_borde_grosor: '3' }),
+			{ '--intro-tarjeta-fondo': '#f7ffdb', '--intro-tarjeta-borde': '#fff', '--intro-tarjeta-borde-grosor': '3px' });
+	});
+
+	test('solo se ponen las que existen: un restaurante con solo el fondo no cambia su borde', () => {
+		assert.deepEqual(variablesTarjeta({ intro_tarjeta_fondo: '#551b1b' }), { '--intro-tarjeta-fondo': '#551b1b' });
+	});
+
+	test('un color que no es hexadecimal se ignora, y no llega al CSS', () => {
+		for (const malo of ['rojo', 'red; background:url(x)', '#12', '#gggggg', 'url(javascript:1)', '', null])
+			assert.deepEqual(variablesTarjeta({ intro_tarjeta_fondo: malo, intro_tarjeta_borde: malo }), {}, String(malo));
+	});
+
+	test('el grosor se acota a 0–5 px, y vacío no es «sin borde»', () => {
+		assert.equal(variablesTarjeta({ intro_tarjeta_borde_grosor: 99 })['--intro-tarjeta-borde-grosor'], '5px');
+		assert.equal(variablesTarjeta({ intro_tarjeta_borde_grosor: -4 })['--intro-tarjeta-borde-grosor'], '0px');
+		assert.equal(variablesTarjeta({ intro_tarjeta_borde_grosor: 0 })['--intro-tarjeta-borde-grosor'], '0px', '0 es un grosor válido');
+		for (const v of ['', null, undefined, 'abc', NaN])
+			assert.equal('--intro-tarjeta-borde-grosor' in variablesTarjeta({ intro_tarjeta_borde_grosor: v }), false, String(v));
+	});
+
+	test('el CSS de la tarjeta lee las variables y conserva su aspecto de siempre como respaldo', () => {
+		const regla = fuente.match(/\.intro-vmenus__card\{position:relative[^}]*\}/)?.[0] || '';
+		assert.match(regla, /border:var\(--intro-tarjeta-borde-grosor,1px\) solid var\(--intro-tarjeta-borde,rgba\(255,255,255,\.35\)\)/);
+		assert.match(regla, /background:var\(--intro-tarjeta-fondo,rgba\(15,15,20,\.28\)\)/);
+	});
+
+	test('mostrarIntro las aplica a la bienvenida', () => {
+		assert.match(fuente, /Object\.entries\(variablesTarjeta\(at\)\)\) raiz\.style\.setProperty\(k, val\)/);
 	});
 });
