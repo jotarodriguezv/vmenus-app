@@ -43,6 +43,11 @@ instalar: no ejecutar `npm install` esperando que haga algo.
     `horarios.js`, `planes.js`, `preview.js`, `analytics.js`, `aviso.js`,
     `html.js`, `reproduccion.js`.
 
+  `intro.js` pinta la bienvenida; las **reservas de mesa** (botón y formulario dentro de
+  su tarjeta) viven aparte en `reservas-intro.js`, con el `fetch` por parámetro
+  para probarlas. La carta no escribe en la base: manda la reserva al panel
+  (`POST /api/reservas`), que valida de verdad. Ver `docs/reservas.md` del panel.
+
   `filtros.js` y `buscador.js` acotan la misma carta y esconden por el mismo
   sitio (`ocultarNoCoinciden`): con un filtro puesto y una palabra escrita se
   cumplen las dos cosas. Los dos nacieron dentro de `temas/explorar.js`, que
