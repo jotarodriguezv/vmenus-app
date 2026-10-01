@@ -544,7 +544,8 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 		const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
 		const nota = notaDe(slideDe([plato]));
 		assert.ok(nota, 'un plato para 3 personas debe llevar la nota');
-		assert.equal(fraseDe(nota).textContent, '3 personas');
+		// Con el icono por defecto la unidad la dice la figura: «Para 3».
+		assert.equal(fraseDe(nota).textContent, 'Para 3');
 	});
 
 	test('cada plato dice lo suyo, no lo del vecino', () => {
@@ -554,7 +555,7 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 		];
 		const notas = slideDe(platos).filter(n => (n.className || '').indexOf('personas personas-') === 0);
 		assert.equal(notas.length, 1);
-		assert.equal(fraseDe(notas[0]).textContent, '4 personas');
+		assert.equal(fraseDe(notas[0]).textContent, 'Para 4');
 	});
 
 	// 24/09/2026 (sql/28): el interruptor es del RESTAURANTE, en la pestaña
@@ -593,7 +594,7 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 			const nota = notaDe(slideDe([plato]));
 			assert.ok(nota, 'debe existir la nota');
 			assert.equal(nota.className, 'personas personas-icono_frase');
-		assert.equal(fraseDe(nota).textContent, '3 personas');
+		assert.equal(fraseDe(nota).textContent, 'Para 3');
 			assert.ok(nota.hijos.some(h => h.className === 'icono-personas'), 'el icono va dentro de la nota');
 		});
 
@@ -601,16 +602,24 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 			const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
 			const nota = notaDe(slideDe([plato], { formato_personas: 'frase' }));
 			assert.equal(nota.className, 'personas personas-frase');
-		assert.equal(fraseDe(nota).textContent, '3 personas');
+		// Sin icono, la frase lleva la unidad completa.
+		assert.equal(fraseDe(nota).textContent, 'Para 3 personas');
 			assert.equal(nota.hijos.some(h => h.className === 'icono-personas'), false);
 		});
 
-		test('número destacado no dibuja ni icono ni frase', () => {
+		test('número destacado lleva una figura pequeña y la cifra, sin frase', () => {
+			// Sola, la cifra junto al precio se leía como piezas o unidades (en una
+			// carta con «X 15 UND» confunde). La figura dice «personas».
 			const plato = { nombre: 'Salchipapa grande', precio: '$32.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 3 };
 			const nota = notaDe(slideDe([plato], { formato_personas: 'numero' }));
 			assert.equal(nota.className, 'personas personas-numero');
-			assert.equal(nota.textContent, '3');
-			assert.equal(nota.hijos.length, 0);
+			const cifra = nota.hijos.find(h => h.className === 'personas-cifra');
+			assert.equal(cifra.textContent, '3');
+			const figura = nota.hijos.find(h => h.className === 'icono-personas');
+			assert.ok(figura, 'lleva la figura');
+			assert.equal(todos(figura).filter(n => n.className === 'ip-persona').length, 1,
+				'una sola: la cifra es la que dice cuántas');
+			assert.equal(!!fraseDe(nota), false);
 		});
 
 		test('solo icono conserva una figura grande, sin frase', () => {
@@ -619,6 +628,58 @@ describe('tv.html · para cuántas personas alcanza un plato', () => {
 			assert.equal(nota.className, 'personas personas-icono');
 			assert.equal(nota.hijos.some(h => h.className === 'icono-personas'), true);
 			assert.equal(!!fraseDe(nota), false);
+		});
+
+		// 30/09/2026, visto en la cartelera de Malparados: un combo para 4 salía con
+		// cinco figuras, y uno para 8 también. Con el icono solo, sin frase al lado,
+		// eso es información falsa.
+		describe('el icono no miente sobre cuántas personas son', () => {
+			const figuras = n => {
+				const plato = { nombre: 'Combo', precio: '$60.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: n };
+				return slideDe([plato], { formato_personas: 'icono' }).filter(x => x.className === 'ip-persona').length;
+			};
+			const mas = n => {
+				const plato = { nombre: 'Combo', precio: '$60.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: n };
+				return slideDe([plato], { formato_personas: 'icono' }).filter(x => x.className === 'ip-mas');
+			};
+
+			test('de dos a cinco, dibuja exactamente esas figuras', () => {
+				assert.equal(figuras(2), 2);
+				assert.equal(figuras(3), 3);
+				assert.equal(figuras(4), 4, 'antes un combo para 4 salía con cinco figuras');
+				assert.equal(figuras(5), 5);
+			});
+
+			test('de seis en adelante, cinco figuras y un «+»', () => {
+				for (const n of [6, 8, 12]) {
+					assert.equal(figuras(n), 5, `${n} personas`);
+					assert.equal(mas(n).length, 1, `${n} personas llevan el «+»`);
+					assert.equal(mas(n)[0].textContent, '+');
+				}
+			});
+
+			test('hasta cinco no hay «+»: no promete más de lo que hay', () => {
+				for (const n of [2, 3, 4, 5]) assert.equal(mas(n).length, 0, `${n} personas`);
+			});
+		});
+
+		test('la frase es más grande que antes: tres cuartos del número, no dos quintos', () => {
+			// A 0.4 del tamaño del nombre medía el 43 % del precio, unos 20 px en una
+			// pantalla Full HD: lo más pequeño de la pantalla, justo en el dato que el
+			// restaurante quiere que se lea. Se compara con el formato «número» porque
+			// los dos salen del mismo tamaño base.
+			const plato = { nombre: 'Combo', precio: '$60.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 4 };
+			const tam = formato => parseFloat(notaDe(slideDe([plato], { formato_personas: formato })).style.fontSize);
+			assert.ok(Math.abs(tam('frase') / tam('numero') - 0.75) < 0.01);
+			assert.ok(Math.abs(tam('icono_frase') / tam('numero') - 0.75) < 0.01);
+		});
+
+		test('un plato de una persona sigue diciendo «1 persona», sin «Para»', () => {
+			const plato = { nombre: 'Arepa', precio: '$6.000', imagen_url: 'https://x/1.jpg', categoria_id: 'c1', personas: 1 };
+			for (const formato of ['frase', 'icono_frase']) {
+				const nota = notaDe(slideDe([plato], { mostrar_personas_uno: true, formato_personas: formato }));
+				assert.equal(fraseDe(nota).textContent, '1 persona', formato);
+			}
 		});
 
 		test('la configuración anterior de solo icono se conserva como icono solo', () => {

@@ -96,9 +96,11 @@
 	   es lo único que comunica las porciones. */
 	.personas-icono_frase { flex-direction: column; gap: 0.22em; text-align: center; }
 	.personas-icono { justify-content: center; }
-	.personas-numero { width: 2.15em; min-width: 2.15em; height: 2.15em;
-	                   justify-content: center; border: 0.12em solid currentColor;
+	.personas-numero { width: 2.15em; min-width: 2.15em; height: 2.9em;
+	                   flex-direction: column; justify-content: center; gap: 0.12em;
+	                   border: 0.12em solid currentColor;
 	                   border-radius: 0.2em; font-weight: 800; }
+	.personas-cifra { line-height: 1; }
 
 	/* El icono de personas: cabeza + cuerpo hechos con dos 'div' por figura,
 	   nunca SVG ni innerHTML — esta pantalla no construye marcado a partir de
@@ -108,6 +110,11 @@
 	.icono-personas { position: relative; display: inline-block;
 	                  width: 1.7em; height: 1.05em; vertical-align: middle;
 	                  margin-right: 0.35em; }
+	.icono-4 { width: 2.1em; }
+	/* Seis o más personas: cinco figuras y un «+» a su derecha. */
+	.icono-mas { margin-right: 1.2em; }
+	.ip-mas { position: absolute; left: 1.8em; top: -0.05em; font-size: 1.15em;
+	          font-weight: 800; line-height: 1; }
 	.ip-persona { position: absolute; top: 0; left: 0; width: 0.85em;
 	              text-align: center; }
 	.ip-cabeza { width: 0.42em; height: 0.42em; margin: 0 auto;
@@ -1138,9 +1145,12 @@ function nuevoNodo(tag, clase) {
  * nada de marcado armado a mano a partir de datos (hay guardián para eso).
  * En 'currentColor' se ven bien en los tres temas sin guardar un color aquí.
  *
- * Solo cuatro variantes, no una por número: a partir de cuatro ya no importa
- * si son 4, 5 o 6, la respuesta visual es "varios". Es la misma idea que la
- * frase de al lado, que tampoco distingue "muchas" personas con precisión. */
+ * Hasta el 30/09/2026 eran solo cuatro variantes —una, dos, tres y «varios»— y
+ * «varios» dibujaba SIEMPRE cinco figuras. Visto en la cartelera de Malparados:
+ * un combo para 4 salía con cinco figuras, y uno para 8 también. Con el icono
+ * solo, que no lleva frase al lado, eso es información falsa. Ahora el icono dice
+ * la verdad hasta cinco —2, 3, 4 y 5 figuras— y a partir de seis dibuja cinco y
+ * un «+». Sigue sin ser un conteo exacto de 12 personas, pero ya no miente. */
 function figuraPersona(izquierda, arriba, escala) {
 	var f = nuevoNodo('div', 'ip-persona');
 	f.style.left = izquierda;
@@ -1161,12 +1171,31 @@ function iconoPersonas(n) {
 		caja.appendChild(figuraPersona('-0.05em', '0.32em', 0.7));
 		caja.appendChild(figuraPersona('1.0em', '0.32em', 0.7));
 		caja.appendChild(figuraPersona('0.4em', '0em', 1));
-	} else if (n >= 4) {
+	} else if (n === 4) {
+		/* Cuatro cabezas en fila, una al lado de otra, las de los extremos un
+		   poco más bajas. Se probaron dos filas superpuestas y una formación como
+		   la de cinco sin la del medio: en las dos, algunas cabezas se fundían con
+		   los cuerpos de al lado (todo es del mismo color) y no se podían contar.
+		   Por eso este icono es un poco más ancho (.icono-4). */
+		caja.className = 'icono-personas icono-4';
+		caja.appendChild(figuraPersona('0em', '0.1em', 0.7));
+		caja.appendChild(figuraPersona('0.5em', '0em', 0.7));
+		caja.appendChild(figuraPersona('1.0em', '0em', 0.7));
+		caja.appendChild(figuraPersona('1.5em', '0.1em', 0.7));
+	} else if (n >= 5) {
 		caja.appendChild(figuraPersona('-0.1em', '0.4em', 0.55));
 		caja.appendChild(figuraPersona('1.1em', '0.4em', 0.55));
 		caja.appendChild(figuraPersona('0.1em', '0.22em', 0.72));
 		caja.appendChild(figuraPersona('0.95em', '0.22em', 0.72));
 		caja.appendChild(figuraPersona('0.4em', '0em', 1));
+		/* Seis o más: cinco figuras y un «+». No se pinta una por persona: ya no
+		   cabrían, y un grupo de doce figuras no se cuenta desde la pared. */
+		if (n >= 6) {
+			caja.className = 'icono-personas icono-mas';
+			var mas = nuevoNodo('span', 'ip-mas');
+			mas.textContent = '+';
+			caja.appendChild(mas);
+		}
 	} else {
 		caja.appendChild(figuraPersona('0.4em', '0em', 1));
 	}
@@ -1565,18 +1594,36 @@ function pintarSlide(s) {
 		if (c.mostrar_personas && (numPersonas > 1 || c.mostrar_personas_uno)) {
 			var formatoPersonas = c.formato_personas;
 			var pers = nuevoNodo('div', 'personas personas-' + formatoPersonas);
-			pers.style.fontSize = (tamNombre * (formatoPersonas === 'numero' ? 0.8 : 0.4)) + 'vmin';
+			/* La frase subió de 0.4 a 0.6 del tamaño del nombre (30/09/2026): a 0.4
+			   medía el 43 % del precio, unos 20 px en una pantalla Full HD, y era lo
+			   más pequeño de la pantalla justo en el dato que el restaurante quiere
+			   que se lea. */
+			pers.style.fontSize = (tamNombre * (formatoPersonas === 'numero' ? 0.8 : 0.6)) + 'vmin';
 			pers.style.color = pag.texto;
 			if (formatoPersonas === 'numero') {
-				// La cifra ya comunica cuántas porciones hay; no se duplica con
-				// figura ni frase para conservar el cuadrado limpio y legible.
-				pers.textContent = String(numPersonas);
+				/* La cifra va con una figura pequeña encima (30/09/2026). Sola, «$ 45.900
+				   ▢5» se leía como cinco piezas o cinco unidades, y en una carta con
+				   «X 15 UND» eso confunde. La figura dice «personas»; la cifra, cuántas. */
+				var figuraNumero = iconoPersonas(1);
+				figuraNumero.style.fontSize = '0.62em';
+				figuraNumero.style.marginRight = '0';
+				pers.appendChild(figuraNumero);
+				var cifra = nuevoNodo('span', 'personas-cifra');
+				cifra.textContent = String(numPersonas);
+				pers.appendChild(cifra);
 			} else if (formatoPersonas === 'icono') {
 				var iconoSolo = iconoPersonas(numPersonas);
 				iconoSolo.style.fontSize = (tamNombre * 1.18) + 'vmin';
 				pers.appendChild(iconoSolo);
 			} else {
-				var frase = numPersonas + ' ' + (numPersonas === 1 ? 'persona' : 'personas');
+				/* «Para 5»: dice para qué es, no solo cuántos son. Con el icono al lado la
+				   palabra «personas» sobra (la figura ya la dice) y la frase cabe en una
+				   línea corta; sin icono, «Para 5 personas» lleva la unidad completa. Un
+				   plato de una sola persona sigue diciendo «1 persona». */
+				var frase;
+				if (numPersonas === 1) frase = '1 persona';
+				else if (formatoPersonas === 'icono_frase') frase = 'Para ' + numPersonas;
+				else frase = 'Para ' + numPersonas + ' personas';
 				if (formatoPersonas === 'icono_frase') {
 					var icono = iconoPersonas(numPersonas);
 					icono.style.fontSize = (tamNombre * 1.02) + 'vmin';
