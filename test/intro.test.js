@@ -21,7 +21,7 @@ function nodoFalso(etiqueta) {
 const cuerpo = { hijos: [], appendChild(h) { this.hijos.push(h); return h; } };
 globalThis.document = { createElement: nodoFalso, body: cuerpo };
 
-const { introActiva, construirIntro, mostrarIntro } = await import('../core/intro.js');
+const { introActiva, construirIntro, mostrarIntro, redesIntro, botonResenaIntro, RESENA_TEXTO_POR_DEFECTO } = await import('../core/intro.js');
 
 const restaurante = (atributos = {}, extra = {}) => ({
 	nombre: 'Bonzas', logo_url: '/uploads/logos/bonzas.png', atributos, ...extra,
@@ -127,5 +127,90 @@ describe('mostrarIntro', () => {
 		mostrarIntro(restaurante({}));
 		assert.equal(cuerpo.hijos.length, 1);
 		assert.equal(cuerpo.hijos[0].id, 'introPantalla');
+	});
+});
+
+// 01/10/2026: TikTok en la bienvenida y el botón de reseña de Google. La
+// bienvenida real se arma con una cadena larga que estas pruebas, con su DOM de
+// mentira, no recorren (mostrarIntro cae a construirIntro sin getElementById),
+// así que los botones viven en funciones exportadas que sí se pueden mirar.
+describe('redesIntro · TikTok y compañía', () => {
+	const css = 'width:48px';
+	const base = {
+		social_instagram: 'https://instagram.com/bonzas',
+		social_facebook: 'https://facebook.com/bonzas',
+		social_tiktok: 'https://www.tiktok.com/@bonzas',
+	};
+
+	test('TikTok sale si está encendido en la bienvenida y tiene su enlace', () => {
+		const redes = redesIntro({ ...base, intro_social_tiktok: true }, css);
+		assert.equal(redes.length, 1);
+		assert.match(redes[0], /href="https:\/\/www\.tiktok\.com\/@bonzas"/);
+		assert.match(redes[0], /aria-label="Abrir TikTok"/);
+		assert.match(redes[0], /rel="noopener noreferrer"/);
+	});
+
+	test('encendido pero sin enlace guardado en Ajustes, no sale: un botón sin destino sobra', () => {
+		assert.equal(redesIntro({ intro_social_tiktok: true }, css).length, 0);
+		assert.equal(redesIntro({ intro_social_tiktok: true, social_tiktok: '' }, css).length, 0);
+	});
+
+	test('con enlace pero apagado en la bienvenida, tampoco: el enlace también sirve a la carta', () => {
+		assert.equal(redesIntro({ ...base, intro_social_tiktok: false }, css).length, 0);
+		assert.equal(redesIntro({ ...base }, css).length, 0);
+	});
+
+	test('van Instagram, Facebook y TikTok, en ese orden, con el mismo estilo', () => {
+		const redes = redesIntro({ ...base, intro_social_instagram: true, intro_social_facebook: true, intro_social_tiktok: true }, css);
+		assert.deepEqual(redes.map(r => r.match(/aria-label="Abrir (\w+)"/)[1]), ['Instagram', 'Facebook', 'TikTok']);
+		for (const r of redes) assert.match(r, /style="width:48px"/);
+	});
+
+	test('el enlace se escapa: no abre la puerta a un javascript:', () => {
+		const [r] = redesIntro({ intro_social_tiktok: true, social_tiktok: 'javascript:alert(1)' }, css);
+		assert.match(r, /href="#"/);
+	});
+});
+
+describe('botonResenaIntro · «Califícanos en Google»', () => {
+	const on = (extra = {}) => ({ intro_resena_activo: true, intro_resena_url: 'https://g.page/r/abc123/review', ...extra });
+
+	test('apagado o sin atributos, no pinta nada', () => {
+		assert.equal(botonResenaIntro({}), '');
+		assert.equal(botonResenaIntro(null), '');
+		assert.equal(botonResenaIntro({ intro_resena_activo: false, intro_resena_url: 'https://g.page/r/abc123/review' }), '');
+	});
+
+	test('encendido y con enlace https, pinta el botón con su estrella y el texto por defecto', () => {
+		const html = botonResenaIntro(on());
+		assert.match(html, /class="intro-vmenus__resena"/);
+		assert.match(html, /href="https:\/\/g\.page\/r\/abc123\/review"/);
+		assert.match(html, /target="_blank" rel="noopener noreferrer"/);
+		assert.ok(html.includes(RESENA_TEXTO_POR_DEFECTO));
+		assert.equal(RESENA_TEXTO_POR_DEFECTO, 'Califícanos en Google');
+	});
+
+	test('encendido pero sin un enlace http(s) de verdad, no pinta: un botón que no lleva a ningún lado sobra', () => {
+		for (const url of ['', '   ', undefined, 'javascript:alert(1)', '/reseña', 'ftp://x.test', 'g.page/r/abc']) {
+			assert.equal(botonResenaIntro(on({ intro_resena_url: url })), '', JSON.stringify(url));
+		}
+	});
+
+	test('el texto del restaurante manda, se escapa y no pasa de 60 caracteres', () => {
+		assert.match(botonResenaIntro(on({ intro_resena_texto: '¿Te gustó? Califícanos' })), /¿Te gustó\? Califícanos<\/a>/);
+		const malo = botonResenaIntro(on({ intro_resena_texto: '<img src=x onerror=alert(1)>' }));
+		assert.doesNotMatch(malo, /<img/);
+		const largo = botonResenaIntro(on({ intro_resena_texto: 'x'.repeat(200) }));
+		assert.equal(largo.match(/x+/)[0].length, 60);
+	});
+
+	test('un texto en blanco vuelve al de por defecto', () => {
+		assert.ok(botonResenaIntro(on({ intro_resena_texto: '   ' })).includes(RESENA_TEXTO_POR_DEFECTO));
+	});
+
+	test('mostrarIntro lo pone justo debajo del botón principal y las redes con el estilo de siempre', () => {
+		const fuente = fs.readFileSync(new URL('../core/intro.js', import.meta.url), 'utf8');
+		assert.match(fuente, /<\/button>\$\{botonResenaIntro\(at\)\}\$\{redes\.length/);
+		assert.match(fuente, /redes\.push\(\.\.\.redesIntro\(at, socialCss\)\)/);
 	});
 });
