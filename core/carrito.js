@@ -21,6 +21,7 @@ import { restaurante, productos, soloDigitos } from './menu.js';
 import { planDe } from './planes.js';
 import { trackAgregarCarrito, registrarPedido } from './analytics.js';
 import { esc, escUrl } from './html.js';
+import { whatsappDelNegocio } from './negocio.js';
 import { precioVigente, estadoOferta, formatoPesos } from './ofertas.js';
 import { llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
 
@@ -722,7 +723,7 @@ function removeFromCart(cartKey) {
 // Pasa por soloDigitos como el envío, para que «+57 300…» cuente como número y
 // un campo con solo espacios o guiones cuente como vacío.
 export function recibePedidos() {
-	return !!soloDigitos(restaurante?.atributos?.whatsapp_pedidos);
+	return !!whatsappDelNegocio(restaurante?.atributos);
 }
 
 // Cuántos había la última vez que se pintó: el flotante solo rebota si sube.
@@ -909,7 +910,7 @@ function sendWhatsAppOrder(event) {
 	// genera un enlace que no abre nada y falla justo al final del pedido.
 	// El mismo ayudante que usa la barra social, para que no se arregle en un
 	// sitio y se quede roto en el otro — que es lo que había pasado.
-	const whatsapp = soloDigitos(restaurante?.atributos?.whatsapp_pedidos);
+	const whatsapp = whatsappDelNegocio(restaurante?.atributos);
 	if (!whatsapp) {
 		// Última red: el checkout ya no se abre sin número. Si aun así se llega
 		// —el número se borró con la carta abierta—, se vuelve al carrito, que

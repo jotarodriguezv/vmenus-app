@@ -1,6 +1,7 @@
 import { trackClic } from './analytics.js';
 import { esc, escUrl, notaDe, htmlPrecio } from './html.js';
 import { fijarZonaDeOfertas } from './ofertas.js';
+import { whatsappParaMostrar } from './negocio.js';
 import { zonaDe } from './horarios.js';
 import { fotosDe, construirCarrusel, noLlevaFoto } from './carrusel.js';
 import { montarChips, ocultarNoCoinciden } from './filtros.js';
@@ -375,7 +376,9 @@ export function buildMenu() {
 			</svg>`
 		});
 		// Sin limpiar, un número con espacios o '+' arma un enlace que no abre nada.
-		const waSocial = soloDigitos(at.social_whatsapp);
+		// El WhatsApp es el del negocio, y el botón solo sale si el restaurante lo
+		// quiere (negocio.js): el mismo número sirve para recibir pedidos sin botón.
+		const waSocial = whatsappParaMostrar(at);
 		if (waSocial) links.push({
 			href: `https://wa.me/${waSocial}`,
 			label: 'WhatsApp',
