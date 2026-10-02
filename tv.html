@@ -976,18 +976,10 @@ function listaIntercalados() {
 					                        nombre: deAhora[k].nombre || '',
 					                        precio: deAhora[k].precio || '' } });
 				}
-			} else if (!(datos.promociones || []).length) {
-				/* Respaldo para un restaurante cuya promoción no esté todavía en la
-				   tabla. Solo si la tabla no trajo NADA: si trajo filas y ninguna
-				   toca ahora, es que hoy no toca — y caer aquí sacaría una
-				   promoción que el restaurante programó para otro día. */
-				var img = urlSegura(r.promo_imagen_url);
-				if (r.promo_activa && img) {
-					puestos.push({ promo: { imagen: img,
-					                        nombre: r.promo_nombre || '',
-					                        precio: r.promo_precio || '' } });
-				}
 			}
+			/* Sin respaldo en las columnas viejas (quitado el 02/10/2026): el panel
+			   solo lee la tabla, y borrar la última promoción dejaba el televisor
+			   enseñando una imagen que nadie podía apagar. */
 		} else if (it.tipo === 'marca') {
 			var logo = it.logo ? urlSegura(r.logo_url) : '';
 			var frase = typeof it.frase === 'string' ? it.frase : '';

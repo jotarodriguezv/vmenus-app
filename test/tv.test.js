@@ -1313,6 +1313,17 @@ describe('tv.html · qué promociones toca enseñar', () => {
 	});
 });
 
+// Los fixtures de estas dos suites describen la promoción con los nombres de
+// las columnas viejas (promo_activa, promo_imagen_url…) por comodidad. La
+// pantalla ya no lee esas columnas —desde el 02/10/2026 solo lee la tabla
+// 'promociones'—, así que aquí se convierten en la fila equivalente.
+function promosDeFixture(r) {
+	if (!r.promo_activa) return [];
+	return [{ id: 'p1', activa: true, en_tv: r.promo_en_tv !== false,
+	          imagen_url: r.promo_imagen_url, nombre: r.promo_nombre,
+	          precio: r.promo_precio, programacion: {}, orden: 0 }];
+}
+
 describe('tv.html · la lista de intercalados', () => {
 	// Antes solo cabía la promoción, con su propia frecuencia. Ahora es una
 	// lista ordenada que rota por UN ritmo: cada N pantallas de platos entra el
@@ -1342,7 +1353,7 @@ describe('tv.html · la lista de intercalados', () => {
 				               categoria_id: null, productos: [], aleatorio: false,
 				               mostrar_todos_lista: false },
 				datos: { restaurante: r, categorias: [{ id: 'c1', nombre: 'Cat' }],
-				         productos: productos(cuantos) },
+				         productos: productos(cuantos), promociones: promosDeFixture(r) },
 				slides: [], turnoIntercalado, Math, parseInt, String, Intl, Date, RegExp,
 			}
 		);
@@ -1384,7 +1395,9 @@ describe('tv.html · la lista de intercalados', () => {
 	});
 
 	test('y sin promo_en_tv no se intercala nada', () => {
-		const s = ciclo(base({}, { promo_cada: 2 }), 4);
+		// Sin promoción en la tabla que vaya al televisor y sin lista guardada,
+		// no hay nada que intercalar.
+		const s = ciclo(base({}, { promo_cada: 2, promo_activa: false }), 4);
 		assert.equal(tipos(s), 'platos platos platos platos');
 	});
 
@@ -1601,7 +1614,7 @@ describe('tv.html · la promoción a pantalla completa', () => {
 				POR_DEFECTO: { activa: true, por_slide: 1, segundos: 8, modo: 'todos',
 				               categoria_id: null, productos: [], aleatorio: false },
 				datos: { restaurante: r, categorias: [{ id: 'c1', nombre: 'Cat' }],
-				         productos: productos(cuantos) },
+				         productos: productos(cuantos), promociones: promosDeFixture(r) },
 				slides: [], turnoIntercalado, Math, parseInt, String, Intl, Date, RegExp,
 			}
 		);
@@ -1635,6 +1648,28 @@ describe('tv.html · la promoción a pantalla completa', () => {
 		// en el televisor". Son dos decisiones distintas.
 		assert.equal(ciclo(restaurante({ promo_en_tv: false }), 4).length, 4);
 		assert.equal(ciclo(restaurante({ promo_activa: false }), 4).length, 4);
+	});
+
+	test('las columnas viejas por sí solas ya no sacan una promoción', () => {
+		// Bonzas borró su última promoción en el panel y el televisor siguió
+		// enseñando la imagen de promo_imagen_url, que el panel ya no muestra.
+		const r = restaurante({});
+		const ctx = extraer(
+			['config', 'tvActiva', 'urlSegura', 'ahoraEnZona', 'aMinutosDelDia', 'esFecha',
+			 'vigenteAhora', 'tieneProgramacion', 'seleccionBase', 'entraEnSeleccion', 'seleccionDeAhora', 'categoriaVisible', 'platosElegidos', 'barajar',
+			 'tieneProgramacion', 'promocionesDeAhora',
+			 'listaIntercalados', 'ritmoIntercalado', 'construirSlides'],
+			{
+				POR_DEFECTO: { activa: true, por_slide: 1, segundos: 8, modo: 'todos',
+				               categoria_id: null, productos: [], aleatorio: false },
+				datos: { restaurante: r, categorias: [{ id: 'c1', nombre: 'Cat' }],
+				         productos: productos(4), promociones: [] },
+				slides: [], turnoIntercalado: 0, Math, parseInt, String, Intl, Date, RegExp,
+			}
+		);
+		ctx.construirSlides();
+		assert.equal(ctx.slides.length, 4);
+		assert.ok(ctx.slides.every(x => !x.promo));
 	});
 
 	test('sin imagen no hay promo, aunque esté encendida', () => {
