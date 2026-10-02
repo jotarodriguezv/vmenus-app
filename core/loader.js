@@ -205,15 +205,11 @@ async function init() {
 		// comensal escanea el QR una vez, así que con un orden fijo la segunda
 		// no la vería nadie.
 		const promo = paraElPopup(promos, restaurante);
-		if (promo) {
-			setTimeout(() => openPromo(promo.imagen_url), 700);
-		} else if (!promos.length && restaurante.promo_activa && restaurante.promo_imagen_url) {
-			// Respaldo para un restaurante cuya promoción todavía no esté en la
-			// tabla. Solo cuando la tabla no devuelve NADA: si devolvió filas y
-			// ninguna toca ahora, es que hoy no toca — y caer aquí sacaría una
-			// promoción que el restaurante había programado para otro día.
-			setTimeout(() => openPromo(), 700);
-		}
+		// Sin respaldo en las columnas viejas (promo_activa / promo_imagen_url),
+		// quitado el 02/10/2026: el panel solo lee la tabla, así que borrar la
+		// última promoción dejaba la carta de Bonzas enseñando una imagen que el
+		// panel ya no mostraba y nadie podía apagar.
+		if (promo) setTimeout(() => openPromo(promo.imagen_url), 700);
 
 		// ── 9. CRÉDITO DE LA PLATAFORMA ──────────────────────────
 		mostrarCredito(restaurante);
