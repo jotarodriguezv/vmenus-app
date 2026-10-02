@@ -12,7 +12,7 @@ globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} }
 globalThis.document = { getElementById: () => null };
 globalThis.window = { location: { search: '' } };
 
-const { whatsappDelNegocio, botonWhatsappActivo, whatsappParaMostrar, direccionDelNegocio, mapaDelNegocio, resenaDelNegocio } = await import('../core/negocio.js');
+const { whatsappDelNegocio, botonWhatsappActivo, whatsappParaMostrar, direccionDelNegocio, mapaDelNegocio, resenaDelNegocio, textoHorarioAtencion, correoDelNegocio } = await import('../core/negocio.js');
 const { setRestaurante, enlacesSociales } = await import('../core/menu.js');
 const { recibePedidos } = await import('../core/carrito.js');
 const { botonResenaIntro, mostrarIntro } = await import('../core/intro.js');
@@ -144,6 +144,34 @@ describe('la bienvenida: el botón de reseñas toma el enlace del negocio', () =
 	});
 });
 
+// ── LA BIENVENIDA, PINTADA CON UN DOM DE JUGUETE ──────────────
+// mostrarIntro() arma su HTML con innerHTML; lo que se prueba es ese HTML, no los
+// eventos. Compartido por las pruebas de la ubicación, el horario y el correo.
+// Lo que devuelve querySelector tras pintar el HTML: algo que acepta cualquier
+// llamada, porque lo que se prueba es el HTML y no los eventos.
+const comodin = {
+	addEventListener() {}, remove() {}, focus() {}, setAttribute() {}, appendChild() {},
+	style: {}, dataset: {}, classList: { add() {}, remove() {}, toggle() {} },
+	querySelector: () => comodin, querySelectorAll: () => [],
+};
+
+function montarIntro(atributos) {
+	let raiz = null;
+	const nodo = () => ({
+		style: { setProperty() {} }, dataset: {}, classList: { add() {}, remove() {}, toggle() {} },
+		setAttribute() {}, appendChild() {}, addEventListener() {}, querySelector: () => comodin,
+		querySelectorAll: () => [], remove() {}, innerHTML: '', textContent: '',
+	});
+	globalThis.document = {
+		getElementById: () => null, head: { appendChild() {} }, addEventListener() {}, removeEventListener() {},
+		body: { appendChild(n) { raiz = n; }, style: {} },
+		createElement: () => nodo(),
+	};
+	mostrarIntro({ nombre: 'Bonzas', logo_url: '', atributos: { intro_activo: true, ...atributos } });
+	globalThis.document = { getElementById: () => null };
+	return raiz?.innerHTML || '';
+}
+
 describe('la bienvenida: la ubicación respeta su interruptor', () => {
 	// El enlace pasó a ser del negocio, así que puede estar escrito sin que la
 	// bienvenida quiera enseñarlo. Hasta el 02/10/2026 la carta ni miraba el
@@ -151,31 +179,6 @@ describe('la bienvenida: la ubicación respeta su interruptor', () => {
 	// restaurante que rellena el enlace en Ajustes habría visto aparecer un mapa
 	// que nunca encendió.
 	const MAPA = 'https://maps.app.goo.gl/abc';
-
-	// Lo que devuelve querySelector tras pintar el HTML: algo que acepta cualquier
-	// llamada, porque lo que se prueba es el HTML y no los eventos.
-	const comodin = {
-		addEventListener() {}, remove() {}, focus() {}, setAttribute() {}, appendChild() {},
-		style: {}, dataset: {}, classList: { add() {}, remove() {}, toggle() {} },
-		querySelector: () => comodin, querySelectorAll: () => [],
-	};
-
-	function montarIntro(atributos) {
-		let raiz = null;
-		const nodo = () => ({
-			style: { setProperty() {} }, dataset: {}, classList: { add() {}, remove() {}, toggle() {} },
-			setAttribute() {}, appendChild() {}, addEventListener() {}, querySelector: () => comodin,
-			querySelectorAll: () => [], remove() {}, innerHTML: '', textContent: '',
-		});
-		globalThis.document = {
-			getElementById: () => null, head: { appendChild() {} }, addEventListener() {}, removeEventListener() {},
-			body: { appendChild(n) { raiz = n; }, style: {} },
-			createElement: () => nodo(),
-		};
-		mostrarIntro({ nombre: 'Bonzas', logo_url: '', atributos: { intro_activo: true, ...atributos } });
-		globalThis.document = { getElementById: () => null };
-		return raiz?.innerHTML || '';
-	}
 
 	test('encendida y con enlace, se enseña (como antes)', () => {
 		const html = montarIntro({ intro_mapa_activo: true, mapa_url: MAPA, intro_mapa_modo: 'boton' });
@@ -197,5 +200,77 @@ describe('la bienvenida: la ubicación respeta su interruptor', () => {
 
 	test('encendida sin enlace, no se enseña nada', () => {
 		assert.doesNotMatch(montarIntro({ intro_mapa_activo: true, intro_mapa_modo: 'boton' }), /intro-vmenus__mapa/);
+	});
+});
+
+describe('el horario de atención · cómo se dice, igual que en el panel (paso 4)', () => {
+	test('hay casos que correr', () => assert.ok(CASOS.horario.length >= 10));
+
+	for (const c of CASOS.horario) {
+		test(c.nombre, () => {
+			assert.equal(textoHorarioAtencion(c.franjas), c.texto);
+		});
+	}
+
+	test('lo que no es una lista no revienta la bienvenida', () => {
+		for (const raro of [undefined, null, '', 'lunes', 42, {}, [null], [{}], [{ dias: 'lunes' }]])
+			assert.equal(textoHorarioAtencion(raro), '', String(JSON.stringify(raro)));
+	});
+});
+
+describe('el correo del negocio', () => {
+	test('un correo normal se enseña, recortado', () => {
+		assert.equal(correoDelNegocio({ correo: '  hola@turestaurante.com ' }), 'hola@turestaurante.com');
+	});
+
+	test('lo que no parece una dirección, o podría romper un enlace, no se enseña', () => {
+		// El servidor ya lo rechaza al guardar; esto es por si llegó por otro camino.
+		for (const c of ['hola', 'a b@x.com', 'a"b@x.com', '<a>@x.com', 'a@x.com,b@y.com', 'javascript:alert(1)', '', null, undefined, 'a'.repeat(121) + '@x.com'])
+			assert.equal(correoDelNegocio({ correo: c }), '', String(c));
+	});
+});
+
+describe('la bienvenida: el horario y el correo', () => {
+	const HORARIO = [{ dias: [1, 2, 3, 4, 5], desde: '11:00', hasta: '22:00' }, { dias: [6, 0], desde: '12:00', hasta: '23:00' }];
+
+	test('con horario y correo, salen: una línea y un enlace mailto', () => {
+		const html = montarIntro({ horario_atencion: HORARIO, correo: 'hola@turestaurante.com' });
+		assert.match(html, /intro-vmenus__horario[^>]*>Lun a Vie 11:00–22:00 · Sáb y Dom 12:00–23:00</);
+		assert.match(html, /intro-vmenus__correo[^>]*href="mailto:hola@turestaurante\.com"[^>]*>✉ hola@turestaurante\.com</);
+	});
+
+	test('sin nada guardado no sale ninguna de las dos: la bienvenida de siempre no cambia', () => {
+		const html = montarIntro({});
+		assert.doesNotMatch(html, /intro-vmenus__horario"|intro-vmenus__correo"/);
+	});
+
+	test('el interruptor apagado las esconde, aunque haya datos', () => {
+		const html = montarIntro({ horario_atencion: HORARIO, correo: 'hola@turestaurante.com', intro_horario_activo: false, intro_correo_activo: false });
+		assert.doesNotMatch(html, /intro-vmenus__horario"|intro-vmenus__correo"/);
+	});
+
+	test('cada una tiene su interruptor: se puede enseñar una y esconder la otra', () => {
+		const solo = montarIntro({ horario_atencion: HORARIO, correo: 'hola@turestaurante.com', intro_correo_activo: false });
+		assert.match(solo, /intro-vmenus__horario"/);
+		assert.doesNotMatch(solo, /intro-vmenus__correo"/);
+	});
+
+	test('ausente es encendido: nadie tiene que ir a encenderlo para tenerlo', () => {
+		assert.match(montarIntro({ horario_atencion: HORARIO }), /intro-vmenus__horario"/);
+	});
+
+	test('lo que escribe un restaurante va escapado', () => {
+		// El horario sale de números y de horas validadas; el correo, de una dirección
+		// que el servidor ya filtra. Aun así se escapa: es la regla de este repositorio.
+		const html = montarIntro({ correo: 'a@b.co' , horario_atencion: [{ dias: [1], desde: '<b>', hasta: '22:00' }] });
+		assert.doesNotMatch(html, /<b>/);
+	});
+
+	test('un correo que no lo parece no llega a un enlace', () => {
+		assert.doesNotMatch(montarIntro({ correo: 'javascript:alert(1)' }), /mailto:|intro-vmenus__correo"/);
+	});
+
+	test('sin horario válido no hay línea vacía', () => {
+		assert.doesNotMatch(montarIntro({ horario_atencion: [{ dias: [], desde: '', hasta: '' }] }), /intro-vmenus__horario"/);
 	});
 });
