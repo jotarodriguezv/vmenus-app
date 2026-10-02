@@ -2,7 +2,7 @@
 // y texto escapado: los atributos del restaurante viajan a un navegador público.
 import { esc, escUrl } from './html.js';
 import { soloDigitos, enlacesSociales } from './menu.js';
-import { whatsappParaMostrar } from './negocio.js';
+import { whatsappParaMostrar, mapaDelNegocio, resenaDelNegocio } from './negocio.js';
 import { botonReservaIntro, formularioReservaIntro, montarReservaIntro, hoyEn, ESTILOS_RESERVA } from './reservas-intro.js';
 
 const TIPOS = ['nombre', 'eslogan', 'adicional', 'cta', 'direccion'];
@@ -66,7 +66,8 @@ export function redesIntro(at, socialCss) {
 export const RESENA_TEXTO_POR_DEFECTO = 'Califícanos en Google';
 export function botonResenaIntro(at) {
   if (!at || !at.intro_resena_activo) return '';
-  const url = String(at.intro_resena_url || '').trim();
+  // El enlace es del negocio (Ajustes → Datos del negocio); el interruptor, de la bienvenida.
+  const url = resenaDelNegocio(at);
   if (!/^https?:\/\//i.test(url)) return '';
   const texto = String(at.intro_resena_texto || '').trim().slice(0, 60) || RESENA_TEXTO_POR_DEFECTO;
   return `<a class="intro-vmenus__resena" href="${escUrl(url)}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">★</span> ${esc(texto)}</a>`;
@@ -142,7 +143,7 @@ export function mostrarIntro(restaurante) {
   const at = restaurante?.atributos || {}; if (!at.intro_activo || document.getElementById('introVmenus')) return;
   insertarEstilos(); const fondo = colorSeguro(at.intro_fondo_color, '#111827'); const imagen = at.intro_fondo_url ? `url("${escUrl(at.intro_fondo_url)}")` : 'none';
   const ajuste = ['cover', 'contain', 'center'].includes(at.intro_imagen_ajuste) ? at.intro_imagen_ajuste : 'cover'; const opacidad = Math.max(0, Math.min(100, Number(at.intro_overlay_opacidad ?? 50))) / 100; const overlayActivo = at.intro_overlay_activo !== false;
-  const nombre = texto(at, 'nombre', restaurante.nombre); const eslogan = texto(at, 'eslogan'); const adicional = texto(at, 'adicional'); const cta = texto(at, 'cta', 'Ver carta'); const direccion = texto(at, 'direccion'); const mapaUrl = enlaceMapa(at.intro_mapa_url); const modoMapa = MAPAS.has(at.intro_mapa_modo) ? at.intro_mapa_modo : 'mapa'; const estiloMapa = estiloBotonMapa(at);
+  const nombre = texto(at, 'nombre', restaurante.nombre); const eslogan = texto(at, 'eslogan'); const adicional = texto(at, 'adicional'); const cta = texto(at, 'cta', 'Ver carta'); const direccion = texto(at, 'direccion'); const mapaUrl = at.intro_mapa_activo === true ? enlaceMapa(mapaDelNegocio(at)) : ''; const modoMapa = MAPAS.has(at.intro_mapa_modo) ? at.intro_mapa_modo : 'mapa'; const estiloMapa = estiloBotonMapa(at);
   const raiz = document.createElement('section'); raiz.id = 'introVmenus'; raiz.className = 'intro-vmenus'; raiz.setAttribute('aria-label', `Bienvenida a ${nombre}`); raiz.style.setProperty('--intro-fondo', fondo); for (const [k, val] of Object.entries(variablesTarjeta(at))) raiz.style.setProperty(k, val); raiz.style.backgroundImage = imagen; raiz.style.setProperty('--intro-ajuste', ajuste === 'center' ? 'auto' : ajuste); raiz.style.setProperty('--intro-overlay', colorSeguro(at.intro_overlay_color, '#0a0a0f')); raiz.style.setProperty('--intro-opacidad', overlayActivo ? opacidad : 0);
   const logo = restaurante.logo_url ? `<img class="intro-vmenus__logo" src="${escUrl(restaurante.logo_url)}" alt="Logo de ${esc(nombre)}">` : `<div class="intro-vmenus__logo intro-vmenus__logo--vacio" aria-hidden="true">${esc(nombre.slice(0, 2).toUpperCase())}</div>`;
   const redes = []; const estilo = ['circular', 'redondeado', 'pildora'].includes(at.intro_social_estilo) ? at.intro_social_estilo : 'circular'; const tamano = Math.max(36, Math.min(72, Number(at.intro_social_tamano || 48))); const socialCss = `color:${colorSeguro(at.intro_social_icono_color, '#ffffff')};background:${colorSeguro(at.intro_social_fondo, '#ef7a00')};border-color:${colorSeguro(at.intro_social_borde, '#ffffff')};width:${tamano}px;height:${tamano}px;border-radius:${estilo === 'redondeado' ? '12px' : '999px'};`;

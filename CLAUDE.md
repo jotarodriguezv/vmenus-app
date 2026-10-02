@@ -56,7 +56,10 @@ instalar: no ejecutar `npm install` esperando que haga algo.
 
   `negocio.js` son los **datos del negocio** que el restaurante dice una vez en
   Ajustes (hoy el WhatsApp y si se enseña su botón): `whatsappDelNegocio()` para
-  recibir pedidos y `whatsappParaMostrar()` para los botones. Las claves viejas
+  recibir pedidos y `whatsappParaMostrar()` para los botones; y, desde el paso 2,
+  `direccionDelNegocio()`, `mapaDelNegocio()` y `resenaDelNegocio()` para la
+  bienvenida (las claves son `direccion`, `mapa_url` y `resena_url`, y la
+  ubicación solo sale con `intro_mapa_activo` encendido). Las claves viejas
   (`whatsapp_pedidos`, `social_whatsapp`) solo se leen si la nueva no existe, y
   `''` es «no hay número». La regla está también en el panel y en su servidor, y
   las tres corren contra `test/casos-negocio.json`, **duplicado a propósito**.

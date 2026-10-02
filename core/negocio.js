@@ -1,7 +1,8 @@
 // ── DATOS DEL NEGOCIO ─────────────────────────────────────────
 // Lo que el restaurante dice una vez en Ajustes → Datos del negocio y que varias
 // funciones de la carta usan por su cuenta. Hoy, el WhatsApp y si la carta
-// enseña su botón.
+// enseña su botón (paso 1), y la dirección, la ubicación y el enlace de reseñas
+// (paso 2).
 //
 // Un solo número. Antes eran dos —`whatsapp_pedidos`, al que el carrito manda el
 // pedido, y `social_whatsapp`, el de la barra de redes y la bienvenida—, y cuatro
@@ -44,4 +45,25 @@ export function botonWhatsappActivo(at) {
 // restaurante quiera el botón. '' si no hay nada que enseñar.
 export function whatsappParaMostrar(at) {
 	return botonWhatsappActivo(at) ? whatsappDelNegocio(at) : '';
+}
+
+// ── DIRECCIÓN, UBICACIÓN Y RESEÑAS (paso 2) ───────────────────
+// Se pedían en el formulario de la bienvenida y ahora son del negocio. La
+// bienvenida conserva sus interruptores y su estilo; el DATO viene de aquí.
+//
+// `direccion` no cambia de nombre. El mapa y las reseñas tienen clave nueva
+// (`mapa_url`, `resena_url`): las de antes llevaban el prefijo de la pantalla que
+// las pedía (`intro_mapa_url`, `intro_resena_url`). Las viejas se leen SOLO si la
+// nueva no existe, con la misma razón que el WhatsApp: borrar el enlace deja ''
+// y eso es «no hay enlace», no «no está».
+const texto = v => String(v ?? '').trim();
+
+export function direccionDelNegocio(at) { return texto(at?.direccion); }
+
+export function mapaDelNegocio(at) {
+	return existe(at?.mapa_url) ? texto(at.mapa_url) : texto(at?.intro_mapa_url);
+}
+
+export function resenaDelNegocio(at) {
+	return existe(at?.resena_url) ? texto(at.resena_url) : texto(at?.intro_resena_url);
 }
