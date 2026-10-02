@@ -2,6 +2,7 @@
 // y texto escapado: los atributos del restaurante viajan a un navegador público.
 import { esc, escUrl } from './html.js';
 import { soloDigitos, enlacesSociales } from './menu.js';
+import { whatsappParaMostrar } from './negocio.js';
 import { botonReservaIntro, formularioReservaIntro, montarReservaIntro, hoyEn, ESTILOS_RESERVA } from './reservas-intro.js';
 
 const TIPOS = ['nombre', 'eslogan', 'adicional', 'cta', 'direccion'];
@@ -22,7 +23,7 @@ export function construirIntro(restaurante) {
   const nombre = document.createElement('h1'); nombre.className = 'intro-nombre'; nombre.textContent = restaurante.nombre || ''; contenido.appendChild(nombre);
   if (at.intro_eslogan) { const eslogan = document.createElement('p'); eslogan.className = 'intro-eslogan'; eslogan.textContent = at.intro_eslogan; contenido.appendChild(eslogan); }
   const boton = document.createElement('button'); boton.type = 'button'; boton.className = 'intro-boton'; boton.textContent = 'Ver carta'; boton.onclick = () => host.remove(); contenido.appendChild(boton);
-  const numero = soloDigitos(at.social_whatsapp); if (numero) { const wa = document.createElement('a'); wa.className = 'intro-contacto intro-whatsapp'; wa.href = `https://wa.me/${numero}`; wa.target = '_blank'; wa.rel = 'noopener'; wa.textContent = `📞 ${esc(at.social_whatsapp)}`; contenido.appendChild(wa); }
+  const numero = whatsappParaMostrar(at); if (numero) { const wa = document.createElement('a'); wa.className = 'intro-contacto intro-whatsapp'; wa.href = `https://wa.me/${numero}`; wa.target = '_blank'; wa.rel = 'noopener'; wa.textContent = `📞 ${numero}`; contenido.appendChild(wa); }
   if (at.direccion) { const direccion = document.createElement('p'); direccion.className = 'intro-contacto intro-direccion'; direccion.textContent = at.direccion; contenido.appendChild(direccion); }
   const redes = at.social_bar ? enlacesSociales(at) : []; if (redes.length) { const bar = document.createElement('div'); bar.className = 'intro-redes'; bar.innerHTML = redes.map(r => `<a href="${escUrl(r.href)}" target="_blank" rel="noopener" aria-label="${esc(r.label)}">${r.icon}</a>`).join(''); contenido.appendChild(bar); }
   host.appendChild(contenido); return host;

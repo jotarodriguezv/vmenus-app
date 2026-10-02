@@ -54,6 +54,14 @@ instalar: no ejecutar `npm install` esperando que haga algo.
   Se calcula en la zona del restaurante y al pintar, nunca guardada. Ver
   `docs/ofertas.md` del panel.
 
+  `negocio.js` son los **datos del negocio** que el restaurante dice una vez en
+  Ajustes (hoy el WhatsApp y si se enseña su botón): `whatsappDelNegocio()` para
+  recibir pedidos y `whatsappParaMostrar()` para los botones. Las claves viejas
+  (`whatsapp_pedidos`, `social_whatsapp`) solo se leen si la nueva no existe, y
+  `''` es «no hay número». La regla está también en el panel y en su servidor, y
+  las tres corren contra `test/casos-negocio.json`, **duplicado a propósito**.
+  Ver `docs/datos-del-negocio.md` del panel.
+
   `intro.js` pinta la bienvenida; las **reservas de mesa** (botón y formulario dentro de
   su tarjeta) viven aparte en `reservas-intro.js`, con el `fetch` por parámetro
   para probarlas. La carta no escribe en la base: manda la reserva al panel
