@@ -209,7 +209,10 @@ async function init() {
 		// quitado el 02/10/2026: el panel solo lee la tabla, así que borrar la
 		// última promoción dejaba la carta de Bonzas enseñando una imagen que el
 		// panel ya no mostraba y nadie podía apagar.
-		if (promo) setTimeout(() => openPromo(promo.imagen_url), 700);
+		// Igual que la pantalla de bienvenida: la vista previa del panel tiene
+		// que enseñar el modelo de página, no una capa que lo tapa. El destacado
+		// sigue apareciendo normalmente a quien entra a la carta publicada.
+		if (!previewDraft && promo) setTimeout(() => openPromo(promo.imagen_url), 700);
 
 		// ── 9. CRÉDITO DE LA PLATAFORMA ──────────────────────────
 		mostrarCredito(restaurante);
