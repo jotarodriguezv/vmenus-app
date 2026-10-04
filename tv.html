@@ -920,6 +920,12 @@ function promocionesDeAhora(referencia) {
 	for (var i = 0; i < todas.length; i++) {
 		var p = todas[i];
 		if (!p || !p.activa || !p.en_tv) continue;
+		/* De una sede concreta: solo en la pantalla de esa sede. Va antes de los niveles
+		   (fondo y programada): una promoción de Bucaramanga no puede quitarle el turno a
+		   la de fondo de Piedecuesta. Mismo criterio que deLaSede() en core/promociones.js
+		   —una promoción atada a una sede no sale donde no hay esa sede— y el mismo juego
+		   de casos (test/casos-promo-sede.json). */
+		if (p.sede_id && !(datos.sede && datos.sede.id === p.sede_id)) continue;
 		var destinos = p.pantallas_tv;
 		var pantalla = typeof numeroPantalla === 'number' ? numeroPantalla : 1;
 		if (destinos && destinos.length) {
@@ -2064,7 +2070,7 @@ function cargar(alTerminar) {
 							   ella sería cambiar un problema pequeño por uno grande. Un null se
 							   trata como "hoy no hay". */
 							pedir('promociones?restaurante_id=eq.' + r.id +
-								'&select=id,imagen_url,nombre,precio,activa,en_popup,en_tv,pantallas_tv,programacion,orden' +
+								'&select=id,imagen_url,nombre,precio,activa,en_popup,en_tv,pantallas_tv,programacion,orden,sede_id' +
 								'&order=orden.asc',
 								function (promos) {
 									datos = { restaurante: r, categorias: cats, productos: platos,

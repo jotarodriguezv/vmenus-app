@@ -34,10 +34,26 @@ function porNivel(lista, zona, referencia) {
 	return programadas.length ? programadas : vivas.filter(p => !tieneProgramacion(p.programacion));
 }
 
+// ── DE QUÉ SEDE ───────────────────────────────────────────────
+// Una promoción puede ser de UNA sede (`sede_id`, sql/39 del panel) o de todas (vacío,
+// que es lo de siempre). La de una sede solo sale cuando se mira desde esa sede: un
+// «2x1 en Bucaramanga» no puede aparecerle a quien está en Piedecuesta, y menos con
+// su precio. Fuera de una sede concreta —un restaurante sin sedes, o con el interruptor
+// apagado— una promoción atada a una sede NO sale: está dirigida, y enseñarla a todos
+// sería el error que esto evita. (Apagar «Varias sedes» las esconde, no las borra.)
+export function deLaSede(promo, sede) {
+	return !promo.sede_id || (!!sede && promo.sede_id === sede.id);
+}
+
 // Las que podrían salir en una superficie, antes de mirar el reloj. Sin imagen
 // no hay promoción: es lo único que la pantalla enseña seguro.
-function candidatas(promos, donde) {
-	return (promos || []).filter(p => p && p.activa && p.imagen_url && p[donde]);
+//
+// La sede se filtra AQUÍ, antes de los niveles, por lo mismo que la superficie: si una
+// promoción programada para Bucaramanga compitiera en Piedecuesta, le quitaría el
+// turno a la de fondo de Piedecuesta sin enseñarse nunca. Quedarse callado por algo
+// que no era para esa sede sería un silencio sin explicación.
+function candidatas(promos, donde, sede) {
+	return (promos || []).filter(p => p && p.activa && p.imagen_url && p[donde] && deLaSede(p, sede));
 }
 
 // ── EL POPUP DE LA CARTA ──────────────────────────────────────
@@ -52,7 +68,7 @@ function candidatas(promos, donde) {
 // enseñando la de fondo: quedarse callado por algo que no era para él sería un
 // silencio sin explicación.
 export function paraElPopup(promos, restaurante, referencia, azar = Math.random) {
-	const elegibles = porNivel(candidatas(promos, 'en_popup'), zonaDe(restaurante), referencia);
+	const elegibles = porNivel(candidatas(promos, 'en_popup', restaurante?.sede), zonaDe(restaurante), referencia);
 	if (!elegibles.length) return null;
 	// Math.random() nunca devuelve 1, pero un 'azar' de prueba sí puede: el
 	// respaldo evita que un caso límite devuelva undefined.
@@ -64,7 +80,7 @@ export function paraElPopup(promos, restaurante, referencia, azar = Math.random)
 // copia— sino la vista previa del panel y las pruebas: tener la regla escrita
 // una vez aquí es lo que permite comprobar que la copia no se ha desviado.
 export function paraLaCartelera(promos, restaurante, referencia) {
-	return porNivel(candidatas(promos, 'en_tv'), zonaDe(restaurante), referencia)
+	return porNivel(candidatas(promos, 'en_tv', restaurante?.sede), zonaDe(restaurante), referencia)
 		.slice()
 		.sort((a, b) => (a.orden || 0) - (b.orden || 0));
 }

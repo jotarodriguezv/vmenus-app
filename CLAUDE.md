@@ -128,8 +128,11 @@ Es una **segunda copia** de la regla de precios (`productosDeLaSede`, en dialect
 y las dos corren contra `test/casos-sede.json`. Una pantalla de un restaurante con
 sedes **sin sede asignada no enseña nada**: se queda en reposo diciendo que falta (los
 precios base serían los de otro local). La caché de la pantalla es por número de
-pantalla, no solo por restaurante. Los destacados de TV ya se asignan por pantalla
-(`pantallas_tv`), así que quedan por sede sin más.
+pantalla, no solo por restaurante. **Los destacados** (`promociones`) pueden ser de una sede
+(`sede_id`, `sql/39` del panel; vacío = todas): `deLaSede()` en `core/promociones.js` y su
+copia en `promocionesDeAhora()` de `tv.html`, contra `test/casos-promo-sede.json`. El filtro
+de sede va **antes** de los niveles (fondo/programada), y uno atado a una sede **no sale**
+donde no hay sede (apagar «Varias sedes» los esconde, no los borra).
 
 Dos detalles que se pagan caros: `index.html` importa sus módulos con ruta
 **absoluta** (`/core/loader.js`) porque con la sede la URL tiene dos trozos y una
