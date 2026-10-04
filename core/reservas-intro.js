@@ -64,9 +64,13 @@ export function errorDeReserva(d, hoy) {
 // pero escondido, así que una persona lo deja vacío y un robot que rellena todo
 // no. `abierto_en` es cuándo se abrió el formulario: enviarlo en menos de unos
 // segundos tampoco lo hace una persona.
-export function cuerpoDeReserva(restauranteId, d, { trampa = '', abiertoEn = Date.now() } = {}) {
+export function cuerpoDeReserva(restauranteId, d, { trampa = '', abiertoEn = Date.now(), sedeId = null } = {}) {
   return {
     restaurante_id: restauranteId,
+    // La sede va solo si la hay: la reserva de un restaurante de un solo local viaja
+    // exactamente como antes. Con sedes, el servidor la EXIGE (docs/sedes.md): una
+    // reserva sin local no le sirve a quien tiene que prepararla.
+    ...(sedeId ? { sede_id: sedeId } : {}),
     nombre: String(d.nombre).trim(), celular: String(d.celular).trim(),
     fecha: d.fecha, hora: d.hora, personas: Number(d.personas),
     sitio_web: trampa, abierto_en: abiertoEn,
@@ -142,7 +146,7 @@ export const ESTILOS_RESERVA = `
 
 // Conecta el botón, el formulario y «Volver» dentro de la tarjeta ya pintada.
 // Solo corre con el DOM real de la carta.
-export function montarReservaIntro(raiz, restauranteId, apiUrl, { fetchFn, ahora = () => Date.now() } = {}) {
+export function montarReservaIntro(raiz, restauranteId, apiUrl, { fetchFn, ahora = () => Date.now(), sedeId = null } = {}) {
   const tarjeta = raiz.querySelector('.intro-vmenus__card');
   const boton = raiz.querySelector('[data-reservar]');
   const form = raiz.querySelector('.intro-vmenus__reserva-form');
@@ -175,7 +179,7 @@ export function montarReservaIntro(raiz, restauranteId, apiUrl, { fetchFn, ahora
     if (error) { aviso('error', error); return; }
     const enviar = form.querySelector('.intro-vmenus__reserva-enviar');
     enviar.disabled = true; aviso('ninguno');
-    const r = await enviarReserva(apiUrl, cuerpoDeReserva(restauranteId, datos, { trampa: val('sitio_web'), abiertoEn }), fetchFn);
+    const r = await enviarReserva(apiUrl, cuerpoDeReserva(restauranteId, datos, { trampa: val('sitio_web'), abiertoEn, sedeId }), fetchFn);
     enviar.disabled = false;
     if (!r.ok) { aviso('error', r.error); return; }
     aviso('ok', `¡Listo, ${datos.nombre.trim()}! Recibimos tu solicitud. El restaurante te escribirá por WhatsApp para confirmarla.`);
