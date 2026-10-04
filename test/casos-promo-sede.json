@@ -1,0 +1,59 @@
+{
+	"sedes": { "piedecuesta": "sede-pie", "bucaramanga": "sede-buc" },
+	"casos": [
+		{
+			"nombre": "una promoción de todas las sedes sale en cualquiera",
+			"promos": [{ "id": "a", "sede_id": null }],
+			"desde": "sede-pie",
+			"esperado": ["a"]
+		},
+		{
+			"nombre": "una promoción de todas las sedes también sale sin sede (restaurante sin sedes)",
+			"promos": [{ "id": "a" }],
+			"desde": null,
+			"esperado": ["a"]
+		},
+		{
+			"nombre": "una promoción de Bucaramanga sale en Bucaramanga",
+			"promos": [{ "id": "b", "sede_id": "sede-buc" }],
+			"desde": "sede-buc",
+			"esperado": ["b"]
+		},
+		{
+			"nombre": "una promoción de Bucaramanga NO sale en Piedecuesta",
+			"promos": [{ "id": "b", "sede_id": "sede-buc" }],
+			"desde": "sede-pie",
+			"esperado": []
+		},
+		{
+			"nombre": "una promoción atada a una sede NO sale donde no hay sede",
+			"promos": [{ "id": "b", "sede_id": "sede-buc" }],
+			"desde": null,
+			"esperado": []
+		},
+		{
+			"nombre": "cada sede ve la suya y las de todas",
+			"promos": [{ "id": "todas" }, { "id": "pie", "sede_id": "sede-pie" }, { "id": "buc", "sede_id": "sede-buc" }],
+			"desde": "sede-buc",
+			"esperado": ["todas", "buc"]
+		},
+		{
+			"nombre": "una programada de Bucaramanga NO le quita el turno a la de fondo de Piedecuesta",
+			"promos": [{ "id": "fondo" }, { "id": "martes-buc", "sede_id": "sede-buc", "programacion": { "activo": true, "dias": [2] } }],
+			"desde": "sede-pie",
+			"esperado": ["fondo"]
+		},
+		{
+			"nombre": "y en Bucaramanga, el martes, la programada sí manda sobre la de fondo",
+			"promos": [{ "id": "fondo" }, { "id": "martes-buc", "sede_id": "sede-buc", "programacion": { "activo": true, "dias": [2] } }],
+			"desde": "sede-buc",
+			"esperado": ["martes-buc"]
+		},
+		{
+			"nombre": "una programada para todas las sedes sí manda sobre la de fondo en cualquiera",
+			"promos": [{ "id": "fondo" }, { "id": "martes", "programacion": { "activo": true, "dias": [2] } }],
+			"desde": "sede-pie",
+			"esperado": ["martes"]
+		}
+	]
+}
