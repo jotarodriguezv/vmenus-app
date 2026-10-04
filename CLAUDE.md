@@ -117,7 +117,7 @@ Un restaurante con varios locales que comparten carta pero **no precios**
 `menu.vmenus.co/<restaurante>/<sede>`, devuelven el restaurante con los datos del
 negocio de esa sede por encima y los platos con su precio y disponibilidad —el
 resto del código sigue leyendo los mismos campos—. Sin la sede en la URL sale
-`core/selector-sedes.js`. Las tablas son `sedes` y `productos_sedes` (`sql/37` del
+`core/selector-sedes.js`; **con la bienvenida encendida, las sedes son una tarjeta dentro de ella** (`htmlSedesIntro` en `intro.js`: sin «Ver carta», sin Escape, sin reservas, sin dirección/horario/mapa del restaurante) y el selector propio queda solo para los que no tienen bienvenida. Quien elige sede deja una nota en `sessionStorage` y la carta de esa sede se salta la bienvenida UNA vez (`vieneDelSelector`). Las tablas son `sedes` y `productos_sedes` (`sql/37` del
 panel) y **solo se piden si `atributos.con_sedes` es `true`**: un restaurante sin
 sedes no paga una petición de más ni depende de que existan. Ver
 `docs/sedes.md` del panel.

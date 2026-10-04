@@ -225,7 +225,7 @@ describe('montarReservaIntro con una tarjeta de mentira', () => {
 describe('la bienvenida lo usa', () => {
 	const fuente = fs.readFileSync(new URL('../core/intro.js', import.meta.url), 'utf8');
 	test('el formulario va dentro de la tarjeta, que es donde apuntan los estilos', () => {
-		assert.match(fuente, /\$\{formularioReservaIntro\(at, hoyEn\(at\.zona_horaria\)\)\}<\/div>`;/);
+		assert.match(fuente, /\$\{sedes \? '' : formularioReservaIntro\(at, hoyEn\(at\.zona_horaria\)\)\}<\/div>`;/);
 		assert.match(fuente, /montarReservaIntro\(raiz, restaurante\.id, MAPA_API_URL\)/);
 		assert.match(fuente, /style\.textContent \+= ESTILOS_RESERVA/);
 	});

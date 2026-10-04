@@ -135,3 +135,26 @@ export function rutaDeSede(host, slug, sedeSlug) {
 		|| SUBDOMINIOS_RESERVADOS.includes(partes[0]);
 	return sinSubdominio ? `/${slug}/${sedeSlug}` : `/${sedeSlug}`;
 }
+
+// ── NO REPETIR LA BIENVENIDA ──────────────────────────────────
+// Quien elige sede en la bienvenida del restaurante llega a /<restaurante>/<sede>,
+// y esa URL, entrada directa, también abre la bienvenida: la vería dos veces
+// seguidas. Al elegir se deja una nota en sessionStorage y la carta de la sede
+// la consume UNA vez para saltársela. No es un parámetro de la URL a propósito:
+// el enlace se comparte y se imprime en QR, y tiene que seguir siendo el mismo.
+//
+// Todo va en try/catch: el almacenamiento puede estar bloqueado (modo privado,
+// navegadores embebidos), y sin él lo peor que pasa es ver la bienvenida otra vez.
+const CLAVE_ELECCION = 'vmenus:sede-elegida';
+
+export function recordarEleccionDeSede(slug, sedeSlug, almacen = globalThis.sessionStorage) {
+	try { almacen.setItem(CLAVE_ELECCION, `${slug}/${sedeSlug}`); } catch { /* sin almacenamiento */ }
+}
+
+export function vieneDelSelector(slug, sedeSlug, almacen = globalThis.sessionStorage) {
+	try {
+		const nota = almacen.getItem(CLAVE_ELECCION);
+		almacen.removeItem(CLAVE_ELECCION);   // se consume: un recargar vuelve a enseñar la bienvenida
+		return nota === `${slug}/${sedeSlug}`;
+	} catch { return false; }
+}

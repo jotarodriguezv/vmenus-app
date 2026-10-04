@@ -21,7 +21,7 @@ function nodoFalso(etiqueta) {
 const cuerpo = { hijos: [], appendChild(h) { this.hijos.push(h); return h; } };
 globalThis.document = { createElement: nodoFalso, body: cuerpo };
 
-const { introActiva, construirIntro, mostrarIntro, redesIntro, botonResenaIntro, RESENA_TEXTO_POR_DEFECTO, variablesTarjeta } = await import('../core/intro.js');
+const { introActiva, construirIntro, mostrarIntro, htmlSedesIntro, redesIntro, botonResenaIntro, RESENA_TEXTO_POR_DEFECTO, variablesTarjeta } = await import('../core/intro.js');
 
 const restaurante = (atributos = {}, extra = {}) => ({
 	nombre: 'Bonzas', logo_url: '/uploads/logos/bonzas.png', atributos, ...extra,
@@ -42,7 +42,7 @@ describe('introActiva', () => {
 
 test('la vista previa de la carta no monta la bienvenida encima del modelo', () => {
 	const loader = fs.readFileSync(new URL('../core/loader.js', import.meta.url), 'utf8');
-	assert.match(loader, /if \(!previewDraft && introActiva\(restaurante\)\) mostrarIntro\(restaurante\);/);
+	assert.match(loader, /if \(!previewDraft && introActiva\(restaurante\) && !\(sede && vieneDelSelector\(restaurante\.slug, sede\.slug\)\)\) mostrarIntro\(restaurante\);/);
 });
 
 describe('construirIntro · qué se pinta', () => {
@@ -210,7 +210,7 @@ describe('botonResenaIntro · «Califícanos en Google»', () => {
 
 	test('mostrarIntro pone reservas y reseñas justo debajo del botón principal, y las redes con el estilo de siempre', () => {
 		const fuente = fs.readFileSync(new URL('../core/intro.js', import.meta.url), 'utf8');
-		assert.match(fuente, /<\/button>\$\{botonReservaIntro\(at\)\}\$\{botonResenaIntro\(at\)\}\$\{redes\.length/);
+		assert.match(fuente, /<\/button>\$\{botonReservaIntro\(at\)\}`\}\$\{botonResenaIntro\(at\)\}\$\{redes\.length/);
 		assert.match(fuente, /redes\.push\(\.\.\.redesIntro\(at, socialCss\)\)/);
 	});
 });
@@ -257,4 +257,44 @@ describe('el recuadro de la bienvenida · color y borde que elige el restaurante
 	test('mostrarIntro las aplica a la bienvenida', () => {
 		assert.match(fuente, /Object\.entries\(variablesTarjeta\(at\)\)\) raiz\.style\.setProperty\(k, val\)/);
 	});
+});
+
+describe('htmlSedesIntro · las sedes dentro de la bienvenida', () => {
+	const sedes = [
+		{ slug: 'piedecuesta', nombre: 'Piedecuesta', atributos: { direccion: 'Calle 1 # 2-3' } },
+		{ slug: 'bucaramanga', nombre: 'Bucaramanga', atributos: {} },
+	];
+	const r = { slug: 'enchulados', nombre: 'Enchulados' };
+
+	test('un enlace por sede, con la forma de URL con la que entró el visitante', () => {
+		const porRuta = htmlSedesIntro(r, sedes, 'menu.vmenus.co');
+		assert.match(porRuta, /href="\/enchulados\/piedecuesta"/);
+		assert.match(porRuta, /href="\/enchulados\/bucaramanga"/);
+		const porSubdominio = htmlSedesIntro(r, sedes, 'enchulados.vmenus.co');
+		assert.match(porSubdominio, /href="\/piedecuesta"/);
+	});
+
+	test('pregunta en qué sede está y enseña la dirección solo de la que la tiene', () => {
+		const html = htmlSedesIntro(r, sedes, 'menu.vmenus.co');
+		assert.match(html, /¿En qué sede estás\?/);
+		assert.equal((html.match(/intro-vmenus__sede-direccion/g) || []).length, 1);
+		assert.match(html, /Calle 1 # 2-3/);
+	});
+
+	test('el nombre y la dirección que escribe el restaurante van escapados', () => {
+		const html = htmlSedesIntro(r, [{ slug: 'x', nombre: '<img src=x onerror=alert(1)>', atributos: { direccion: '"><script>' } }], 'menu.vmenus.co');
+		assert.ok(!html.includes('<img'), 'el nombre no puede abrir una etiqueta');
+		assert.ok(!html.includes('<script'), 'la dirección tampoco');
+	});
+
+	test('guarda el slug de la sede para consumirlo al hacer clic', () => {
+		assert.match(htmlSedesIntro(r, sedes, 'menu.vmenus.co'), /data-sede="bucaramanga"/);
+	});
+});
+
+test('la bienvenida con sedes no deja cerrar con «Ver carta» ni con Escape, y las reservas se quedan fuera', () => {
+	const fuente = fs.readFileSync(new URL('../core/intro.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+	// El cierre (botón y Escape) solo existe en la rama sin sedes.
+	assert.match(fuente, /if \(sedes\) \{[\s\S]*?recordarEleccionDeSede[\s\S]*?\} else \{[\s\S]*?intro-vmenus__cta[\s\S]*?Escape/);
+	assert.match(fuente, /\$\{sedes \? '' : formularioReservaIntro/);
 });

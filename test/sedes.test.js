@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
 	leerRuta, sedeDeLaUrl, restauranteDeLaSede, productosDeLaSede,
 	reordenarSiEsPorPrecio, categoriasDeLaSede, rutaDeSede, CLAVES_DE_SEDE,
+	recordarEleccionDeSede, vieneDelSelector,
 } from '../core/sedes.js';
 
 describe('leerRuta · el restaurante y la sede en la URL', () => {
@@ -165,5 +166,33 @@ describe('categoriasDeLaSede', () => {
 	});
 	test('una categoría que ya estaba vacía antes se queda como estaba', () => {
 		assert.ok(categoriasDeLaSede(cats, base, base).some(c => c.id === 'c3'));
+	});
+});
+
+describe('no repetir la bienvenida al elegir sede', () => {
+	const almacenFalso = () => {
+		const d = new Map();
+		return { setItem: (k, v) => d.set(k, v), getItem: k => (d.has(k) ? d.get(k) : null), removeItem: k => d.delete(k) };
+	};
+	test('lo que se eligió se reconoce una sola vez', () => {
+		const a = almacenFalso();
+		recordarEleccionDeSede('enchulados', 'bucaramanga', a);
+		assert.equal(vieneDelSelector('enchulados', 'bucaramanga', a), true);
+		assert.equal(vieneDelSelector('enchulados', 'bucaramanga', a), false, 'recargar vuelve a enseñar la bienvenida');
+	});
+	test('otra sede u otro restaurante no se salta nada', () => {
+		const a = almacenFalso();
+		recordarEleccionDeSede('enchulados', 'bucaramanga', a);
+		assert.equal(vieneDelSelector('enchulados', 'piedecuesta', a), false);
+		recordarEleccionDeSede('enchulados', 'bucaramanga', a);
+		assert.equal(vieneDelSelector('bonzas', 'bucaramanga', a), false);
+	});
+	test('sin nota previa, no viene del selector', () => {
+		assert.equal(vieneDelSelector('enchulados', 'bucaramanga', almacenFalso()), false);
+	});
+	test('un almacenamiento bloqueado no rompe nada', () => {
+		const roto = { setItem() { throw new Error('bloqueado'); }, getItem() { throw new Error('bloqueado'); }, removeItem() { throw new Error('bloqueado'); } };
+		assert.doesNotThrow(() => recordarEleccionDeSede('a', 'b', roto));
+		assert.equal(vieneDelSelector('a', 'b', roto), false);
 	});
 });
