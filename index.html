@@ -106,6 +106,15 @@
 				color: var(--primary);
 				line-height: 1;
 			}
+			/* La sede va en su propia línea, más pequeña: «ENCHULADOS MEX · BUCARAMANGA»
+			   en una sola línea a 42 px con 5 px de separación no cabe en un móvil. */
+			.hero-title .hero-sede {
+				display: block;
+				margin-top: 10px;
+				font-size: 0.5em;
+				letter-spacing: 4px;
+				color: var(--accent2);
+			}
 			.hero-sub {
 				font-size: 11px;
 				color: var(--accent2);
@@ -2352,7 +2361,20 @@
 				else {
 					logo.style.display = 'none';
 				}
-				document.getElementById('heroTitle').textContent = restaurante.nombre.toUpperCase();
+				// Con sede, el nombre llega como «Restaurante · Sede» (core/sedes.js): se
+				// pinta en dos líneas, el restaurante grande y la sede debajo.
+				const heroTitulo = document.getElementById('heroTitle');
+				const sedeNombre = restaurante.sede?.nombre;
+				const sufijo = sedeNombre ? ` · ${sedeNombre}` : '';
+				if (sufijo && restaurante.nombre.endsWith(sufijo)) {
+					heroTitulo.textContent = restaurante.nombre.slice(0, -sufijo.length).toUpperCase();
+					const linea = document.createElement('span');
+					linea.className = 'hero-sede';
+					linea.textContent = sedeNombre.toUpperCase();
+					heroTitulo.appendChild(linea);
+				} else {
+					heroTitulo.textContent = restaurante.nombre.toUpperCase();
+				}
 				document.getElementById('heroSub').textContent = restaurante.atributos?.subtitulo || 'Carta Digital · ' + new Date().getFullYear();
 			}
 
