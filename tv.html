@@ -252,6 +252,7 @@
 	#reposo.visible { display: flex; }
 	#reposoLogo { max-width: 34vmin; max-height: 34vmin; margin-bottom: 3vmin; }
 	#reposoNombre { font-size: 5vmin; font-weight: 700; letter-spacing: 0.08em; }
+	#reposoAviso { margin-top: 2.4vmin; max-width: 70vmin; font-size: 2.2vmin; opacity: 0.75; }
 
 	/* Marca de agua discreta del negocio, arriba. Cambia de esquina en cada
 	   slide para no quemar el panel: un OLED marca lo que no se mueve.
@@ -311,7 +312,7 @@
 	<div id="marco">
 		<div id="slides"></div>
 		<div id="suspendida" role="status"><div class="suspendida-caja"><div class="suspendida-icono">🔒</div><div class="suspendida-titulo">Este menú está temporalmente inactivo</div><div class="suspendida-texto">Comunícate con la administración del restaurante para más información.</div></div></div>
-		<div id="reposo"><img id="reposoLogo" alt=""><div id="reposoNombre"></div></div>
+		<div id="reposo"><img id="reposoLogo" alt=""><div id="reposoNombre"></div><div id="reposoAviso"></div></div>
 		<img id="marca" alt="">
 		<div id="sinRed">sin conexión</div>
 		<div id="cintaArriba" class="cinta"><div class="cinta-pista"></div></div>
@@ -514,6 +515,8 @@ function registrar(texto) {
    El defecto es NO activa a propósito: si fuera al revés, /{slug}/tv
    funcionaría gratis para todos los restaurantes de la plataforma. */
 function tvActiva() {
+	/* Sin sede asignada no hay carta que enseñar: ver pedirSede(). */
+	if (datos && datos.sedeFaltante) return false;
 	var a = (datos && datos.restaurante && datos.restaurante.atributos) || {};
 	var t = typeof configGuardada === 'function' ? configGuardada() : (a.tv || {});
 	var pantalla = typeof numeroPantalla === 'number' ? numeroPantalla : 1;
@@ -1656,6 +1659,11 @@ function mostrarReposo(activo) {
 		var titulo = document.getElementById('reposoNombre');
 		titulo.textContent = (datos && datos.restaurante && datos.restaurante.nombre) || '';
 		titulo.style.color = paletaPagina().acento;
+		/* Una pantalla de un restaurante con sedes que no sabe de cuál es no enseña
+		   precios (ver pedirSede): se dice por qué, para que quien la mire en el
+		   local sepa a quién avisar. En cualquier otro reposo, vacío. */
+		document.getElementById('reposoAviso').textContent =
+			(datos && datos.sedeFaltante) ? 'Falta asignar la sede de esta pantalla (panel, Pantalla TV).' : '';
 		// El fondo del reposo lo pone la propia página, no una foto: la marca de
 		// agua no necesita su placa aquí. Ver marcaNecesitaPlaca().
 		document.getElementById('marca').style.background = 'transparent';
@@ -1921,13 +1929,16 @@ function aplicar(primeraVez) {
 
 /* ── DATOS ───────────────────────────────────────────────────────── */
 
+/* La caché es POR PANTALLA, no solo por restaurante: con sedes, la pantalla 1 y la
+   2 pueden enseñar precios distintos, y un navegador que abriera las dos pintaría
+   primero los precios de la otra hasta la primera carga. */
 function guardarCache() {
-	try { localStorage.setItem(CLAVE_CACHE + slug, JSON.stringify(datos)); } catch (e) {}
+	try { localStorage.setItem(CLAVE_CACHE + slug + '_' + numeroPantalla, JSON.stringify(datos)); } catch (e) {}
 }
 
 function leerCache() {
 	try {
-		var s = localStorage.getItem(CLAVE_CACHE + slug);
+		var s = localStorage.getItem(CLAVE_CACHE + slug + '_' + numeroPantalla);
 		return s ? JSON.parse(s) : null;
 	} catch (e) { return null; }
 }
@@ -1951,6 +1962,68 @@ function mostrarSuspendida() {
 	document.getElementById('cintaAbajo').className = 'cinta';
 	document.getElementById('reloj').className = '';
 	try { localStorage.removeItem(CLAVE_CACHE + slug); } catch (e) {}
+}
+
+/* ── SEDES ───────────────────────────────────────────────────────
+   Un restaurante con varias sedes comparte carta pero no precios. CADA PANTALLA
+   pertenece a una sede (atributos.tv.sede o atributos.tv_pantallas[n].sede, el
+   slug), y enseña los precios y los platos de esa sede. La regla es la MISMA de
+   core/sedes.js de la carta del QR (productosDeLaSede) y la comprueba el mismo
+   juego de casos (test/casos-sede.json): una copia en dialecto viejo porque aquí
+   no se pueden importar módulos. Ver docs/sedes.md del panel.
+
+   Si el restaurante tiene sedes y esta pantalla no tiene ninguna asignada, o la
+   que tenía ya no existe, NO se enseña la carta: se queda en reposo diciendo por
+   qué. Enseñar los precios base sería enseñar los de otro local, y un precio en
+   la pared que la caja no cobra es peor que una pantalla que avisa. */
+function sedeConfigurada(atributos, pantalla) {
+	var a = atributos || {};
+	var t = pantalla === 1 ? a.tv : (a.tv_pantallas && a.tv_pantallas[String(pantalla)]);
+	var s = t && t.sede;
+	return typeof s === 'string' ? s : '';
+}
+
+/* Precio propio y disponibilidad de la sede sobre los platos de la carta. Si la
+   sede cambia el precio, la oferta del plato se apaga en ella (se calculó contra
+   el precio base): es lo mismo que hace la carta. */
+function productosDeLaSede(prods, filas) {
+	var porPlato = {};
+	for (var i = 0; i < filas.length; i++) porPlato[filas[i].producto_id] = filas[i];
+	var salida = [];
+	for (var j = 0; j < prods.length; j++) {
+		var p = prods[j], f = porPlato[p.id];
+		if (!f) { salida.push(p); continue; }
+		if (f.disponible === false) continue;
+		if (f.precio_numerico === null || f.precio_numerico === undefined) { salida.push(p); continue; }
+		var n = Number(f.precio_numerico);
+		if (isNaN(n)) { salida.push(p); continue; }
+		var copia = {};
+		for (var k in p) if (p.hasOwnProperty(k)) copia[k] = p[k];
+		copia.precio_numerico = n;
+		copia.precio = String(f.precio == null ? '' : f.precio).replace(/^\s+|\s+$/g, '') || formatoPesos(n);
+		copia.oferta_activa = false;
+		salida.push(copia);
+	}
+	return salida;
+}
+
+/* Pide la sede de ESTA pantalla y lo que cambia en ella. Contesta
+   { sede, faltante, filas }, o null si no pudo (se trata como un fallo de carga y
+   se conserva lo que ya había: nunca se pinta una carta con precios a medias).
+   Un restaurante sin el interruptor de sedes no hace ninguna petición de más. */
+function pedirSede(r, alTerminar) {
+	if (!r.atributos || r.atributos.con_sedes !== true) { alTerminar({ sede: null, faltante: false, filas: [] }); return; }
+	pedir('sedes?restaurante_id=eq.' + r.id + '&select=id,slug,nombre&order=orden.asc', function (sedes) {
+		if (!sedes) { alTerminar(null); return; }
+		if (!sedes.length) { alTerminar({ sede: null, faltante: false, filas: [] }); return; }
+		var quiero = sedeConfigurada(r.atributos, numeroPantalla), sede = null;
+		for (var i = 0; i < sedes.length; i++) if (sedes[i].slug === quiero) sede = sedes[i];
+		if (!sede) { alTerminar({ sede: null, faltante: true, filas: [] }); return; }
+		pedir('productos_sedes?sede_id=eq.' + sede.id + '&select=producto_id,precio,precio_numerico,disponible', function (filas) {
+			if (!filas) { alTerminar(null); return; }
+			alTerminar({ sede: sede, faltante: false, filas: filas });
+		});
+	});
 }
 
 /* Trae restaurante, categorías y productos. Si algo falla se conserva lo que
@@ -1981,19 +2054,26 @@ function cargar(alTerminar) {
 					'oferta_activa,oferta_precio_numerico,oferta_desde,oferta_hasta&order=orden.asc',
 					function (prods) {
 						if (!prods) { alTerminar(false); return; }
-						/* Las promociones NO cortan la carga si fallan. Los platos son el
-						   producto; una promoción es un adorno, y quedarse sin pantalla por
-						   ella sería cambiar un problema pequeño por uno grande. Un null se
-						   trata como "hoy no hay". */
-						pedir('promociones?restaurante_id=eq.' + r.id +
-							'&select=id,imagen_url,nombre,precio,activa,en_popup,en_tv,pantallas_tv,programacion,orden' +
-							'&order=orden.asc',
-							function (promos) {
-								datos = { restaurante: r, categorias: cats, productos: prods,
-								          promociones: promos || [] };
-								guardarCache();
-								alTerminar(true);
-							});
+						/* La sede de esta pantalla, si el restaurante las tiene. Sin ella
+						   o con un fallo, no hay carta: ver pedirSede(). */
+						pedirSede(r, function (infoSede) {
+							if (!infoSede) { alTerminar(false); return; }
+							var platos = infoSede.sede ? productosDeLaSede(prods, infoSede.filas) : prods;
+							/* Las promociones NO cortan la carga si fallan. Los platos son el
+							   producto; una promoción es un adorno, y quedarse sin pantalla por
+							   ella sería cambiar un problema pequeño por uno grande. Un null se
+							   trata como "hoy no hay". */
+							pedir('promociones?restaurante_id=eq.' + r.id +
+								'&select=id,imagen_url,nombre,precio,activa,en_popup,en_tv,pantallas_tv,programacion,orden' +
+								'&order=orden.asc',
+								function (promos) {
+									datos = { restaurante: r, categorias: cats, productos: platos,
+									          promociones: promos || [],
+									          sede: infoSede.sede, sedeFaltante: infoSede.faltante };
+									guardarCache();
+									alTerminar(true);
+								});
+						});
 					});
 			});
 		});

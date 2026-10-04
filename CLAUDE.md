@@ -122,6 +122,15 @@ panel) y **solo se piden si `atributos.con_sedes` es `true`**: un restaurante si
 sedes no paga una petición de más ni depende de que existan. Ver
 `docs/sedes.md` del panel.
 
+**La cartelera (`tv.html`) también es por sede**: cada pantalla pertenece a una sede
+(`atributos.tv.sede` / `tv_pantallas[n].sede`, el slug) y enseña SUS precios y platos.
+Es una **segunda copia** de la regla de precios (`productosDeLaSede`, en dialecto viejo)
+y las dos corren contra `test/casos-sede.json`. Una pantalla de un restaurante con
+sedes **sin sede asignada no enseña nada**: se queda en reposo diciendo que falta (los
+precios base serían los de otro local). La caché de la pantalla es por número de
+pantalla, no solo por restaurante. Los destacados de TV ya se asignan por pantalla
+(`pantallas_tv`), así que quedan por sede sin más.
+
 Dos detalles que se pagan caros: `index.html` importa sus módulos con ruta
 **absoluta** (`/core/loader.js`) porque con la sede la URL tiene dos trozos y una
 ruta relativa buscaría `/enchulados/core/…`; y si falla la lectura de
