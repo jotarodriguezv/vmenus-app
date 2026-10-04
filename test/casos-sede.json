@@ -1,0 +1,56 @@
+[
+	{
+		"nombre": "sin filas, la carta es la base",
+		"productos": [{ "id": "a", "precio": "$ 26.000", "precio_numerico": 26000, "oferta_activa": true }],
+		"filas": [],
+		"esperado": [{ "id": "a", "precio": "$ 26.000", "precio_numerico": 26000, "oferta_activa": true }]
+	},
+	{
+		"nombre": "precio propio con su texto: manda sobre el base y apaga la oferta",
+		"productos": [{ "id": "a", "precio": "$ 26.000", "precio_numerico": 26000, "oferta_activa": true }],
+		"filas": [{ "producto_id": "a", "precio": "$ 31.000", "precio_numerico": 31000, "disponible": null }],
+		"esperado": [{ "id": "a", "precio": "$ 31.000", "precio_numerico": 31000, "oferta_activa": false }]
+	},
+	{
+		"nombre": "precio propio sin texto: el texto sale del número",
+		"productos": [{ "id": "b", "precio": "$ 9.000", "precio_numerico": 9000 }],
+		"filas": [{ "producto_id": "b", "precio": null, "precio_numerico": 11000, "disponible": null }],
+		"esperado": [{ "id": "b", "precio": "$ 11.000", "precio_numerico": 11000, "oferta_activa": false }]
+	},
+	{
+		"nombre": "el número llega como texto desde la base: se entiende",
+		"productos": [{ "id": "b", "precio": "$ 9.000", "precio_numerico": 9000 }],
+		"filas": [{ "producto_id": "b", "precio": "$ 11.500", "precio_numerico": "11500", "disponible": null }],
+		"esperado": [{ "id": "b", "precio": "$ 11.500", "precio_numerico": 11500, "oferta_activa": false }]
+	},
+	{
+		"nombre": "disponible=false quita el plato",
+		"productos": [{ "id": "a", "precio_numerico": 1 }, { "id": "c", "precio_numerico": 5000 }],
+		"filas": [{ "producto_id": "c", "precio": null, "precio_numerico": null, "disponible": false }],
+		"esperado": [{ "id": "a", "precio_numerico": 1 }]
+	},
+	{
+		"nombre": "disponible=null hereda: el plato sigue",
+		"productos": [{ "id": "c", "precio": "$ 5.000", "precio_numerico": 5000, "oferta_activa": true }],
+		"filas": [{ "producto_id": "c", "precio": null, "precio_numerico": null, "disponible": null }],
+		"esperado": [{ "id": "c", "precio": "$ 5.000", "precio_numerico": 5000, "oferta_activa": true }]
+	},
+	{
+		"nombre": "un precio que no es número se ignora: se queda el base",
+		"productos": [{ "id": "a", "precio": "$ 26.000", "precio_numerico": 26000, "oferta_activa": true }],
+		"filas": [{ "producto_id": "a", "precio": "x", "precio_numerico": "abc", "disponible": null }],
+		"esperado": [{ "id": "a", "precio": "$ 26.000", "precio_numerico": 26000, "oferta_activa": true }]
+	},
+	{
+		"nombre": "una fila de un plato que no está se ignora",
+		"productos": [{ "id": "a", "precio_numerico": 100 }],
+		"filas": [{ "producto_id": "fantasma", "precio": "$ 1", "precio_numerico": 1, "disponible": false }],
+		"esperado": [{ "id": "a", "precio_numerico": 100 }]
+	},
+	{
+		"nombre": "varios platos: cada uno con lo suyo y en el mismo orden",
+		"productos": [{ "id": "a", "precio": "$ 22.000", "precio_numerico": 22000 }, { "id": "b", "precio": "$ 21.000", "precio_numerico": 21000 }, { "id": "c", "precio": "$ 5.000", "precio_numerico": 5000 }],
+		"filas": [{ "producto_id": "b", "precio": "$ 19.500", "precio_numerico": 19500, "disponible": null }, { "producto_id": "c", "precio": null, "precio_numerico": null, "disponible": false }],
+		"esperado": [{ "id": "a", "precio": "$ 22.000", "precio_numerico": 22000 }, { "id": "b", "precio": "$ 19.500", "precio_numerico": 19500, "oferta_activa": false }]
+	}
+]
