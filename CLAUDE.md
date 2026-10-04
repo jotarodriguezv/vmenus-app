@@ -92,7 +92,7 @@ instalar: no ejecutar `npm install` esperando que haga algo.
   es un interruptor en los cinco.
 
 Un restaurante se identifica por su slug, y el código acepta **las dos formas**
-(`leerSlug` en `core/loader.js`): el slug en la ruta —`menu.vmenus.co/bonzas`—
+(`leerRuta` en `core/sedes.js`): el slug en la ruta —`menu.vmenus.co/bonzas`—
 y el slug en el subdominio —`bonzas.vmenus.co`—. No romper ninguna de las dos:
 es lo que permitiría cambiar la forma oficial sin invalidar un QR repartido.
 
@@ -108,6 +108,25 @@ de que existiera el panel: `bonzaburgergrill.verificame.click` y
 nueve líneas que redirigen a `menu.vmenus.co/<slug>`, y siguen vivas porque sus
 QR ya estaban impresos. La historia completa está en
 `adminmenus_restaurantes/docs/servidor.md` §1.
+
+## Sedes
+
+Un restaurante con varios locales que comparten carta pero **no precios**
+(Piedecuesta y Bucaramanga: casi todo cuesta más en una). La carta no se entera:
+`core/sedes.js` son funciones puras que, al entrar por
+`menu.vmenus.co/<restaurante>/<sede>`, devuelven el restaurante con los datos del
+negocio de esa sede por encima y los platos con su precio y disponibilidad —el
+resto del código sigue leyendo los mismos campos—. Sin la sede en la URL sale
+`core/selector-sedes.js`. Las tablas son `sedes` y `productos_sedes` (`sql/37` del
+panel) y **solo se piden si `atributos.con_sedes` es `true`**: un restaurante sin
+sedes no paga una petición de más ni depende de que existan. Ver
+`docs/sedes.md` del panel.
+
+Dos detalles que se pagan caros: `index.html` importa sus módulos con ruta
+**absoluta** (`/core/loader.js`) porque con la sede la URL tiene dos trozos y una
+ruta relativa buscaría `/enchulados/core/…`; y si falla la lectura de
+`productos_sedes` la carta **no** sigue con precios base, se cae a propósito: un
+precio de otra sede cobrado en silencio es peor que un error visible.
 
 ## Seguridad
 
