@@ -23,7 +23,7 @@ import { blindarAnfitrion } from './aviso.js';
 import { introActiva, mostrarIntro } from './intro.js';
 import {
 	leerRuta, sedeDeLaUrl, restauranteDeLaSede,
-	productosDeLaSede, reordenarSiEsPorPrecio, categoriasDeLaSede
+	productosDeLaSede, reordenarSiEsPorPrecio, categoriasDeLaSede, vieneDelSelector
 } from './sedes.js';
 import { mostrarSelector } from './selector-sedes.js';
 
@@ -145,9 +145,13 @@ async function init() {
 		// porque los precios dependen de la sede. Va después de los estilos para que
 		// la pantalla lleve los colores del restaurante. La vista previa del panel
 		// no pasa por aquí: compara apariencia, no elige local.
+		//
+		// Con bienvenida encendida, las sedes son una tarjeta DENTRO de ella; sin
+		// ella, una pantalla propia.
 		if (sedes.length && !sede && !previewDraft) {
 			showLoading(false);
-			mostrarSelector(restaurante, sedes);
+			if (introActiva(restaurante)) mostrarIntro(restaurante, { sedes });
+			else mostrarSelector(restaurante, sedes);
 			document.title = `${restaurante.nombre} — Elige tu sede`;
 			return;
 		}
@@ -198,7 +202,8 @@ async function init() {
 		// miniaturas de modelos comparten ?preview=… y deben enseñar de inmediato
 		// la navegación que se está eligiendo. La bienvenida tiene su propio
 		// simulador dentro del panel de Apariencia.
-		if (!previewDraft && introActiva(restaurante)) mostrarIntro(restaurante);
+		// Quien acaba de elegir sede en la bienvenida ya la vio: no se repite.
+		if (!previewDraft && introActiva(restaurante) && !(sede && vieneDelSelector(restaurante.slug, sede.slug))) mostrarIntro(restaurante);
 
 		// ── 5. TEMA DE NAV ────────────────────────────────────────
 		// Validado contra los modelos que existen de verdad: el nombre se usa
