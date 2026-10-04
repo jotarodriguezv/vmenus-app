@@ -21,6 +21,11 @@ import { planDe, modeloDe } from './planes.js';
 import { aplicarPreview } from './preview.js';
 import { blindarAnfitrion } from './aviso.js';
 import { introActiva, mostrarIntro } from './intro.js';
+import {
+	leerRuta, sedeDeLaUrl, restauranteDeLaSede,
+	productosDeLaSede, reordenarSiEsPorPrecio, categoriasDeLaSede
+} from './sedes.js';
+import { mostrarSelector } from './selector-sedes.js';
 
 // ── 1. SLUG DESDE LA URL ──────────────────────────────────────
 // Se aceptan las dos formas a la vez, siempre, sin que el restaurante
@@ -30,8 +35,10 @@ import { introActiva, mostrarIntro } from './intro.js';
 // Que ambas respondan es lo que permite cambiar la forma "oficial" de un
 // restaurante en el panel sin invalidar los QR que ya repartió.
 //
-// Hosts que son la plataforma misma, no un restaurante.
-const SUBDOMINIOS_RESERVADOS = ['menu', 'www', 'admin', 'app', 'api'];
+// La regla vive en core/sedes.js (leerRuta) porque ahora lleva un segundo dato:
+// la sede. menu.vmenus.co/enchulados/bucaramanga → slug 'enchulados', sede
+// 'bucaramanga'. Sin sedes, el segundo trozo se ignora.
+const { slug, sedeSlug } = leerRuta(window.location.hostname, window.location.pathname);
 
 // Columnas de 'restaurantes' que el menú público necesita. Es la lista
 // completa de la tabla menos 'created_at' (no se usa). El PIN vive en otra
@@ -54,18 +61,6 @@ const COLUMNAS_PUBLICAS = [
 //
 // Se añaden el día que el popup de la carta quiera enseñarlas, y ese día ya
 // existirán en la tabla desde hace tiempo.
-
-function leerSlug() {
-	const host   = window.location.hostname;
-	const porRuta = window.location.pathname.split('/').filter(Boolean)[0] || '';
-	const partes = host.split('.');
-	// Dominio desnudo (vmenus.co), localhost o una IP: no hay subdominio
-	// que leer, así que solo queda la ruta.
-	if (/^\d+\.\d+\.\d+\.\d+$/.test(host) || partes.length < 3) return porRuta;
-	return SUBDOMINIOS_RESERVADOS.includes(partes[0]) ? porRuta : partes[0];
-}
-
-const slug = leerSlug();
 
 // ── VISTA PREVIA SIN GUARDAR ───────────────────────────────────
 // El panel de administración abre esta misma página con
@@ -112,11 +107,24 @@ async function init() {
 
 		const original = restData[0];
 
+		// ── 2.5 SEDES ────────────────────────────────────────────
+		// Solo se piden si el restaurante dice que las tiene (la marca la pone el
+		// panel al crear la primera sede): los demás no pagan una petición de más
+		// ni dependen de que la tabla exista. Si la petición falla, la carta sale
+		// sin sedes —es la de siempre— y no se cae el arranque.
+		//
+		// Con UNA sola sede no hay nada que elegir: se entra directo a ella.
+		const sedes = original.atributos?.con_sedes === true
+			? await sbFetch('sedes', `restaurante_id=eq.${original.id}&select=id,slug,nombre,atributos,orden&order=orden.asc`).catch(() => [])
+			: [];
+		const sede = sedeDeLaUrl(sedes, sedeSlug) || (sedes.length === 1 ? sedes[0] : null);
+
 		// aplicarPreview solo deja pasar apariencia. Lo que dice a dónde va un
 		// pedido o un clic —el WhatsApp, los métodos de pago, las redes— sale
 		// de la base de datos también aquí: ese JSON lo escribe quien arma la
 		// URL, y cualquiera puede armar una. Ver core/preview.js.
-		const restaurante = previewDraft ? aplicarPreview(original, previewDraft) : original;
+		const restaurante = restauranteDeLaSede(
+			previewDraft ? aplicarPreview(original, previewDraft) : original, sede);
 		if (previewDraft) mostrarBannerPreview();
 
 		setRestaurante(restaurante);
@@ -133,8 +141,19 @@ async function init() {
 		// ── 3. ESTILOS DINÁMICOS ──────────────────────────────────
 		applyStyles(restaurante);
 
+		// Hay sedes y la URL no dice cuál: se elige antes de enseñar ninguna carta,
+		// porque los precios dependen de la sede. Va después de los estilos para que
+		// la pantalla lleve los colores del restaurante. La vista previa del panel
+		// no pasa por aquí: compara apariencia, no elige local.
+		if (sedes.length && !sede && !previewDraft) {
+			showLoading(false);
+			mostrarSelector(restaurante, sedes);
+			document.title = `${restaurante.nombre} — Elige tu sede`;
+			return;
+		}
+
 		// ── 4. DATOS DE MENÚ ──────────────────────────────────────
-		const [cats, prods, promos] = await Promise.all([
+		const [cats, prodsBase, promos, filasSede] = await Promise.all([
 			sbFetch('categorias', `restaurante_id=eq.${restaurante.id}&select=*&order=orden.asc`),
 			sbFetch('productos', `restaurante_id=eq.${restaurante.id}&disponible=eq.true&select=*&order=${ordenDeProductos(restaurante)}`),
 			// El .catch va en ESTA promesa y no en el Promise.all: si se cae la
@@ -145,15 +164,28 @@ async function init() {
 			// La lectura pública solo devuelve las encendidas (RLS), así que lo
 			// que llega aquí ya está filtrado por 'activa'.
 			sbFetch('promociones', `restaurante_id=eq.${restaurante.id}&select=*&order=orden.asc`)
-				.catch(() => [])
+				.catch(() => []),
+			// Lo que cambia en esta sede. SIN .catch, al revés que la promoción: si
+			// esto falla y se siguiera adelante, la carta enseñaría —y el carrito
+			// cobraría— los precios de OTRA sede sin que nadie lo notara. Mejor el
+			// «no se pudo cargar» de abajo que un precio equivocado.
+			sede
+				? sbFetch('productos_sedes', `sede_id=eq.${sede.id}&select=producto_id,precio,precio_numerico,disponible`)
+				: Promise.resolve([])
 		]);
+		// Precios y platos de la sede, antes de repartir los datos: los temas, el
+		// carrito y el buscador ven ya la carta de ESTA sede.
+		const prods = sede
+			? reordenarSiEsPorPrecio(productosDeLaSede(prodsBase, filasSede), restaurante.atributos?.orden_productos)
+			: prodsBase;
+		const categorias = sede ? categoriasDeLaSede(cats, prodsBase, prods) : cats;
 		// Las categorías con horario se ocultan fuera de su franja. Se filtra
 		// aquí, antes de repartir los datos, para que los cuatro temas y sus
 		// navegaciones vean exactamente el mismo menú.
 		// Los horarios de categoría son de plan; sin ellos se muestra todo.
 		const visible = planDe(restaurante).horarios
-			? aplicarHorarios(cats, prods, restaurante)
-			: { categorias: cats, productos: prods };
+			? aplicarHorarios(categorias, prods, restaurante)
+			: { categorias, productos: prods };
 		setCategorias(visible.categorias);
 		setProductos(visible.productos);
 
