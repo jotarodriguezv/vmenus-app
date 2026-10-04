@@ -226,7 +226,25 @@ describe('la bienvenida lo usa', () => {
 	const fuente = fs.readFileSync(new URL('../core/intro.js', import.meta.url), 'utf8');
 	test('el formulario va dentro de la tarjeta, que es donde apuntan los estilos', () => {
 		assert.match(fuente, /\$\{sedes \? '' : formularioReservaIntro\(at, hoyEn\(at\.zona_horaria\)\)\}<\/div>`;/);
-		assert.match(fuente, /montarReservaIntro\(raiz, restaurante\.id, MAPA_API_URL\)/);
+		assert.match(fuente, /montarReservaIntro\(raiz, restaurante\.id, MAPA_API_URL, \{ sedeId: restaurante\.sede\?\.id \}\)/);
 		assert.match(fuente, /style\.textContent \+= ESTILOS_RESERVA/);
+	});
+});
+
+describe('la reserva y la sede', () => {
+	test('sin sede, el cuerpo es el de siempre: no lleva sede_id', () => {
+		const c = R.cuerpoDeReserva('rid', buena(), { trampa: '', abiertoEn: 1 });
+		assert.equal('sede_id' in c, false);
+	});
+
+	test('con sede, el cuerpo la lleva', () => {
+		const c = R.cuerpoDeReserva('rid', buena(), { trampa: '', abiertoEn: 1, sedeId: 'sede-1' });
+		assert.equal(c.sede_id, 'sede-1');
+		assert.equal(c.restaurante_id, 'rid');
+	});
+
+	test('un sedeId vacío o nulo tampoco viaja', () => {
+		for (const sedeId of ['', null, undefined])
+			assert.equal('sede_id' in R.cuerpoDeReserva('rid', buena(), { sedeId }), false);
 	});
 });
