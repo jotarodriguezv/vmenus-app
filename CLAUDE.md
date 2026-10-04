@@ -134,6 +134,10 @@ copia en `promocionesDeAhora()` de `tv.html`, contra `test/casos-promo-sede.json
 de sede va **antes** de los niveles (fondo/programada), y uno atado a una sede **no sale**
 donde no hay sede (apagar «Varias sedes» los esconde, no los borra).
 
+**El carrito es por sede**: se guarda como `<restaurante>_<sede>_cart` (sin sede, la clave de siempre) y el
+pedido que se registra lleva `sede_id`; el WhatsApp al que sale ya era el de la sede, porque `negocio.js` lee los
+datos del negocio que `restauranteDeLaSede()` puso por encima.
+
 Dos detalles que se pagan caros: `index.html` importa sus módulos con ruta
 **absoluta** (`/core/loader.js`) porque con la sede la URL tiene dos trozos y una
 ruta relativa buscaría `/enchulados/core/…`; y si falla la lectura de

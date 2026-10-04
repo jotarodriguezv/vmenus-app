@@ -502,7 +502,14 @@ function addCustomToCart() {
 }
 
 // ── CARRITO ──────────────────────────────────────────────────
-function storageKey() { return `${restaurante?.slug || 'vmenus'}_cart`; }
+// Un carrito POR SEDE: los precios y los platos son de la sede en la que se armó, y el pedido va
+// al WhatsApp de esa sede. Con la clave por restaurante, quien armaba uno en Piedecuesta y luego
+// abría Bucaramanga lo veía reaparecer —repreciado, con aviso— en un local que no era el suyo.
+// Sin sede (un restaurante de un solo local) la clave es la de siempre: ningún carrito guardado
+// cambia de sitio.
+function storageKey() {
+	return `${restaurante?.slug || 'vmenus'}${restaurante?.sede?.slug ? '_' + restaurante.sede.slug : ''}_cart`;
+}
 
 // El carrito guardado se versiona: si el formato cambia, se descarta en vez
 // de intentar interpretar algo que ya no encaja. Un carrito es efímero; vale
@@ -950,6 +957,8 @@ function sendWhatsAppOrder(event) {
 
 	const pedido = {
 		restaurante_id: restaurante.id,
+		// Con sedes, el pedido dice de cuál: el servidor lo exige (docs/sedes.md §14). Sin sedes no viaja.
+		...(restaurante.sede?.id ? { sede_id: restaurante.sede.id } : {}),
 		cliente_nombre: name, cliente_telefono: phone,
 		tipo_entrega: deliveryKey,
 		direccion_entrega: delivery.requiereDireccion ? address : null,
