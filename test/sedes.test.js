@@ -2,6 +2,7 @@
 // cada local. Son funciones puras (core/sedes.js): aquí no hay navegador ni base.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
 	leerRuta, sedeDeLaUrl, restauranteDeLaSede, productosDeLaSede,
 	reordenarSiEsPorPrecio, categoriasDeLaSede, rutaDeSede, CLAVES_DE_SEDE,
@@ -194,5 +195,24 @@ describe('no repetir la bienvenida al elegir sede', () => {
 		const roto = { setItem() { throw new Error('bloqueado'); }, getItem() { throw new Error('bloqueado'); }, removeItem() { throw new Error('bloqueado'); } };
 		assert.doesNotThrow(() => recordarEleccionDeSede('a', 'b', roto));
 		assert.equal(vieneDelSelector('a', 'b', roto), false);
+	});
+});
+
+describe('el carrito y las sedes', () => {
+	const src = readFileSync(new URL('../core/carrito.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+
+	test('el carrito guardado es por sede: un restaurante sin sede conserva su clave de siempre', () => {
+		const m = src.match(/function storageKey\(\) \{\s*return (`[^`]*`);/);
+		assert.ok(m, 'no se encontró storageKey()');
+		const clave = (restaurante) => new Function('restaurante', 'return ' + m[1])(restaurante);
+		assert.equal(clave({ slug: 'bonzas' }), 'bonzas_cart', 'sin sede, la clave no cambia: ningún carrito guardado se pierde');
+		assert.equal(clave({ slug: 'enchulados', sede: { slug: 'bucaramanga' } }), 'enchulados_bucaramanga_cart');
+		assert.equal(clave({ slug: 'enchulados', sede: { slug: 'piedecuesta' } }), 'enchulados_piedecuesta_cart');
+		assert.notEqual(clave({ slug: 'enchulados', sede: { slug: 'bucaramanga' } }), clave({ slug: 'enchulados', sede: { slug: 'piedecuesta' } }));
+		assert.equal(clave(undefined), 'vmenus_cart');
+	});
+
+	test('el pedido que se registra lleva la sede solo si la hay', () => {
+		assert.match(src, /\.\.\.\(restaurante\.sede\?\.id \? \{ sede_id: restaurante\.sede\.id \} : \{\}\),\s*cliente_nombre: name/);
 	});
 });
