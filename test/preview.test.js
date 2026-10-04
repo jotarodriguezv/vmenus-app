@@ -3,7 +3,13 @@
 // segura — puede cambiar cómo se ve la carta, nunca a dónde apunta.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { aplicarPreview, CLAVES_APARIENCIA } from '../core/preview.js';
+
+test('la vista previa de la carta no abre un destacado encima del modelo', () => {
+	const loader = fs.readFileSync(new URL('../core/loader.js', import.meta.url), 'utf8');
+	assert.match(loader, /if \(!previewDraft && promo\) setTimeout\(\(\) => openPromo\(promo\.imagen_url\), 700\);/);
+});
 
 // Un restaurante como el que devuelve Supabase, con lo que de verdad importa:
 // el teléfono al que el carrito manda los pedidos.
