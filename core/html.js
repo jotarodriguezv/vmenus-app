@@ -15,6 +15,7 @@ export function esc(s) {
 }
 
 import { estadoOferta, formatoPesos } from './ofertas.js';
+import { tienePresentaciones, textoPresentaciones } from './presentaciones.js';
 
 // Un cero no basta para decir que algo es gratis: muchas cartas antiguas lo
 // usaban como valor provisional. Solo la marca explícita del panel cambia lo
@@ -31,6 +32,9 @@ export function textoPrecio(producto) {
 // «Gratis» manda sobre la oferta: es una marca explícita del panel.
 export function htmlPrecio(producto) {
 	if (producto?.atributos?.precio_gratis === true) return 'Gratis';
+	// Con presentaciones el precio ES la lista («1X $ 12.000 · 2X $ 20.000») o su «Desde»; la oferta de
+	// precio no distingue presentaciones y se ignora (core/presentaciones.js).
+	if (tienePresentaciones(producto)) return esc(textoPresentaciones(producto));
 	if (estadoOferta(producto) !== 'vigente') return esc(textoPrecio(producto));
 	return `<s class="precio-antes">${esc(textoPrecio(producto))}</s> <span class="precio-oferta">${esc(formatoPesos(producto.oferta_precio_numerico))}</span>`;
 }

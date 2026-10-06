@@ -23,6 +23,7 @@ import { trackAgregarCarrito, registrarPedido } from './analytics.js';
 import { esc, escUrl } from './html.js';
 import { whatsappDelNegocio } from './negocio.js';
 import { precioVigente, estadoOferta, formatoPesos } from './ofertas.js';
+import { presentacionesDe, tienePresentaciones, presentacionPorId, claveDeLinea, nombreConPresentacion, masBarata } from './presentaciones.js';
 import { llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
 
 // ── CATÁLOGO DE MÉTODOS DE PAGO ─────────────────────────────────
@@ -49,6 +50,8 @@ export const TIPOS_ENTREGA = {
 
 let cart = [];
 let customProduct = null;
+// La presentación elegida en el modal (su id), o '' si el plato no tiene. Ver core/presentaciones.js.
+let customPres = '';
 let customOpciones = { platino: [], premium: [], salsas: [] };
 let customEditingKey = null;
 let customQty = 1;
@@ -188,6 +191,17 @@ function openCustomModal(productId, editingCartKey = null) {
 	// para eso hace falta saber contra qué se traduce.
 	customOpciones = opcionesDe(p);
 
+	// La presentación: la de la línea que se edita, o la primera (la más barata a la vista) al abrir.
+	// Un plato sin presentaciones deja la sección escondida y no cambia nada de lo de siempre.
+	const presentaciones = presentacionesDe(p);
+	if (editingCartKey) {
+		const lin = cart.find(i => i.cartKey === editingCartKey);
+		customPres = presentaciones.some(x => x.id === lin?.pres?.id) ? lin.pres.id : (presentaciones[0]?.id || '');
+	} else {
+		customPres = presentaciones[0]?.id || '';
+	}
+	pintarPresentaciones(presentaciones);
+
 	if (editingCartKey) {
 		const item = cart.find(i => i.cartKey === editingCartKey);
 		customQty = item ? item.cantidad : 1;
@@ -202,7 +216,9 @@ function openCustomModal(productId, editingCartKey = null) {
 	}
 
 	document.getElementById('customName').textContent = p.nombre;
-	document.getElementById('customBasePrice').textContent = `Precio base: ${p.atributos?.precio_gratis === true ? 'Gratis' : (estadoOferta(p) === 'vigente' ? formatoPesos(precioVigente(p)) + ' (en oferta)' : p.precio)}`;
+	document.getElementById('customBasePrice').textContent = presentaciones.length
+		? 'Elige la presentación'
+		: `Precio base: ${p.atributos?.precio_gratis === true ? 'Gratis' : (estadoOferta(p) === 'vigente' ? formatoPesos(precioVigente(p)) + ' (en oferta)' : p.precio)}`;
 	updateCustomQtyUI();
 	document.getElementById('btnAgregarCarrito').textContent = editingCartKey ? '✏ GUARDAR CAMBIOS' : '🛒 AGREGAR AL CARRITO';
 
@@ -229,6 +245,34 @@ function openCustomModal(productId, editingCartKey = null) {
 	const custom = document.getElementById('customOverlay');
 	llevarFocoA(custom.querySelector('.custom-close'));
 	encerrarTab(custom.querySelector('.custom-modal'));
+}
+
+// Las presentaciones como fichas de elegir UNA (a diferencia de los adicionales, que son varias). Al tocar
+// una cambia el total del modal.
+function pintarPresentaciones(presentaciones) {
+	const sec = document.getElementById('secPresentaciones');
+	const list = document.getElementById('listPresentaciones');
+	if (!sec || !list) return;
+	list.innerHTML = '';
+	if (!presentaciones.length) { sec.style.display = 'none'; return; }
+	sec.style.display = 'block';
+	for (const pr of presentaciones) {
+		const chip = document.createElement('button');
+		chip.type = 'button';
+		chip.className = 'custom-chip' + (pr.id === customPres ? ' active' : '');
+		chip.setAttribute('role', 'radio');
+		chip.setAttribute('aria-checked', pr.id === customPres ? 'true' : 'false');
+		chip.textContent = `${pr.nombre} · ${formatoPesos(pr.precio_numerico)}`;
+		chip.onclick = () => { customPres = pr.id; pintarPresentaciones(presentaciones); updateCustomTotal(); };
+		list.appendChild(chip);
+	}
+}
+
+// El precio base de lo que se está armando: el de la presentación elegida, o el del plato de siempre.
+// En UN solo sitio porque lo usan el total del modal y el alta en el carrito, y no pueden discrepar.
+function precioBaseDeLoElegido(p, presId) {
+	if (tienePresentaciones(p)) return (presentacionPorId(p, presId) || masBarata(p)).precio_numerico;
+	return precioVigente(p);
 }
 
 function toggleInSet(set, key) {
@@ -448,7 +492,7 @@ export function leerSeleccion(item, opciones = null) {
 function updateCustomTotal() {
 	if (!customProduct) return;
 	const extras = recargoPremium(customOpciones.premium);
-	const total = (precioVigente(customProduct) + extras) * customQty;
+	const total = (precioBaseDeLoElegido(customProduct, customPres) + extras) * customQty;
 	document.getElementById('customTotal').textContent = '$' + total.toLocaleString('es-CO');
 }
 
@@ -465,7 +509,8 @@ function closeCustomModal() {
 function addCustomToCart() {
 	if (!customProduct) return;
 	const extras = recargoPremium(customOpciones.premium, selectedPremium, cantidadesPremium);
-	const precioUnit = precioVigente(customProduct) + extras;
+	const presElegida = tienePresentaciones(customProduct) ? presentacionPorId(customProduct, customPres) : null;
+	const precioUnit = precioBaseDeLoElegido(customProduct, customPres) + extras;
 
 	// Lo elegido, como objetos del catálogo. Mismo ayudante que usa la
 	// revalidación, para que dar de alta una línea y recalcularla después no
@@ -480,7 +525,7 @@ function addCustomToCart() {
 		cantidades: cantidadesGuardables(elegidos.premium),
 	};
 	const descripcion = describirSeleccion(elegidos);
-	const cartKey = `${customProduct.id}__${descripcion}`;
+	const cartKey = claveDeLinea(customProduct.id, presElegida?.id, descripcion);
 
 	// Solo cuando se añade de verdad. Al editar uno que ya estaba en el
 	// carrito no se registra: sería contar dos veces el mismo interés.
@@ -493,7 +538,10 @@ function addCustomToCart() {
 	// 'sel' viaja junto a 'descripcion': el texto es para leerlo y esto es
 	// para volver a abrirlo. Antes había solo lo primero y se usaba para las
 	// dos cosas.
-	else cart.push({ cartKey, id: customProduct.id, name: customProduct.nombre, price: precioUnit, extras, cantidad: customQty, descripcion, sel });
+	// 'pres' viaja en la línea (id y nombre) como 'sel': el id para volver a abrirla y recalcularla, el
+	// nombre para que el pedido diga «Fresas con crema · 2X». Sin presentación, la línea queda como siempre.
+	else cart.push({ cartKey, id: customProduct.id, name: nombreConPresentacion(customProduct.nombre, presElegida), price: precioUnit, extras, cantidad: customQty, descripcion, sel,
+		...(presElegida ? { pres: { id: presElegida.id, nombre: presElegida.nombre } } : {}) });
 
 	customEditingKey = null;
 	saveCartToStorage();
@@ -574,14 +622,22 @@ export function revalidarCarrito(guardado) {
 			? recargoPremium(opciones.premium, new Set(elegidos.premium.map(t => t.id)),
 				new Map(elegidos.premium.map(t => [t.id, t.cantidad])))
 			: (Number(item.extras) || 0);
-		const precioHoy = precioVigente(p) + extras;
+		// Una línea con presentación se recalcula contra LA presentación de hoy. Si el restaurante la quitó,
+		// la línea ya no se puede cumplir tal cual y se retira, como un plato que ya no está.
+		let presHoy = null;
+		if (item.pres?.id) {
+			presHoy = presentacionPorId(p, item.pres.id);
+			if (!presHoy) { retirados.push(item.name); continue; }
+		}
+		const precioHoy = (presHoy ? presHoy.precio_numerico : precioVigente(p)) + extras;
 
 		if (precioHoy !== item.price) {
 			reprecio.push({ nombre: p.nombre, antes: item.price, ahora: precioHoy });
 			item.price = precioHoy;
 		}
 		item.extras = extras;
-		item.name = p.nombre;   // el nombre también pudo cambiar en el panel
+		item.name = nombreConPresentacion(p.nombre, presHoy);   // el nombre también pudo cambiar en el panel
+		if (presHoy) item.pres = { id: presHoy.id, nombre: presHoy.nombre };
 
 		// La selección y su texto se reescriben con el catálogo de hoy. Renombrar
 		// un topping es una operación admitida desde que hay identificadores, así
@@ -602,7 +658,7 @@ export function revalidarCarrito(guardado) {
 			item.descripcion = describirSeleccion(elegidos);
 			// La clave lleva la descripción dentro, así que hay que rehacerla o dos
 			// líneas distintas dejarían de distinguirse al sumar cantidades.
-			item.cartKey = `${item.id}__${item.descripcion}`;
+			item.cartKey = claveDeLinea(item.id, item.pres?.id, item.descripcion);
 		}
 
 		// Si al reescribir dos líneas quedaron iguales —dos toppings que se
@@ -1065,6 +1121,8 @@ export { addSimpleToCart as agregarSimple, openCustomModal, tienePersonalizacion
 // uno normal entra directo. Lo pregunta cada tema para decidir qué hace su
 // botón, y así la regla vive en un solo sitio.
 function tienePersonalizacion(p) {
+	// Un plato con presentaciones también se elige antes de sumarlo: la presentación es la primera pregunta.
+	if (tienePresentaciones(p)) return true;
 	const o = opcionesDe(p);
 	return !!(o.platino.length || o.premium.length || o.salsas.length);
 }

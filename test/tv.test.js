@@ -78,7 +78,7 @@ const PARA_PINTAR = ['nuevoNodo', 'canalHex', 'paletaCategoria', 'nombreCategori
 	'urlSegura', 'config', 'aHex', 'rgba', 'aclarar', 'luminancia', 'contraste',
 	'textoSobre', 'legibleSobre', 'fondoPagina', 'acento', 'paletaPagina', 'pintarSlide',
 	'figuraPersona', 'iconoPersonas',
-	'pintarPrecio', 'estadoOferta', 'hoyDelRestaurante', 'formatoPesos', 'ahoraEnZona'];
+	'pintarPrecio', 'presentacionesDe', 'textoPresentaciones', 'estadoOferta', 'hoyDelRestaurante', 'formatoPesos', 'ahoraEnZona'];
 
 describe('tv.html · nada de sintaxis que un televisor viejo no entienda', () => {
 	// Cada entrada estuvo a punto de colarse o se coló en el resto del código.

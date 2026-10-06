@@ -1,0 +1,185 @@
+{
+	"casos": [
+		{
+			"nombre": "sin presentaciones, nada",
+			"producto": {
+				"atributos": {}
+			},
+			"esperado": ""
+		},
+		{
+			"nombre": "sin atributos, nada",
+			"producto": {},
+			"esperado": ""
+		},
+		{
+			"nombre": "una sola no es una presentación: es el plato",
+			"producto": {
+				"atributos": {
+					"presentaciones": [
+						{
+							"id": "a",
+							"nombre": "1X",
+							"precio_numerico": 12000
+						}
+					]
+				}
+			},
+			"esperado": ""
+		},
+		{
+			"nombre": "dos, en línea",
+			"producto": {
+				"atributos": {
+					"presentaciones": [
+						{
+							"id": "a",
+							"nombre": "1X",
+							"precio_numerico": 12000
+						},
+						{
+							"id": "b",
+							"nombre": "2X",
+							"precio_numerico": 20000
+						}
+					]
+				}
+			},
+			"esperado": "1X $ 12.000 · 2X $ 20.000"
+		},
+		{
+			"nombre": "tres, en línea y en el orden guardado",
+			"producto": {
+				"atributos": {
+					"presentaciones": [
+						{
+							"id": "a",
+							"nombre": "Pequeño",
+							"precio_numerico": 8000
+						},
+						{
+							"id": "b",
+							"nombre": "Mediano",
+							"precio_numerico": 11000
+						},
+						{
+							"id": "c",
+							"nombre": "Grande",
+							"precio_numerico": 15500
+						}
+					]
+				}
+			},
+			"esperado": "Pequeño $ 8.000 · Mediano $ 11.000 · Grande $ 15.500"
+		},
+		{
+			"nombre": "más de tres: «Desde» el más barato, aunque no sea el primero",
+			"producto": {
+				"atributos": {
+					"presentaciones": [
+						{
+							"id": "a",
+							"nombre": "A",
+							"precio_numerico": 9000
+						},
+						{
+							"id": "b",
+							"nombre": "B",
+							"precio_numerico": 7000
+						},
+						{
+							"id": "c",
+							"nombre": "C",
+							"precio_numerico": 12000
+						},
+						{
+							"id": "d",
+							"nombre": "D",
+							"precio_numerico": 15000
+						}
+					]
+				}
+			},
+			"esperado": "Desde $ 7.000"
+		},
+		{
+			"nombre": "una inválida se descarta: si quedan menos de dos, nada",
+			"producto": {
+				"atributos": {
+					"presentaciones": [
+						{
+							"id": "a",
+							"nombre": "1X",
+							"precio_numerico": 12000
+						},
+						{
+							"id": "b",
+							"nombre": "",
+							"precio_numerico": 20000
+						},
+						{
+							"id": "c",
+							"nombre": "3X",
+							"precio_numerico": "abc"
+						}
+					]
+				}
+			},
+			"esperado": ""
+		},
+		{
+			"nombre": "una inválida se descarta y las demás se quedan",
+			"producto": {
+				"atributos": {
+					"presentaciones": [
+						{
+							"id": "a",
+							"nombre": "1X",
+							"precio_numerico": 12000
+						},
+						{
+							"id": "b",
+							"nombre": "2X",
+							"precio_numerico": 20000
+						},
+						{
+							"id": "c",
+							"nombre": "3X",
+							"precio_numerico": -5
+						}
+					]
+				}
+			},
+			"esperado": "1X $ 12.000 · 2X $ 20.000"
+		},
+		{
+			"nombre": "el número llega como texto desde la base",
+			"producto": {
+				"atributos": {
+					"presentaciones": [
+						{
+							"id": "a",
+							"nombre": " 500 ml ",
+							"precio_numerico": "6000"
+						},
+						{
+							"id": "b",
+							"nombre": "750 ml",
+							"precio_numerico": "8500"
+						}
+					]
+				}
+			},
+			"esperado": "500 ml $ 6.000 · 750 ml $ 8.500"
+		},
+		{
+			"nombre": "no es una lista: nada",
+			"producto": {
+				"atributos": {
+					"presentaciones": "1X"
+				}
+			},
+			"esperado": ""
+		}
+	]
+}

@@ -4,6 +4,7 @@ import { mediaDe, activarVideos, tieneMultimedia } from '../core/reproduccion.js
 import { montarChips, ocultarNoCoinciden, filtrosEnUso, filtrosActivos } from '../core/filtros.js';
 import { montarBuscador, hayQueOfrecerBuscador, terminoBusqueda } from '../core/buscador.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion, carritoEncendido } from '../core/carrito.js';
+import { tienePresentaciones } from '../core/presentaciones.js';
 
 // ── TEMA: VERTICAL ────────────────────────────────────────────
 // La carta en video, pero a pantalla completa y de a un plato: se desliza
@@ -336,6 +337,7 @@ function actualizarListasSinMedia() {
 // accesible lo dice por él, y el área de toque se mantiene en 44 px aunque el
 // botón se vea de 40 (ver .ver-add::after en index.html).
 function etiquetaAgregar(p) {
+	if (tienePresentaciones(p)) return `Elegir presentación de ${p.nombre}`;
 	return tienePersonalizacion(p) ? `Personalizar ${p.nombre}` : `Agregar ${p.nombre} al pedido`;
 }
 

@@ -1785,6 +1785,10 @@ function formatoPesos(n) {
 /* Con oferta vigente: el precio de siempre tachado y el nuevo al lado. */
 function pintarPrecio(el, p) {
 	el.textContent = '';
+	/* Con presentaciones el precio es la lista (o su «Desde»); la oferta de precio no distingue
+	   presentaciones y se ignora. */
+	var texto = textoPresentaciones(p);
+	if (texto) { el.textContent = texto; return; }
 	/* Sin la marca no hace falta ni mirar el reloj: es el caso de casi todos los
 	   platos, y esta función corre una vez por plato en cada pantalla. */
 	if (p.oferta_activa !== true || estadoOferta(p, hoyDelRestaurante()) !== 'vigente') {
@@ -1982,6 +1986,40 @@ function mostrarSuspendida() {
    que tenía ya no existe, NO se enseña la carta: se queda en reposo diciendo por
    qué. Enseñar los precios base sería enseñar los de otro local, y un precio en
    la pared que la caja no cobra es peor que una pantalla que avisa. */
+/* ── PRESENTACIONES ──────────────────────────────────────────────
+   Un plato puede venir en versiones (1X, 2X; 500 ml, 750 ml): una lista en
+   atributos.presentaciones, cada una con su nombre y su precio. Aquí solo se ESCRIBEN: la
+   misma regla de core/presentaciones.js de la carta, en dialecto viejo, contra el mismo
+   juego de casos (test/casos-presentaciones.json). El precio base del plato ya es el de la
+   más barata (lo sincroniza el servidor), así que nada de lo que ordena por precio cambia. */
+function presentacionesDe(p) {
+	var lista = p && p.atributos && p.atributos.presentaciones;
+	if (!lista || !lista.length) return [];
+	var validas = [];
+	for (var i = 0; i < lista.length; i++) {
+		var x = lista[i];
+		var nombre = String(x && x.nombre != null ? x.nombre : '').replace(/^\s+|\s+$/g, '');
+		var precio = Number(x && x.precio_numerico);
+		if (!nombre || isNaN(precio) || precio < 0) continue;
+		validas.push({ id: String(x.id != null ? x.id : nombre), nombre: nombre, precio_numerico: precio });
+	}
+	return validas.length >= 2 ? validas : [];
+}
+
+/* «1X $ 12.000 · 2X $ 20.000», o «Desde $ 12.000» si son más de tres. */
+function textoPresentaciones(p) {
+	var l = presentacionesDe(p);
+	if (!l.length) return '';
+	if (l.length > 3) {
+		var menor = l[0].precio_numerico;
+		for (var i = 1; i < l.length; i++) if (l[i].precio_numerico < menor) menor = l[i].precio_numerico;
+		return 'Desde ' + formatoPesos(menor);
+	}
+	var partes = [];
+	for (var j = 0; j < l.length; j++) partes.push(l[j].nombre + ' ' + formatoPesos(l[j].precio_numerico));
+	return partes.join(' \u00b7 ');
+}
+
 function sedeConfigurada(atributos, pantalla) {
 	var a = atributos || {};
 	var t = pantalla === 1 ? a.tv : (a.tv_pantallas && a.tv_pantallas[String(pantalla)]);
@@ -2000,6 +2038,9 @@ function productosDeLaSede(prods, filas) {
 		var p = prods[j], f = porPlato[p.id];
 		if (!f) { salida.push(p); continue; }
 		if (f.disponible === false) continue;
+		/* Un plato con presentaciones conserva las suyas: el precio por sede es UNO y no sabe a cuál se
+		   refiere (misma decision que core/sedes.js). */
+		if (presentacionesDe(p).length) { salida.push(p); continue; }
 		if (f.precio_numerico === null || f.precio_numerico === undefined) { salida.push(p); continue; }
 		var n = Number(f.precio_numerico);
 		if (isNaN(n)) { salida.push(p); continue; }
@@ -2056,7 +2097,7 @@ function cargar(alTerminar) {
 			pedir('categorias?restaurante_id=eq.' + r.id + '&select=id,nombre,atributos', function (cats) {
 				if (!cats) { alTerminar(false); return; }
 				pedir('productos?restaurante_id=eq.' + r.id + '&disponible=is.true' +
-					'&select=id,nombre,descripcion,precio,precio_numerico,imagen_url,categoria_id,disponible,personas,' +
+					'&select=id,nombre,descripcion,precio,precio_numerico,imagen_url,categoria_id,disponible,personas,atributos,' +
 					'oferta_activa,oferta_precio_numerico,oferta_desde,oferta_hasta&order=orden.asc',
 					function (prods) {
 						if (!prods) { alTerminar(false); return; }

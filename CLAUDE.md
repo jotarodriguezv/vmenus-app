@@ -109,6 +109,18 @@ nueve líneas que redirigen a `menu.vmenus.co/<slug>`, y siguen vivas porque sus
 QR ya estaban impresos. La historia completa está en
 `adminmenus_restaurantes/docs/servidor.md` §1.
 
+## Presentaciones de un plato
+
+Un mismo plato puede venir en versiones (1X $12.000 / 2X $20.000; 500 ml / 750 ml). Siguen siendo UN plato: su foto,
+su descripción y su categoría, con una lista en `producto.atributos.presentaciones` (`{ id, nombre, precio_numerico }`).
+`core/presentaciones.js` es la regla: `htmlPrecio()` pinta «1X $ 12.000 · 2X $ 20.000» (o «Desde» con más de tres) en
+los cinco temas y la ficha; el botón «+» abre el modal para **elegir presentación**, y cada una es una línea distinta del
+carrito (`<id>~<presId>__…`, nombre «Plato · 2X»; sin presentación, la clave de siempre). `revalidarCarrito` recalcula
+contra LA presentación de hoy y retira la línea si ya no existe. El precio base del plato es el de la más barata (lo
+sincroniza el servidor). **Todavía no distinguen presentaciones**: el precio por sede (`productosDeLaSede` las conserva)
+y la oferta de precio (se ignora). `tv.html` tiene su copia en dialecto viejo, contra `test/casos-presentaciones.json`.
+Ver `docs/presentaciones.md` del panel.
+
 ## Sedes
 
 Un restaurante con varios locales que comparten carta pero **no precios**

@@ -14,6 +14,7 @@
 // Un restaurante sin sedes no pasa por nada de esto, y su carta es la de ayer.
 
 import { formatoPesos } from './ofertas.js';
+import { tienePresentaciones } from './presentaciones.js';
 
 // Hosts que son la plataforma misma, no un restaurante. Lo usa leerRuta().
 export const SUBDOMINIOS_RESERVADOS = ['menu', 'www', 'admin', 'app', 'api'];
@@ -91,6 +92,10 @@ export function productosDeLaSede(productos, filas) {
 		const f = porPlato.get(p.id);
 		if (!f) { salida.push(p); continue; }
 		if (f.disponible === false) continue;
+		// Un plato con presentaciones conserva las suyas: el precio por sede es UNO y no sabe a cuál de
+		// ellas se refiere. Poner el precio de una sede encima las pisaría todas con un número que no es
+		// de ninguna. (Precios por sede de cada presentación: pendiente, docs/presentaciones.md.)
+		if (tienePresentaciones(p)) { salida.push(p); continue; }
 		const hayPrecio = f.precio_numerico !== null && f.precio_numerico !== undefined;
 		if (!hayPrecio) { salida.push(p); continue; }
 		const numero = Number(f.precio_numerico);

@@ -27,7 +27,7 @@ function extraer(nombres, contexto = {}) {
 	return ctx;
 }
 
-const enLaTv = extraer(['formatoPesos', 'productosDeLaSede']).productosDeLaSede;
+const enLaTv = extraer(['formatoPesos', 'presentacionesDe', 'productosDeLaSede']).productosDeLaSede;
 
 // Solo se comparan los campos que el caso nombra: lo demás del plato es de otro asunto.
 const resumen = (lista, esperado) => lista.map((p, i) => {

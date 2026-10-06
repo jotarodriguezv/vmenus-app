@@ -22,6 +22,7 @@ import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
 import { coincideBusqueda } from '../core/buscador.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from '../core/teclado.js';
 import { carritoEncendido, activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion } from '../core/carrito.js';
+import { tienePresentaciones } from '../core/presentaciones.js';
 
 // ── ESTADO DEL TEMA ───────────────────────────────────────────
 let viewMode = 'list';        // 'list' | 'grid'
@@ -424,7 +425,7 @@ function botonAgregar(p) {
 	b.type = 'button';
 	b.className = 'menu-add exp-add';
 	b.textContent = '+';
-	b.setAttribute('aria-label', `${tienePersonalizacion(p) ? 'Personalizar' : 'Agregar'} ${p.nombre} al pedido`);
+	b.setAttribute('aria-label', `${tienePresentaciones(p) ? 'Elegir presentación de' : tienePersonalizacion(p) ? 'Personalizar' : 'Agregar'} ${p.nombre} al pedido`);
 	// stopPropagation: el botón vive dentro del plato, y el clic subiría y
 	// abriría la ficha además de agregar.
 	b.onclick = e => { e.stopPropagation(); agregar(p, b, '✓'); };
@@ -486,7 +487,7 @@ function openExpModal(p, cat, map) {
 		const b = document.createElement('button');
 		b.type = 'button';
 		b.className = 'modal-agregar';
-		b.textContent = tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar al pedido';
+		b.textContent = tienePresentaciones(p) ? '+ Elegir presentación' : tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar al pedido';
 		b.onclick = () => agregar(p, b, '✓ Agregado');
 		cont.querySelector('.exp-modal-body')?.appendChild(b);
 	}

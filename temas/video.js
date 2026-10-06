@@ -4,6 +4,7 @@ import { mediaDe, activarVideos, tieneMultimedia } from '../core/reproduccion.js
 import { montarChips, ocultarNoCoinciden } from '../core/filtros.js';
 import { montarBuscador } from '../core/buscador.js';
 import { activarCarrito, agregarSimple, openCustomModal, tienePersonalizacion, carritoEncendido } from '../core/carrito.js';
+import { tienePresentaciones } from '../core/presentaciones.js';
 
 // ── TEMA: VIDEO ───────────────────────────────────────────────
 // Carta en video. Una sola columna, un plato por fila, el video a
@@ -120,7 +121,7 @@ export function buildMenu() {
 							: ''}
 						${hayCarrito ? `<div class="vid-accion">
 							<button class="vid-add" data-plato="${esc(p.id)}">${
-								tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
+								tienePresentaciones(p) ? '+ Elegir' : tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
 							}</button>
 						</div>` : ''}
 					</div>
@@ -139,7 +140,7 @@ export function buildMenu() {
 							<div class="vid-lista-fila-final">
 								<span>${htmlPrecio(p)}</span>
 								${hayCarrito ? `<button class="vid-add" data-plato="${esc(p.id)}">${
-									tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
+									tienePresentaciones(p) ? '+ Elegir' : tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar'
 								}</button>` : ''}
 							</div>
 						</article>
