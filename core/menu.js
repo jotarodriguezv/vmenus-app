@@ -3,7 +3,7 @@ import { esc, escUrl, notaDe, htmlPrecio } from './html.js';
 import { fijarZonaDeOfertas } from './ofertas.js';
 import { whatsappParaMostrar } from './negocio.js';
 import { zonaDe } from './horarios.js';
-import { fotosDe, construirCarrusel, noLlevaFoto } from './carrusel.js';
+import { fotosDe, construirCarrusel, noLlevaFoto, fichaTieneQueMostrar } from './carrusel.js';
 import { montarChips, ocultarNoCoinciden } from './filtros.js';
 import { montarBuscador } from './buscador.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
@@ -128,8 +128,10 @@ export function buildMenu() {
 				const item = document.createElement('div');
 				item.className = 'list-item';
 				item.dataset.plato = p.id;
-				item.onclick = () => openModal(cat.id, prods.indexOf(p));
-				hacerActivable(item);
+				if (fichaTieneQueMostrar(p, { nFiltros: (p.atributos?.filtros || []).length })) {
+					item.onclick = () => openModal(cat.id, prods.indexOf(p));
+					hacerActivable(item);
+				} else item.classList.add('sin-ficha');
 				item.innerHTML = `
 				<span class="list-name">
 					${esc(p.nombre)}
@@ -153,8 +155,10 @@ export function buildMenu() {
 					const row = document.createElement('div');
 					row.className = 'product-noimg';
 					row.dataset.plato = p.id;
-					row.onclick = () => openModal(cat.id, idx);
-					hacerActivable(row);
+					if (fichaTieneQueMostrar(p, { conFoto: false, nFiltros: (p.atributos?.filtros || []).length })) {
+						row.onclick = () => openModal(cat.id, idx);
+						hacerActivable(row);
+					} else row.classList.add('sin-ficha');
 					row.innerHTML = `
 					<div class="card-name">${esc(p.nombre)}</div>
 					<div class="card-price">${htmlPrecio(p)}</div>

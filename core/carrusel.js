@@ -8,6 +8,7 @@
 // del escapado de HTML: bien resuelto en un tema y ausente en los otros dos.
 
 import { hacerActivable } from './teclado.js';
+import { presentacionesDe } from './presentaciones.js';
 
 // Fotos de un producto, en orden y sin repetir: la principal primero.
 export function fotosDe(producto) {
@@ -27,6 +28,23 @@ export function fotosDe(producto) {
 // una, se enseña como a cualquier otro plato.
 export function noLlevaFoto(producto) {
 	return producto?.atributos?.sin_foto === true && !fotosDe(producto).length;
+}
+
+// ¿La ficha de este plato tendría algo que enseñar además del nombre y el precio, que ya están en la
+// tarjeta? Un plato sin foto, sin descripción, sin etiquetas ni filtros y sin presentaciones abriría una
+// ficha que repite la tarjeta: un clic que no lleva a nada. Ese no se hace pulsable. (El botón «+» del
+// pedido es aparte y sigue funcionando.)
+//
+// `conFoto` lo dice quien pinta —cada tema decide si la foto entra en SU ficha—; `nFiltros` son los
+// filtros que de verdad se pintarían.
+export function fichaTieneQueMostrar(producto, { conFoto = true, nFiltros = 0 } = {}) {
+	if (conFoto && fotosDe(producto).length) return true;
+	if (String(producto?.descripcion ?? '').trim()) return true;
+	if (String(producto?.descripcion_avanzada ?? '').trim()) return true;
+	if (nFiltros > 0) return true;
+	const a = producto?.atributos || {};
+	if (a.popular || a.chef || a.nuevo) return true;
+	return presentacionesDe(producto).length > 0;
 }
 
 // Devuelve el elemento del carrusel, o null si hay menos de dos fotos: con

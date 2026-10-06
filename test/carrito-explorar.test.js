@@ -59,7 +59,7 @@ const explorar = await import('../temas/explorar.js');
 
 const CAT = { id: 'c1', nombre: 'BURGERS' };
 const SIMPLE = { id: 'p1', nombre: 'Clásica', precio: '$ 18.000', precio_numerico: 18000, categoria_id: 'c1', imagen_url: '/uploads/x.jpg', disponible: true, atributos: {} };
-const CON_TOPPINGS = { id: 'p2', nombre: 'Doble', precio: '$ 24.000', precio_numerico: 24000, categoria_id: 'c1', imagen_url: '', disponible: true,
+const CON_TOPPINGS = { id: 'p2', nombre: 'Doble', precio: '$ 24.000', precio_numerico: 24000, categoria_id: 'c1', imagen_url: '', descripcion: 'Doble carne', disponible: true,
 	atributos: { personalizacion: { platino: ['t1'] } } };
 
 function montar({ carrito }) {
@@ -164,5 +164,23 @@ describe('la ficha de Explorar', () => {
 		boton.onclick();
 		assert.equal(nodos.expModal.classList.contains('open'), false);
 		assert.equal(nodos.customName.textContent, 'Doble');
+	});
+});
+
+describe('Un plato sin nada que enseñar en su ficha no es pulsable', () => {
+	test('sin foto, descripción ni etiquetas: no abre la ficha; con foto o descripción, sí', () => {
+		setRestaurante({ id: 'r1', slug: 'pruebas', nombre: 'Pruebas', atributos: { nav: 'explorar', plan: 'completo', carrito: false } });
+		setCategorias([CAT]);
+		setProductos([
+			{ id: 'v', nombre: 'Americano', precio: '$ 5.000', precio_numerico: 5000, categoria_id: 'c1', imagen_url: '', disponible: true, atributos: {} },
+			SIMPLE, CON_TOPPINGS,
+		]);
+		explorar.buildNav();
+		explorar.buildMenu();
+		const [vacio, conFoto, conDescripcion] = platos();
+		assert.equal(vacio.onclick == null, true);
+		assert.ok(vacio.classList.contains('sin-ficha'));
+		assert.equal(typeof conFoto.onclick, 'function');
+		assert.equal(typeof conDescripcion.onclick, 'function');
 	});
 });
