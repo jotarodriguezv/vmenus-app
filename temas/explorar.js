@@ -14,7 +14,7 @@
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { trackClic } from '../core/analytics.js';
 import { esc, escUrl, notaDe, htmlPrecio } from '../core/html.js';
-import { fotosDe, construirCarrusel, noLlevaFoto } from '../core/carrusel.js';
+import { fotosDe, construirCarrusel, noLlevaFoto, fichaTieneQueMostrar } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
 // Este tema tenía su búsqueda desde el principio y conserva su lupa, que es
 // suya; lo que comparte desde el 17/09/2026 es QUÉ coincide, que ahora es lo
@@ -363,8 +363,7 @@ function itemLista(p, cat, map) {
 	alFallarImagen(div, '.exp-thumb img', cat.emoji, 'exp-thumb-ph');
 	const mas = botonAgregar(p);
 	if (mas) div.appendChild(mas);
-	div.onclick = () => openExpModal(p, cat, map);
-	hacerActivable(div);
+	activarFicha(div, p, cat, map, sinFoto);
 	return div;
 }
 
@@ -395,9 +394,16 @@ function itemCard(p, cat, map) {
 	alFallarImagen(div, '.exp-card-img', cat.emoji, 'exp-card-ph');
 	const mas = botonAgregar(p);
 	if (mas) { div.classList.add('exp-card-conpedido'); div.querySelector('.exp-card-body')?.appendChild(mas); }
+	activarFicha(div, p, cat, map, sinFoto);
+	return div;
+}
+
+// Hace pulsable el plato solo si su ficha enseña algo más que lo que ya se ve en la tarjeta.
+function activarFicha(div, p, cat, map, sinFoto) {
+	const nFiltros = (p.atributos?.filtros || []).filter(id => map[id]).length;
+	if (!fichaTieneQueMostrar(p, { conFoto: !sinFoto, nFiltros })) { div.classList.add('sin-ficha'); return; }
 	div.onclick = () => openExpModal(p, cat, map);
 	hacerActivable(div);
-	return div;
 }
 
 // ── AGREGAR AL PEDIDO ─────────────────────────────────────────
