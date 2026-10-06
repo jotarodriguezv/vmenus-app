@@ -21,7 +21,7 @@ function nodoFalso(etiqueta) {
 const cuerpo = { hijos: [], appendChild(h) { this.hijos.push(h); return h; } };
 globalThis.document = { createElement: nodoFalso, body: cuerpo };
 
-const { introActiva, construirIntro, mostrarIntro, htmlSedesIntro, redesIntro, botonResenaIntro, RESENA_TEXTO_POR_DEFECTO, variablesTarjeta } = await import('../core/intro.js');
+const { introActiva, construirIntro, mostrarIntro, htmlSedesIntro, redesIntro, botonResenaIntro, RESENA_TEXTO_POR_DEFECTO, variablesTarjeta, introHeredaCarta, aplicarEstiloDeLaCarta } = await import('../core/intro.js');
 
 const restaurante = (atributos = {}, extra = {}) => ({
 	nombre: 'Bonzas', logo_url: '/uploads/logos/bonzas.png', atributos, ...extra,
@@ -297,4 +297,33 @@ test('la bienvenida con sedes no deja cerrar con «Ver carta» ni con Escape, y 
 	// El cierre (botón y Escape) solo existe en la rama sin sedes.
 	assert.match(fuente, /if \(sedes\) \{[\s\S]*?recordarEleccionDeSede[\s\S]*?\} else \{[\s\S]*?intro-vmenus__cta[\s\S]*?Escape/);
 	assert.match(fuente, /\$\{sedes \? '' : formularioReservaIntro/);
+});
+
+describe('«Usar los colores y la tipografía de la carta»', () => {
+	test('es opt-in: solo el true explícito lo enciende', () => {
+		assert.equal(introHeredaCarta({ intro_estilo_carta: true }), true);
+		for (const v of [undefined, false, 'true', 1, null]) assert.equal(introHeredaCarta({ intro_estilo_carta: v }), false, String(v));
+		assert.equal(introHeredaCarta(undefined), false);
+	});
+
+	test('copia el fondo del cuerpo, apaga la superposición y usa las variables de la carta', () => {
+		const clases = new Set(); const vars = {};
+		const raiz = { classList: { add: c => clases.add(c) }, style: { setProperty: (k, v) => { vars[k] = v; } } };
+		const real = globalThis.getComputedStyle;
+		globalThis.getComputedStyle = () => ({ backgroundColor: 'rgb(17, 34, 39)', backgroundImage: 'none', backgroundSize: 'auto', backgroundPosition: '0% 0%', backgroundRepeat: 'repeat' });
+		try { aplicarEstiloDeLaCarta(raiz, {}); } finally { globalThis.getComputedStyle = real; }
+		assert.ok(clases.has('intro-vmenus--carta'));
+		assert.equal(raiz.style.backgroundColor, 'rgb(17, 34, 39)');
+		assert.equal(raiz.style.backgroundSize, 'cover', 'auto no sirve de fondo: se cubre');
+		assert.equal(vars['--intro-opacidad'], 0);
+		assert.equal(vars['--intro-tarjeta-fondo'], 'var(--card)');
+		assert.equal(vars['--intro-tarjeta-borde'], 'var(--border)');
+		assert.equal(vars['--intro-carta-fondo'], 'rgb(17, 34, 39)');
+	});
+
+	test('mostrarIntro lo aplica solo si el interruptor está puesto', () => {
+		// El DOM falso de este archivo no recorre mostrarIntro entero (arma todo con una cadena): se mira la llamada.
+		const fuente = fs.readFileSync(new URL('../core/intro.js', import.meta.url), 'utf8');
+		assert.match(fuente, /if \(introHeredaCarta\(at\)\) aplicarEstiloDeLaCarta\(raiz\);/);
+	});
 });

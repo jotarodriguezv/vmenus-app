@@ -15,6 +15,27 @@ function colorSeguro(valor, defecto) { return COLOR_HEX.test(String(valor || '')
 
 export function introActiva(restaurante) { return !!restaurante?.atributos?.intro_activo; }
 
+// ── «USAR LOS COLORES Y LA TIPOGRAFÍA DE LA CARTA» ───────────
+// Un interruptor (atributos.intro_estilo_carta, Ajustes → Bienvenida) para quien no quiere afinar cada
+// color: la bienvenida toma de la carta el fondo (color, imagen o degradado), la tarjeta, el borde, el
+// texto y las fuentes, y los campos de color manuales dejan de aplicarse (se conservan guardados: apagarlo
+// los devuelve). Es OPT-IN: ausente es apagado, para no cambiar la bienvenida de los que ya la afinaron.
+// Los tamaños, pesos y alineación de cada texto siguen siendo del restaurante: eso no es color.
+export function introHeredaCarta(at) { return at?.intro_estilo_carta === true; }
+
+// Lo que cambia respecto a la bienvenida de siempre. Todo con !important porque los colores y fuentes
+// manuales viajan en atributos style de cada elemento. Los colores salen de las variables que
+// core/loader.js ya puso para la carta (--card, --card-hover, --border, --text, --font-*).
+const ESTILOS_CARTA = `
+.intro-vmenus--carta .intro-vmenus__card{color:var(--text)!important;backdrop-filter:none}
+.intro-vmenus--carta :is(h1,p,a,button,span,label,input,textarea,select){font-family:var(--font-cuerpo,system-ui,sans-serif)!important}
+.intro-vmenus--carta h1{font-family:var(--font-titulo,var(--font-cuerpo,system-ui,sans-serif))!important}
+.intro-vmenus--carta :is(h1,p,.intro-vmenus__correo,.intro-vmenus__sedes-titulo){color:var(--text)!important}
+.intro-vmenus--carta .intro-vmenus__cta,.intro-vmenus--carta .intro-vmenus__reserva-enviar{background:var(--text)!important;color:var(--intro-carta-fondo,#0a0a0f)!important;border-color:var(--text)!important}
+.intro-vmenus--carta :is(.intro-vmenus__resena,.intro-vmenus__mapa-link,.intro-vmenus__sede,.intro-vmenus__reserva,.intro-vmenus__reserva-volver){background:var(--card-hover,var(--card))!important;color:var(--text)!important;border-color:var(--border)!important}
+.intro-vmenus--carta .intro-vmenus__social a{background:var(--card-hover,var(--card))!important;color:var(--text)!important;border-color:var(--border)!important}
+.intro-vmenus--carta .intro-vmenus__logo{box-shadow:0 0 0 2px var(--border)}`;
+
 // Conserva esta fábrica pequeña para las pruebas y para integraciones que
 // todavía consumen el contrato original de la intro.
 export function construirIntro(restaurante) {
@@ -113,7 +134,25 @@ function insertarEstilos() {
   style.textContent += '.intro-vmenus__logo{position:relative;z-index:2;isolation:isolate;background:#fff;box-shadow:0 3px 12px rgba(0,0,0,.22);opacity:1!important;filter:none!important;mix-blend-mode:normal!important}';
   style.textContent += '.intro-vmenus__sedes-titulo{margin:6px 0 4px!important;font:700 15px Montserrat,system-ui,sans-serif;opacity:.9}.intro-vmenus__sedes{display:grid;gap:10px;margin-top:10px}.intro-vmenus__sede{display:block;padding:14px 18px;border:1px solid rgba(255,255,255,.75);border-radius:18px;background:rgba(12,12,16,.78);color:#fff;text-align:left;text-decoration:none;font:800 15px Montserrat,system-ui,sans-serif;transition:transform .18s ease,box-shadow .18s ease}.intro-vmenus__sede:hover,.intro-vmenus__sede:focus-visible{transform:translateY(-2px);box-shadow:0 10px 20px rgba(0,0,0,.2)}.intro-vmenus__sede-nombre{display:block}.intro-vmenus__sede-direccion{display:block;margin-top:3px;font-weight:500;font-size:12px;opacity:.8}@media(prefers-reduced-motion:reduce){.intro-vmenus__sede{transition:none!important}}';
   style.textContent += ESTILOS_RESERVA;
+  style.textContent += ESTILOS_CARTA;
   document.head.appendChild(style);
+}
+
+// El fondo se COPIA de lo que la carta ya pintó en el <body> (applyStyles corre antes que la bienvenida):
+// color, imagen o degradado, sea cual sea la intensidad elegida. Así no se reimplementa esa lógica aquí.
+export function aplicarEstiloDeLaCarta(raiz, cuerpo = document.body) {
+  const cs = getComputedStyle(cuerpo);
+  raiz.classList.add('intro-vmenus--carta');
+  raiz.style.backgroundColor = cs.backgroundColor;
+  raiz.style.backgroundImage = cs.backgroundImage;
+  raiz.style.backgroundSize = cs.backgroundSize === 'auto' ? 'cover' : cs.backgroundSize;
+  raiz.style.backgroundPosition = cs.backgroundPosition;
+  raiz.style.backgroundRepeat = cs.backgroundRepeat;
+  raiz.style.setProperty('--intro-opacidad', 0);
+  raiz.style.setProperty('--intro-tarjeta-fondo', 'var(--card)');
+  raiz.style.setProperty('--intro-tarjeta-borde', 'var(--border)');
+  raiz.style.setProperty('--intro-tarjeta-borde-grosor', '1px');
+  raiz.style.setProperty('--intro-carta-fondo', cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' ? cs.backgroundColor : '#0a0a0f');
 }
 
 // ── EL RECUADRO DE LA BIENVENIDA: COLOR Y BORDE ──────────────
@@ -165,6 +204,7 @@ export function mostrarIntro(restaurante, opciones = {}) {
   // El horario y el correo son del negocio (Ajustes → Datos del negocio); cada uno tiene su interruptor en la bienvenida y, ausente, está encendido.
   const horario = sedes || at.intro_horario_activo === false ? '' : textoHorarioAtencion(at.horario_atencion); const correo = at.intro_correo_activo === false ? '' : correoDelNegocio(at); const mapaUrl = !sedes && at.intro_mapa_activo === true ? enlaceMapa(mapaDelNegocio(at)) : ''; const modoMapa = MAPAS.has(at.intro_mapa_modo) ? at.intro_mapa_modo : 'mapa'; const estiloMapa = estiloBotonMapa(at);
   const raiz = document.createElement('section'); raiz.id = 'introVmenus'; raiz.className = 'intro-vmenus'; raiz.setAttribute('aria-label', `Bienvenida a ${nombre}`); raiz.style.setProperty('--intro-fondo', fondo); for (const [k, val] of Object.entries(variablesTarjeta(at))) raiz.style.setProperty(k, val); raiz.style.backgroundImage = imagen; raiz.style.setProperty('--intro-ajuste', ajuste === 'center' ? 'auto' : ajuste); raiz.style.setProperty('--intro-overlay', colorSeguro(at.intro_overlay_color, '#0a0a0f')); raiz.style.setProperty('--intro-opacidad', overlayActivo ? opacidad : 0);
+  if (introHeredaCarta(at)) aplicarEstiloDeLaCarta(raiz);
   const logo = restaurante.logo_url ? `<img class="intro-vmenus__logo" src="${escUrl(restaurante.logo_url)}" alt="Logo de ${esc(nombre)}">` : `<div class="intro-vmenus__logo intro-vmenus__logo--vacio" aria-hidden="true">${esc(nombre.slice(0, 2).toUpperCase())}</div>`;
   const redes = []; const estilo = ['circular', 'redondeado', 'pildora'].includes(at.intro_social_estilo) ? at.intro_social_estilo : 'circular'; const tamano = Math.max(36, Math.min(72, Number(at.intro_social_tamano || 48))); const socialCss = `color:${colorSeguro(at.intro_social_icono_color, '#ffffff')};background:${colorSeguro(at.intro_social_fondo, '#ef7a00')};border-color:${colorSeguro(at.intro_social_borde, '#ffffff')};width:${tamano}px;height:${tamano}px;border-radius:${estilo === 'redondeado' ? '12px' : '999px'};`;
   redes.push(...redesIntro(at, socialCss));
