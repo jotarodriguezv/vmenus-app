@@ -8,6 +8,7 @@ import { montarChips, ocultarNoCoinciden } from './filtros.js';
 import { montarBuscador } from './buscador.js';
 import { hacerActivable, llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
 import { carritoEncendido, agregarSimple, openCustomModal, tienePersonalizacion } from './carrito.js';
+import { tienePresentaciones } from './presentaciones.js';
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────
 export let restaurante = null;
@@ -88,7 +89,7 @@ function botonAgregar(p) {
 	b.type = 'button';
 	b.className = 'menu-add';
 	b.textContent = '+';
-	b.setAttribute('aria-label', `${tienePersonalizacion(p) ? 'Personalizar' : 'Agregar'} ${p.nombre} al pedido`);
+	b.setAttribute('aria-label', `${tienePresentaciones(p) ? 'Elegir presentación de' : tienePersonalizacion(p) ? 'Personalizar' : 'Agregar'} ${p.nombre} al pedido`);
 	// stopPropagation: el botón vive dentro de la tarjeta, y el clic subiría a
 	// ella y abriría la ficha además de agregar. Con teclado no hace falta:
 	// hacerActivable ignora las teclas que no nacen en la propia tarjeta.
@@ -275,7 +276,7 @@ export function buildMenu() {
 			const conPedido = carritoEncendido();
 			agregar.hidden = !conPedido;
 			agregar.classList.remove('agregado');
-			agregar.textContent = tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar al pedido';
+			agregar.textContent = tienePresentaciones(p) ? '+ Elegir presentación' : tienePersonalizacion(p) ? '+ Personalizar' : '+ Agregar al pedido';
 			agregar.onclick = conPedido ? () => agregarAlPedido(p, agregar) : null;
 		}
 
