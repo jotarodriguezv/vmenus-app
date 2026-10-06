@@ -310,9 +310,12 @@ function renderDishes() {
 		section.appendChild(header);
 		section.insertAdjacentHTML('beforeend', notaDe(cat));
 
+		// Una categoría «sin fotos» (bebidas, por ejemplo) va siempre en lista, también con la cuadrícula
+		// elegida: una tarjeta sin foto es una caja vacía con el nombre, y el restaurante ya dijo que ahí no hay.
+		const comoLista = viewMode === 'list' || cat.sin_fotos;
 		const wrap = document.createElement('div');
-		wrap.className = viewMode === 'list' ? 'exp-list' : 'exp-grid';
-		prods.forEach(p => wrap.appendChild(viewMode === 'list' ? itemLista(p, cat, map) : itemCard(p, cat, map)));
+		wrap.className = comoLista ? 'exp-list' : 'exp-grid';
+		prods.forEach(p => wrap.appendChild(comoLista ? itemLista(p, cat, map) : itemCard(p, cat, map)));
 		section.appendChild(wrap);
 
 		cont.appendChild(section);
