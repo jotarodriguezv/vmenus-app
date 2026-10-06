@@ -19,7 +19,7 @@ const {
 	presentacionesDe, tienePresentaciones, presentacionPorId, masBarata, textoPresentaciones,
 	claveDeLinea, nombreConPresentacion, MIN_PRESENTACIONES,
 } = await import('../core/presentaciones.js');
-const { htmlPrecio } = await import('../core/html.js');
+const { htmlPrecio, htmlListaPresentaciones } = await import('../core/html.js');
 const { setRestaurante, setProductos } = await import('../core/menu.js');
 const { revalidarCarrito, tienePersonalizacion } = await import('../core/carrito.js');
 
@@ -165,5 +165,20 @@ describe('el carrito y las presentaciones (revalidarCarrito)', () => {
 		const r = revalidarCarrito([{ id: 'h', name: 'Hamburguesa', price: 18000, extras: 0, cantidad: 1 }]);
 		assert.equal(r.vivos[0].price, 20000);
 		assert.equal(r.vivos[0].cartKey, undefined, 'no se le inventa una clave');
+	});
+});
+
+describe('htmlListaPresentaciones · la lista de Explorar', () => {
+	test('un renglón por presentación, con el nombre escapado', () => {
+		const html = htmlListaPresentaciones({ atributos: { presentaciones: [
+			{ id: 'a', nombre: '1X', precio_numerico: 12000 }, { id: 'b', nombre: '<b>2X</b>', precio_numerico: 20000 }] } });
+		assert.equal((html.match(/<li>/g) || []).length, 2);
+		assert.match(html, /1X<\/span><span class="pres-precio">\$ 12\.000/);
+		assert.ok(!html.includes('<b>'), 'el nombre se escapa');
+	});
+
+	test('sin presentaciones (o con una sola) no hay lista', () => {
+		assert.equal(htmlListaPresentaciones({ atributos: {} }), '');
+		assert.equal(htmlListaPresentaciones({ atributos: { presentaciones: [{ id: 'a', nombre: '1X', precio_numerico: 1 }] } }), '');
 	});
 });

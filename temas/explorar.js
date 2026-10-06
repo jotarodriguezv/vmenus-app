@@ -13,7 +13,7 @@
 
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { trackClic } from '../core/analytics.js';
-import { esc, escUrl, notaDe, htmlPrecio } from '../core/html.js';
+import { esc, escUrl, notaDe, htmlPrecio, htmlListaPresentaciones } from '../core/html.js';
 import { fotosDe, construirCarrusel, noLlevaFoto } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
 // Este tema tenía su búsqueda desde el principio y conserva su lupa, que es
@@ -354,10 +354,11 @@ function itemLista(p, cat, map) {
 		<div class="exp-item-info">
 			<div class="exp-item-row">
 				<span class="exp-item-name">${esc(p.nombre)}</span>
-				<span class="exp-item-price">${htmlPrecio(p)}</span>
+				${tienePresentaciones(p) ? '' : `<span class="exp-item-price">${htmlPrecio(p)}</span>`}
 			</div>
 			${badgesHtml(p) ? `<div class="exp-badges">${badgesHtml(p)}</div>` : ''}
 			${p.descripcion ? `<p class="exp-item-desc">${esc(p.descripcion)}</p>` : ''}
+			${htmlListaPresentaciones(p)}
 			${chipsFiltrosProducto(p, map)}
 		</div>`;
 	alFallarImagen(div, '.exp-thumb img', cat.emoji, 'exp-thumb-ph');
@@ -390,7 +391,7 @@ function itemCard(p, cat, map) {
 		<div class="exp-card-body">
 			<div class="exp-card-name">${esc(p.nombre)}</div>
 			${p.descripcion ? `<div class="exp-card-desc">${esc(p.descripcion)}</div>` : ''}
-			<div class="exp-card-price">${htmlPrecio(p)}</div>
+			${tienePresentaciones(p) ? htmlListaPresentaciones(p) : `<div class="exp-card-price">${htmlPrecio(p)}</div>`}
 		</div>`;
 	alFallarImagen(div, '.exp-card-img', cat.emoji, 'exp-card-ph');
 	const mas = botonAgregar(p);
@@ -477,8 +478,9 @@ function openExpModal(p, cat, map) {
 		<div class="exp-modal-body">
 			${badgesHtml(p) ? `<div class="exp-badges">${badgesHtml(p)}</div>` : ''}
 			<div class="exp-modal-title">${esc(p.nombre)}</div>
-			<div class="exp-modal-price">${htmlPrecio(p)}</div>
+			${tienePresentaciones(p) ? '' : `<div class="exp-modal-price">${htmlPrecio(p)}</div>`}
 			${p.descripcion ? `<p class="exp-modal-desc">${esc(p.descripcion)}</p>` : ''}
+			${htmlListaPresentaciones(p)}
 			${p.descripcion_avanzada ? `<p class="exp-modal-desc-adv">${esc(p.descripcion_avanzada)}</p>` : ''}
 			${filtrosBloque}
 		</div>`;
