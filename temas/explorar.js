@@ -237,11 +237,18 @@ export function buildMenu() {
 }
 
 // ── BARRA DE CATEGORÍAS INFERIOR ──────────────────────────────
+// La barra enseña solo las categorías que HOY tienen platos a la vista: con un filtro o una búsqueda
+// puestos, una categoría sin coincidencias no está en la página, y pulsarla no llevaría a ningún lado.
+function pasaBusquedaYFiltros(p) {
+	return coincideBusqueda(p, searchTerm.toLowerCase().trim()) && pasaFiltros(p, activeFilters);
+}
+
 function buildCatNav() {
 	const nav = document.getElementById('expCatNav');
 	if (!nav) return;
 	nav.innerHTML = '';
-	const conProductos = categorias.filter(c => productos.some(p => p.categoria_id === c.id));
+	ultimoCentrado = null;
+	const conProductos = categorias.filter(c => productos.some(p => p.categoria_id === c.id && pasaBusquedaYFiltros(p)));
 	conProductos.forEach((cat, i) => {
 		const btn = document.createElement('button');
 		btn.className = 'exp-catnav-btn' + (i === 0 ? ' active' : '');
@@ -270,9 +277,9 @@ function renderDishes() {
 	const term = searchTerm.toLowerCase().trim();
 	const map = filtrosMap();
 
-	const pasa = (p) => coincideBusqueda(p, term) && pasaFiltros(p, activeFilters);
-
-	const visibles = productos.filter(pasa);
+	const visibles = productos.filter(pasaBusquedaYFiltros);
+	// La barra de abajo se rehace con lo que quedó a la vista.
+	buildCatNav();
 
 	if (!visibles.length) {
 		cont.innerHTML = `
