@@ -15,7 +15,7 @@ export function esc(s) {
 }
 
 import { estadoOferta, formatoPesos } from './ofertas.js';
-import { tienePresentaciones, textoPresentaciones } from './presentaciones.js';
+import { tienePresentaciones, textoPresentaciones, presentacionesDe } from './presentaciones.js';
 
 // Un cero no basta para decir que algo es gratis: muchas cartas antiguas lo
 // usaban como valor provisional. Solo la marca explícita del panel cambia lo
@@ -37,6 +37,17 @@ export function htmlPrecio(producto) {
 	if (tienePresentaciones(producto)) return esc(textoPresentaciones(producto));
 	if (estadoOferta(producto) !== 'vigente') return esc(textoPrecio(producto));
 	return `<s class="precio-antes">${esc(textoPrecio(producto))}</s> <span class="precio-oferta">${esc(formatoPesos(producto.oferta_precio_numerico))}</span>`;
+}
+
+// Las presentaciones como LISTA, una por renglón («1X ···· $ 12.000»), para los temas que tienen sitio
+// para ella (Explorar). Quien la use deja de pintar el precio en línea, que sería lo mismo dicho dos
+// veces. Vacía si el plato no tiene presentaciones.
+export function htmlListaPresentaciones(producto) {
+	const lista = presentacionesDe(producto);
+	if (!lista.length) return '';
+	return `<ul class="pres-lista">` + lista.map(x =>
+		`<li><span class="pres-nombre">${esc(x.nombre)}</span><span class="pres-precio">${esc(formatoPesos(x.precio_numerico))}</span></li>`
+	).join('') + `</ul>`;
 }
 
 // Para lo que va dentro de href/src. Escapar evita salirse del atributo pero

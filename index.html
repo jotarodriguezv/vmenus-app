@@ -1026,6 +1026,14 @@
 			.exp-item-info { flex: 1; min-width: 0; }
 			.exp-item-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 			.exp-item-name { font-family: var(--font-titulo, inherit); font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.3; }
+			/* Presentaciones de un plato (1X / 2X): una lista, un renglón por presentación. */
+			.pres-lista { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+			.pres-lista li { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+			.pres-lista li::after { content: ''; order: 2; flex: 1 1 auto; border-bottom: 1px dotted currentColor; opacity: .3; transform: translateY(-3px); }
+			.pres-nombre { order: 1; opacity: .9; }
+			.pres-precio { order: 3; font-family: var(--font-titulo, inherit); font-weight: 700; color: var(--primary); white-space: nowrap; }
+			.exp-modal-body .pres-lista { margin: 4px 0 12px; }
+			.exp-modal-body .pres-lista li { font-size: 16px; }
 			.exp-item-price { font-family: var(--font-titulo, inherit); font-size: 15px; font-weight: 700; color: var(--primary); white-space: nowrap; }
 			.exp-item-desc {
 				font-size: 12.5px; color: var(--text-muted); line-height: 1.5; margin-top: 3px;
