@@ -68,7 +68,10 @@ instalar: no ejecutar `npm install` esperando que haga algo.
   las tres corren contra `test/casos-negocio.json`, **duplicado a propósito**.
   Ver `docs/datos-del-negocio.md` del panel.
 
-  `intro.js` pinta la bienvenida; las **reservas de mesa** (botón y formulario dentro de
+  `intro.js` pinta la bienvenida; con `atributos.intro_estilo_carta === true` («Usar los colores y la
+  tipografía de la carta», opt-in) toma de la carta el fondo —copiado del `<body>`—, la tarjeta, el borde,
+  el texto y las fuentes, y los campos de color manuales dejan de aplicarse sin borrarse
+  (`aplicarEstiloDeLaCarta`, CSS `.intro-vmenus--carta`); las **reservas de mesa** (botón y formulario dentro de
   su tarjeta) viven aparte en `reservas-intro.js`, con el `fetch` por parámetro
   para probarlas. La carta no escribe en la base: manda la reserva al panel
   (`POST /api/reservas`), que valida de verdad. Ver `docs/reservas.md` del panel.
