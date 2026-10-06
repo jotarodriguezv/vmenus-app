@@ -13,7 +13,7 @@
 
 import { restaurante, categorias, productos } from '../core/menu.js';
 import { trackClic } from '../core/analytics.js';
-import { esc, escUrl, notaDe, htmlPrecio } from '../core/html.js';
+import { esc, escUrl, notaDe, htmlPrecio, htmlListaPresentaciones } from '../core/html.js';
 import { fotosDe, construirCarrusel, noLlevaFoto, fichaTieneQueMostrar } from '../core/carrusel.js';
 import { filtrosMap, filtrosEnUso, pasaFiltros } from '../core/filtros.js';
 // Este tema tenía su búsqueda desde el principio y conserva su lupa, que es
@@ -354,10 +354,11 @@ function itemLista(p, cat, map) {
 		<div class="exp-item-info">
 			<div class="exp-item-row">
 				<span class="exp-item-name">${esc(p.nombre)}</span>
-				<span class="exp-item-price">${htmlPrecio(p)}</span>
+				${tienePresentaciones(p) ? '' : `<span class="exp-item-price">${htmlPrecio(p)}</span>`}
 			</div>
 			${badgesHtml(p) ? `<div class="exp-badges">${badgesHtml(p)}</div>` : ''}
 			${p.descripcion ? `<p class="exp-item-desc">${esc(p.descripcion)}</p>` : ''}
+			${htmlListaPresentaciones(p)}
 			${chipsFiltrosProducto(p, map)}
 		</div>`;
 	alFallarImagen(div, '.exp-thumb img', cat.emoji, 'exp-thumb-ph');
@@ -389,7 +390,7 @@ function itemCard(p, cat, map) {
 		<div class="exp-card-body">
 			<div class="exp-card-name">${esc(p.nombre)}</div>
 			${p.descripcion ? `<div class="exp-card-desc">${esc(p.descripcion)}</div>` : ''}
-			<div class="exp-card-price">${htmlPrecio(p)}</div>
+			${tienePresentaciones(p) ? htmlListaPresentaciones(p) : `<div class="exp-card-price">${htmlPrecio(p)}</div>`}
 		</div>`;
 	alFallarImagen(div, '.exp-card-img', cat.emoji, 'exp-card-ph');
 	const mas = botonAgregar(p);
@@ -483,8 +484,9 @@ function openExpModal(p, cat, map) {
 		<div class="exp-modal-body">
 			${badgesHtml(p) ? `<div class="exp-badges">${badgesHtml(p)}</div>` : ''}
 			<div class="exp-modal-title">${esc(p.nombre)}</div>
-			<div class="exp-modal-price">${htmlPrecio(p)}</div>
+			${tienePresentaciones(p) ? '' : `<div class="exp-modal-price">${htmlPrecio(p)}</div>`}
 			${p.descripcion ? `<p class="exp-modal-desc">${esc(p.descripcion)}</p>` : ''}
+			${htmlListaPresentaciones(p)}
 			${p.descripcion_avanzada ? `<p class="exp-modal-desc-adv">${esc(p.descripcion_avanzada)}</p>` : ''}
 			${filtrosBloque}
 		</div>`;
@@ -572,11 +574,36 @@ function toggleFilterPanel() {
 }
 
 // ── SCROLL-SYNC de la barra inferior ──────────────────────────
+// Dos cosas que la barra no hacía: (1) marcar la categoría de la última sección cuando se llega al
+// final de la página —una sección corta como «Bebidas Frías» nunca cruza el 40 % de la pantalla, así
+// que la marca se quedaba en la anterior—, y (2) mover la barra para que la categoría marcada se vea:
+// la marca cambiaba pero la barra, que se desliza de lado, seguía mostrando las primeras.
 function syncCatNavOnScroll() {
 	if (!document.body.classList.contains('tema-explorar')) return;
 	const secs = document.querySelectorAll('.exp-section');
 	let current = null;
 	secs.forEach(s => { if (s.getBoundingClientRect().top < window.innerHeight * 0.4) current = s.id.replace('exp-sec-', ''); });
+	// Al fondo de la página manda la última sección, por corta que sea.
+	const alFondo = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+	if (alFondo && secs.length) current = secs[secs.length - 1].id.replace('exp-sec-', '');
 	if (!current) return;
-	document.querySelectorAll('.exp-catnav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.cat === current));
+	let activo = null;
+	document.querySelectorAll('.exp-catnav-btn').forEach(btn => {
+		const es = btn.dataset.cat === current;
+		btn.classList.toggle('active', es);
+		if (es) activo = btn;
+	});
+	centrarEnBarra(activo);
+}
+
+// Desliza la barra (solo ella: scrollIntoView movería también la página) hasta dejar el botón a la
+// vista. Si ya se ve entero no se toca, para no pelear con quien la está deslizando con el dedo.
+let ultimoCentrado = null;
+function centrarEnBarra(btn) {
+	const nav = document.getElementById('expCatNav');
+	if (!btn || !nav || btn === ultimoCentrado) return;
+	ultimoCentrado = btn;
+	const n = nav.getBoundingClientRect(), b = btn.getBoundingClientRect();
+	if (b.left >= n.left && b.right <= n.right) return;
+	nav.scrollTo({ left: nav.scrollLeft + (b.left - n.left) - (n.width - b.width) / 2, behavior: 'smooth' });
 }
