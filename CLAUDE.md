@@ -68,6 +68,13 @@ instalar: no ejecutar `npm install` esperando que haga algo.
   las tres corren contra `test/casos-negocio.json`, **duplicado a propósito**.
   Ver `docs/datos-del-negocio.md` del panel.
 
+  `adicionales.js` deja ofrecer, dentro del modal del pedido, **los platos de una categoría
+  «ADICIONALES»** de la propia carta (`atributos.adicionales_carta = { activo, categoria_id, categorias }`,
+  opt-in, Ajustes → carrito del panel): cada uno se traduce a un topping con costo sintético
+  (`adic_<id del plato>`, repetible) dentro de `opcionesDe()` de `carrito.js`, así que el modal, el recargo,
+  el WhatsApp y la revalidación no saben que existen. Un precio se cambia en un solo sitio y un adicional
+  agotado deja de ofrecerse.
+
   `intro.js` pinta la bienvenida; con `atributos.intro_estilo_carta === true` («Usar los colores y la
   tipografía de la carta», opt-in) toma de la carta el fondo —copiado del `<body>`—, la tarjeta, el borde,
   el texto y las fuentes, y los campos de color manuales dejan de aplicarse sin borrarse

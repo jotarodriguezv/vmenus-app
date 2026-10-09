@@ -25,6 +25,7 @@ import { whatsappDelNegocio } from './negocio.js';
 import { precioVigente, estadoOferta, formatoPesos } from './ofertas.js';
 import { presentacionesDe, tienePresentaciones, presentacionPorId, claveDeLinea, nombreConPresentacion, masBarata } from './presentaciones.js';
 import { llevarFocoA, devolverFoco, encerrarTab, soltarTab } from './teclado.js';
+import { configAdicionales, aplicaAdicionales, adicionalesDeLaCarta } from './adicionales.js';
 
 // ── CATÁLOGO DE MÉTODOS DE PAGO ─────────────────────────────────
 // El restaurante activa/desactiva cada uno y llena sus datos desde
@@ -151,7 +152,17 @@ function marcadoPor(seleccion) {
 	return t => s.has(t.id) || s.has(t.nombre);
 }
 
+// Lo propio del plato más, si el restaurante lo pidió, los adicionales de su carta (core/adicionales.js).
 function opcionesDe(p) {
+	const base = opcionesPropiasDe(p);
+	const config = configAdicionales(restaurante);
+	if (!aplicaAdicionales(p, config)) return base;
+	const ya = new Set(base.premium.map(t => t.id));
+	const extra = adicionalesDeLaCarta(productos, config).filter(a => !ya.has(a.id));
+	return extra.length ? { ...base, premium: [...base.premium, ...extra] } : base;
+}
+
+function opcionesPropiasDe(p) {
 	const sel = p?.atributos?.personalizacion;
 
 	// Platos de antes de que el catálogo subiera al restaurante: llevan su
